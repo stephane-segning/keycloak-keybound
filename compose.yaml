@@ -32,7 +32,6 @@ services:
       KC_HTTP_PORT: 9026
     <<: *keycloak-common-extra
 
-  # This is a mock server for the receiving end of the webhook
   prism:
     image: stoplight/prism:latest
     ports:

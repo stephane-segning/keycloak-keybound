@@ -9,19 +9,6 @@
   "loginWithEmailAllowed": false,
   "resetPasswordAllowed": false,
   "enabled": true,
-  "eventsEnabled": true,
-  "eventsExpiration": 86400,
-  "eventsListeners": [
-    "jboss-logging",
-    "webhook-syslog",
-    "webhook-http",
-    "webhook-amqp"
-  ],
-  "adminEventsEnabled": true,
-  "adminEventsDetailsEnabled": true,
-  "attributes": {
-    "adminEventsExpiration": "864000"
-  },
   "users": [
     {
       "email": "test@admin",
