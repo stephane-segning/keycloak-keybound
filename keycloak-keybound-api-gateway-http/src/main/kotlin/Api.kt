@@ -1,13 +1,14 @@
 package com.ssegning.keycloak.keybound.api
 
 import com.google.gson.Gson
-import com.ssegning.keycloak.keybound.api.openapi.client.handler.*
+import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
+import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
+import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
 import com.ssegning.keycloak.keybound.helper.noop
 import com.ssegning.keycloak.keybound.models.ApprovalStatus
-import com.ssegning.keycloak.keybound.models.SmsRequest
 import com.ssegning.keycloak.keybound.spi.ApiGateway
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -38,7 +39,7 @@ open class Api(
      */
     override fun sendSmsAndGetHash(
         context: AuthenticationFlowContext,
-        request: SmsRequest,
+        request: com.ssegning.keycloak.keybound.models.SmsRequest,
         phoneNumber: String
     ): String {
         val otp = request.metadata?.get("otp") as? String
@@ -76,7 +77,7 @@ open class Api(
      */
     override fun confirmSmsCode(
         context: AuthenticationFlowContext,
-        request: SmsRequest,
+        request: com.ssegning.keycloak.keybound.models.SmsRequest,
         phoneNumber: String,
         code: String,
         hash: String
@@ -107,47 +108,43 @@ open class Api(
         }
     }
 
-    override fun checkApprovalStatus(requestId: String): ApprovalStatus? {
-        return try {
-            val response = approvalsApi.getApproval(requestId)
-            when (response.status) {
-                ApprovalStatusResponse.Status.PENDING -> ApprovalStatus.PENDING
-                ApprovalStatusResponse.Status.APPROVED -> ApprovalStatus.APPROVED
-                ApprovalStatusResponse.Status.DENIED -> ApprovalStatus.DENIED
-                ApprovalStatusResponse.Status.EXPIRED -> ApprovalStatus.EXPIRED
-            }
-        } catch (e: Exception) {
-            log.error("Failed to check approval status for request $requestId", e)
-            null
+    override fun checkApprovalStatus(requestId: String) = try {
+        val response = approvalsApi.getApproval(requestId)
+        when (response.status) {
+            ApprovalStatusResponse.Status.PENDING -> ApprovalStatus.PENDING
+            ApprovalStatusResponse.Status.APPROVED -> ApprovalStatus.APPROVED
+            ApprovalStatusResponse.Status.DENIED -> ApprovalStatus.DENIED
+            ApprovalStatusResponse.Status.EXPIRED -> ApprovalStatus.EXPIRED
         }
+    } catch (e: Exception) {
+        log.error("Failed to check approval status for request $requestId", e)
+        null
     }
 
     override fun createApprovalRequest(
         context: AuthenticationFlowContext,
         userId: String,
         deviceData: com.ssegning.keycloak.keybound.models.DeviceDescriptor
-    ): String? {
-        return try {
-            val response = approvalsApi.createApproval(
-                ApprovalCreateRequest(
-                    realm = context.realm.name,
-                    clientId = context.authenticationSession.client.clientId,
-                    userId = userId,
-                    newDevice = DeviceDescriptor(
-                        deviceId = deviceData.deviceId,
-                        jkt = deviceData.jkt,
-                        publicJwk = deviceData.publicJwk,
-                        platform = deviceData.platform,
-                        model = deviceData.model,
-                        appVersion = deviceData.appVersion
-                    )
+    ) = try {
+        val response = approvalsApi.createApproval(
+            ApprovalCreateRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                userId = userId,
+                newDevice = DeviceDescriptor(
+                    deviceId = deviceData.deviceId,
+                    jkt = deviceData.jkt,
+                    publicJwk = deviceData.publicJwk,
+                    platform = deviceData.platform,
+                    model = deviceData.model,
+                    appVersion = deviceData.appVersion
                 )
             )
-            response.requestId
-        } catch (e: Exception) {
-            log.error("Failed to create approval request for user $userId", e)
-            null
-        }
+        )
+        response.requestId
+    } catch (e: Exception) {
+        log.error("Failed to create approval request for user $userId", e)
+        null
     }
 
     override fun close() = noop()

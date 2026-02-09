@@ -16,7 +16,8 @@ abstract class AbstractGrantType<T : OAuth2GrantTypeBase> : OAuth2GrantTypeFacto
 
     override fun init(config: Config.Scope) = noop()
 
-    override fun postInit(factory: KeycloakSessionFactory) = noop()
+    override fun postInit(factory: KeycloakSessionFactory) =
+        noop()
 
     override fun close() = noop()
 }

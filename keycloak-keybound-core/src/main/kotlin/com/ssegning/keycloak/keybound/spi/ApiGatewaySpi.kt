@@ -4,7 +4,7 @@ import org.keycloak.provider.Provider
 import org.keycloak.provider.ProviderFactory
 import org.keycloak.provider.Spi
 
-class ApiGatewaySpi : Spi {
+open class ApiGatewaySpi : Spi {
     override fun isInternal(): Boolean = true
 
     override fun getName(): String = "backend-spi"

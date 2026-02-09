@@ -12,6 +12,10 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
 
+    annotationProcessor("com.google.auto.service", "auto-service", "1.1.1")
+    compileOnly("com.google.auto.service", "auto-service", "1.1.1")
+
+    implementation("org.keycloak", "keycloak-services", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
 

@@ -48,7 +48,7 @@ class PersistDeviceCredentialAuthenticator : AbstractKeyAuthenticator() {
                 // Let's check if we can get the key ID or compute hash.
                 // For now, let's assume we can get it or use a placeholder if complex logic is needed without more deps.
                 // In standard Keycloak, JWK has a keyId.
-                jwk.keyId ?: "unknown" 
+                jwk.jwk.keyId ?: "unknown"
             } catch (e: Exception) {
                 log.warn("Could not parse public key to get key ID", e)
                 "unknown"

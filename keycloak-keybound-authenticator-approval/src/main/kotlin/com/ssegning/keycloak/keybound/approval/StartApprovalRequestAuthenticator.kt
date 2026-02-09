@@ -7,7 +7,6 @@ import com.ssegning.keycloak.keybound.models.DeviceDescriptor
 import com.ssegning.keycloak.keybound.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
-import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.KeycloakSession
 import org.slf4j.LoggerFactory
 

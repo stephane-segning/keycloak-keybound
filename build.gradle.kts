@@ -1,5 +1,6 @@
 plugins {
-    kotlin("jvm") version "1.9.23"
+    kotlin("jvm") version "2.3.0"
+    kotlin("kapt") version "2.3.10"
     id("org.jetbrains.changelog") version "2.5.0"
 }
 

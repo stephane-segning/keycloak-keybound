@@ -20,7 +20,8 @@ abstract class AbstractAuthenticatorFactory : AuthenticatorFactory, ServerInfoAw
 
     override fun init(config: Config.Scope) = noop()
 
-    override fun postInit(factory: KeycloakSessionFactory) = noop()
+    override fun postInit(factory: KeycloakSessionFactory) =
+        noop()
 
     override fun close() = noop()
 

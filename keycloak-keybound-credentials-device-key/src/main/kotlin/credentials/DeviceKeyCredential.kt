@@ -3,20 +3,14 @@ package com.ssegning.keycloak.keybound.credentials
 import com.ssegning.keycloak.keybound.core.models.DeviceCredentialData
 import com.ssegning.keycloak.keybound.core.models.DeviceSecretData
 import com.ssegning.keycloak.keybound.models.DeviceKeyCredentialModel
-import com.ssegning.keycloak.keybound.spi.ApiGateway
 import org.keycloak.common.util.Time
-import org.keycloak.credential.CredentialInput
-import org.keycloak.credential.CredentialInputValidator
-import org.keycloak.credential.CredentialModel
-import org.keycloak.credential.CredentialProvider
-import org.keycloak.credential.CredentialTypeMetadata
-import org.keycloak.credential.CredentialTypeMetadataContext
+import org.keycloak.credential.*
+import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.keycloak.util.JsonSerialization
-import java.util.stream.Stream
 
-class DeviceKeyCredential(val apiGateway: ApiGateway) : CredentialProvider<DeviceKeyCredentialModel>,
+class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<DeviceKeyCredentialModel>,
     CredentialInputValidator {
     override fun getType() = DeviceKeyCredentialModel.TYPE
 
@@ -58,7 +52,7 @@ class DeviceKeyCredential(val apiGateway: ApiGateway) : CredentialProvider<Devic
             .helpText("A key bound to a specific device.")
             .createAction(DeviceKeyCredentialModel.TYPE)
             .removeable(true)
-            .build(metadataContext.user)
+            .build(session)
     }
 
     override fun supportsCredentialType(credentialType: String?): Boolean {
@@ -67,7 +61,8 @@ class DeviceKeyCredential(val apiGateway: ApiGateway) : CredentialProvider<Devic
 
     override fun isConfiguredFor(realm: RealmModel?, user: UserModel?, credentialType: String?): Boolean {
         if (!supportsCredentialType(credentialType)) return false
-        return user?.credentialManager()?.getStoredCredentialsByTypeStream(credentialType)?.findAny()?.isPresent ?: false
+        return user?.credentialManager()?.getStoredCredentialsByTypeStream(credentialType)?.findAny()?.isPresent
+            ?: false
     }
 
     override fun isValid(realm: RealmModel?, user: UserModel?, credentialInput: CredentialInput?): Boolean {
@@ -81,7 +76,7 @@ class DeviceKeyCredential(val apiGateway: ApiGateway) : CredentialProvider<Devic
         // in a way that fits the standard CredentialInput interface easily without a custom implementation.
         // The actual verification will happen in the Authenticator/GrantType which will then
         // likely not call this method directly, or we will implement a custom CredentialInput later.
-        
+
         // TODO: Implement signature verification if a suitable CredentialInput is defined.
         return false
     }

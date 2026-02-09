@@ -7,11 +7,18 @@ import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
-import org.keycloak.models.KeycloakSession
+import org.keycloak.models.TokenManager
 import org.keycloak.representations.JsonWebToken
+import org.slf4j.LoggerFactory
 
-@Path("/")
-class DeviceApprovalResource(private val session: KeycloakSession) {
+class DeviceApprovalResource(
+    private val apiGateway: ApiGateway,
+    private val tokenManager: TokenManager
+) {
+
+    companion object {
+        private val log = LoggerFactory.getLogger(DeviceApprovalResource::class.java)
+    }
 
     @GET
     @Path("status")
@@ -24,8 +31,9 @@ class DeviceApprovalResource(private val session: KeycloakSession) {
         }
 
         val jwt = try {
-            session.tokens().decode(token, JsonWebToken::class.java)
+            tokenManager.decode(token, JsonWebToken::class.java)
         } catch (e: Exception) {
+            log.error(e.message, e)
             null
         }
 
@@ -43,20 +51,9 @@ class DeviceApprovalResource(private val session: KeycloakSession) {
                 .build()
         }
 
-        val apiGateway = session.getProvider(ApiGateway::class.java)
-        if (apiGateway == null) {
-             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                .entity(mapOf("error" to "ApiGateway provider not found"))
-                .build()
-        }
-
-        val status = apiGateway.checkApprovalStatus(requestId)
-
-        if (status == null) {
-             return Response.status(Response.Status.NOT_FOUND)
-                .entity(mapOf("error" to "Approval request not found"))
-                .build()
-        }
+        val status = apiGateway.checkApprovalStatus(requestId) ?: return Response.status(Response.Status.NOT_FOUND)
+            .entity(mapOf("error" to "Approval request not found"))
+            .build()
 
         return Response.ok(mapOf("status" to status.name.lowercase())).build()
     }

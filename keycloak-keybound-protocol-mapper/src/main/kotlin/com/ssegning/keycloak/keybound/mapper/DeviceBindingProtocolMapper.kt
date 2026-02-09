@@ -7,9 +7,10 @@ import org.keycloak.models.UserSessionModel
 import org.keycloak.protocol.oidc.mappers.AbstractOIDCProtocolMapper
 import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper
 import org.keycloak.protocol.oidc.mappers.OIDCIDTokenMapper
+import org.keycloak.provider.ProviderConfigProperty
 import org.keycloak.representations.IDToken
 
-class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTokenMapper, OIDCAccessTokenMapper {
+open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTokenMapper, OIDCAccessTokenMapper {
 
     companion object {
         const val PROVIDER_ID = "device-binding-mapper"
@@ -17,21 +18,15 @@ class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTokenMap
         const val JKT_NOTE = "jkt"
     }
 
-    override fun getDisplayCategory(): String {
-        return TOKEN_MAPPER_CATEGORY
-    }
+    override fun getDisplayCategory() = TOKEN_MAPPER_CATEGORY
 
-    override fun getDisplayType(): String {
-        return "Device Binding Mapper"
-    }
+    override fun getDisplayType() = "Device Binding Mapper"
 
-    override fun getHelpText(): String {
-        return "Maps device binding claims (cnf, device_id) to the token."
-    }
+    override fun getHelpText() = "Maps device binding claims (cnf, device_id) to the token."
 
-    override fun getId(): String {
-        return PROVIDER_ID
-    }
+    override fun getConfigProperties(): List<ProviderConfigProperty> = emptyList()
+
+    override fun getId() = PROVIDER_ID
 
     override fun setClaim(
         token: IDToken,
