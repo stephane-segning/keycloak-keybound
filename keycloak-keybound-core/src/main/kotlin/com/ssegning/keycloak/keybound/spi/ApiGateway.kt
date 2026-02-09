@@ -8,6 +8,7 @@ import org.keycloak.provider.Provider
 
 interface ApiGateway : Provider {
     fun sendSmsAndGetHash(context: AuthenticationFlowContext, request: SmsRequest, phoneNumber: String): String?
+
     fun confirmSmsCode(
         context: AuthenticationFlowContext,
         request: SmsRequest,
