@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.enrollment
 
 import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.helper.getEnv
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory
 import kotlin.io.encoding.Base64
 import kotlin.math.abs
 
-class VerifySignedBlobAuthenticator : AbstractAuthenticator() {
+class VerifySignedBlobAuthenticator : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(VerifySignedBlobAuthenticator::class.java)
         private val TTL: Long = "MIAO".getEnv()?.toLong() ?: 30
@@ -19,11 +20,11 @@ class VerifySignedBlobAuthenticator : AbstractAuthenticator() {
 
     override fun authenticate(context: AuthenticationFlowContext) {
         val session = context.authenticationSession
-        val deviceId = session.getAuthNote("device.id")
-        val publicKeyJwk = session.getAuthNote("device.public_key")
-        val tsStr = session.getAuthNote("device.ts")
-        val nonce = session.getAuthNote("device.nonce")
-        val sig = session.getAuthNote("device.sig")
+        val deviceId = session.getAuthNote(DEVICE_ID_NOTE_NAME)
+        val publicKeyJwk = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
+        val tsStr = session.getAuthNote(DEVICE_TS_NOTE_NAME)
+        val nonce = session.getAuthNote(DEVICE_NONE_NOTE_NAME)
+        val sig = session.getAuthNote(DEVICE_SIG_NOTE_NAME)
 
         if (deviceId == null || publicKeyJwk == null || tsStr == null || nonce == null || sig == null) {
             log.error("Missing required authentication notes for signature verification")

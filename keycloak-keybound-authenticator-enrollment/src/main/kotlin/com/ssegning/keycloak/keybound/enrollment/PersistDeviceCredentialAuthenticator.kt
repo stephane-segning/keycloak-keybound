@@ -1,12 +1,12 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.models.DeviceKeyCredentialModel
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
 
-class PersistDeviceCredentialAuthenticator : AbstractAuthenticator() {
+class PersistDeviceCredentialAuthenticator : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(PersistDeviceCredentialAuthenticator::class.java)
     }
@@ -20,8 +20,8 @@ class PersistDeviceCredentialAuthenticator : AbstractAuthenticator() {
         }
 
         val session = context.authenticationSession
-        val deviceId = session.getAuthNote("device.id")
-        val publicKey = session.getAuthNote("device.public_key")
+        val deviceId = session.getAuthNote(DEVICE_ID_NOTE_NAME)
+        val publicKey = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
 
         if (deviceId == null || publicKey == null) {
             log.error("Missing device.id or device.public_key in authentication session notes")

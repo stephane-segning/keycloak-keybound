@@ -15,8 +15,8 @@ class DeviceKeyGrantType(val apiGateway: ApiGateway) : OAuth2GrantTypeBase() {
     override fun getEventType(): EventType = EventType.REFRESH_TOKEN
 
     override fun process(context: OAuth2GrantType.Context): Response {
-        val session = context.getSession()
-        val client = context.getClient()
+        val session = context.session
+        val client = context.client
 
         if (client.isBearerOnly) {
             event.detail(Details.REASON, "Bearer-only client doesn't have device key")

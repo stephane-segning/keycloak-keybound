@@ -1,10 +1,10 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 
-class IngestSignedDeviceBlobAuthenticator : AbstractAuthenticator() {
+class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(IngestSignedDeviceBlobAuthenticator::class.java)
     }
@@ -22,13 +22,13 @@ class IngestSignedDeviceBlobAuthenticator : AbstractAuthenticator() {
         val aud = queryParameters.getFirst("aud")
 
         val session = context.authenticationSession
-        deviceId?.let { session.setAuthNote("device.id", it) }
-        publicKey?.let { session.setAuthNote("device.public_key", it) }
-        ts?.let { session.setAuthNote("device.ts", it) }
-        nonce?.let { session.setAuthNote("device.nonce", it) }
-        sig?.let { session.setAuthNote("device.sig", it) }
-        action?.let { session.setAuthNote("device.action", it) }
-        aud?.let { session.setAuthNote("device.aud", it) }
+        deviceId?.let { session.setAuthNote(DEVICE_ID_NOTE_NAME, it) }
+        publicKey?.let { session.setAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME, it) }
+        ts?.let { session.setAuthNote(DEVICE_TS_NOTE_NAME, it) }
+        nonce?.let { session.setAuthNote(DEVICE_NONE_NOTE_NAME, it) }
+        sig?.let { session.setAuthNote(DEVICE_SIG_NOTE_NAME, it) }
+        action?.let { session.setAuthNote(DEVICE_ACTION_NOTE_NAME, it) }
+        aud?.let { session.setAuthNote(DEVICE_AUD_NOTE_NAME, it) }
 
         context.success()
     }
