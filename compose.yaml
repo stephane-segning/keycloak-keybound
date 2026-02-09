@@ -1,0 +1,47 @@
+x-keycloak-common-env: &keycloak-common-env
+  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://prism:4010"
+  BACKEND_HTTP_AUTH_USERNAME: "admin"
+  BACKEND_HTTP_AUTH_PASSWORD: "password"
+
+x-keycloak-common-extra: &keycloak-common-extra
+  entrypoint: /bin/sh
+  command:
+    - -c
+    - |
+      set -ex
+      cp /tmp/libs-*/*-all.jar /opt/keycloak/providers # Copy the provider jars to the providers directory
+      /opt/keycloak/bin/kc.sh start-dev --import-realm # Start Keycloak in dev mode and import the realm
+  volumes:
+    - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
+    - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-authenticator-phone-number/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-core/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-grant-device-key/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-theme/build/libs:/tmp/libs-core:ro
+  links:
+    - prism
+
+services:
+  keycloak-26:
+    image: quay.io/keycloak/keycloak:26.5.2
+    ports:
+      - '127.0.0.1:9026:9026'
+    environment:
+      <<: *keycloak-common-env
+      KC_HTTP_PORT: 9026
+    <<: *keycloak-common-extra
+
+  # This is a mock server for the receiving end of the webhook
+  prism:
+    image: stoplight/prism:latest
+    ports:
+      - '127.0.0.1:4010:4010'
+    command:
+      - mock
+      - -h
+      - 0.0.0.0
+      - /backend.open-api.yml
+    volumes:
+      - ./openapi/backend.open-api.yml:/backend.open-api.yml
+    restart: unless-stopped

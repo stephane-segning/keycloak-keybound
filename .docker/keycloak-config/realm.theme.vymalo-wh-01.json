@@ -1,0 +1,42 @@
+{
+  "id": "ssegning-keybound-wh-01",
+  "realm": "ssegning-keybound-wh-01",
+  "displayName": "SSegning Keybound WH 01",
+  "displayNameHtml": "<b>SSegning Keybound</b> WH 01",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "resetPasswordAllowed": false,
+  "enabled": true,
+  "eventsEnabled": true,
+  "eventsExpiration": 86400,
+  "eventsListeners": [
+    "jboss-logging",
+    "webhook-syslog",
+    "webhook-http",
+    "webhook-amqp"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "attributes": {
+    "adminEventsExpiration": "864000"
+  },
+  "users": [
+    {
+      "email": "test@admin",
+      "username": "test",
+      "firstName": "DevOps",
+      "lastName": "SRE",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "test"
+        }
+      ]
+    }
+  ]
+}

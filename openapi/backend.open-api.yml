@@ -1,0 +1,532 @@
+openapi: 3.1.0
+info:
+  title: Keycloak Backend Device Enrollment & Approval API
+  version: 1.0.0
+  description: |
+    Server-to-server API implemented by the backend and called by Keycloak.
+    Covers device enrollment checks, device-user binding, approval workflow, and device registry queries.
+servers:
+  - url: https://backend.example.com
+    description: Backend base URL
+
+security:
+  - KCSignatureAuth: []
+
+tags:
+  - name: health
+  - name: enrollment
+  - name: approvals
+  - name: devices
+
+paths:
+  /v1/enrollments/precheck:
+    post:
+      tags: [enrollment]
+      summary: Pre-check whether a device key can be enrolled
+      description: |
+        Keycloak calls this to detect duplicates and enforce policy before persisting.
+        Backend should check if device_id or jkt is already bound to a user, revoked, etc.
+      operationId: enrollmentPrecheck
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentPrecheckRequest'
+      responses:
+        '200':
+          description: Policy decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentPrecheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/enrollments/bind:
+    post:
+      tags: [enrollment]
+      summary: Bind an enrolled device key to a user
+      description: |
+        Called when Keycloak has identified/created the user and is ready to persist.
+        Backend should atomically bind (device_id,jkt) to user_id and store public key material.
+        If already bound to the same user, should be idempotent.
+      operationId: enrollmentBind
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentBindRequest'
+      responses:
+        '200':
+          description: Bound (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentBindResponse'
+        '409':
+          description: Device already bound to a different user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/approvals:
+    post:
+      tags: [approvals]
+      summary: Create a new-device approval request
+      description: |
+        Called when an existing user is adding a new device and your policy requires approval.
+        Backend should notify existing devices (push/poll feed) and return a request_id.
+      operationId: createApproval
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflict (e.g., duplicate pending request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/approvals/{request_id}:
+    get:
+      tags: [approvals]
+      summary: Get approval request status
+      description: |
+        Keycloak polls this endpoint server-to-server, then serves a KC-local polling endpoint to the browser.
+      operationId: getApproval
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [approvals]
+      summary: Cancel an approval request
+      operationId: cancelApproval
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Cancelled
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/users/{user_id}/devices:
+    get:
+      tags: [devices]
+      summary: List devices for a user
+      description: |
+        Optional convenience endpoint for Keycloak to consult user device registry.
+      operationId: listUserDevices
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: include_revoked
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Device list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDevicesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/lookup:
+    post:
+      tags: [devices]
+      summary: Lookup device binding by device_id and/or jkt
+      description: |
+        Useful for custom grant: device_id/jkt -> user_id + public key material.
+      operationId: lookupDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceLookupRequest'
+      responses:
+        '200':
+          description: Lookup result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLookupResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    KCSignatureAuth:
+      type: apiKey
+      in: header
+      name: X-KC-Signature
+      description: |
+        HMAC signature over (timestamp + method + path + body) with a shared secret.
+        Pair with X-KC-Timestamp to prevent replay.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: |
+        If provided, backend should ensure repeated calls with the same key are idempotent.
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    EnrollmentPrecheckRequest:
+      type: object
+      required: [realm, client_id, device_id, jkt]
+      properties:
+        realm:
+          type: string
+          example: my-realm
+        client_id:
+          type: string
+          example: mobile-app
+        user_hint:
+          type: string
+          description: Optional user identifier hint (phone/email) if known at precheck time
+          example: +491234567890
+        device_id:
+          type: string
+          example: 3f6a0f2b-1f2e-4c37-9f7e-10f1a7c2b0d1
+        jkt:
+          type: string
+          description: JWK thumbprint (base64url)
+          example: 7bYwzOQ8f0o6u9p...
+        public_jwk:
+          type: object
+          description: Optional JWK for convenience; may be omitted at precheck
+          additionalProperties: true
+        proof_context:
+          type: object
+          additionalProperties: true
+          description: |
+            Free-form context: ip, user-agent, platform, etc.
+
+    EnrollmentPrecheckResponse:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [ALLOW, REQUIRE_APPROVAL, REJECT]
+        reason:
+          type: string
+          example: device_already_bound
+        bound_user_id:
+          type: string
+          nullable: true
+          description: If known, the user_id the device is already bound to
+        retry_after_seconds:
+          type: integer
+          nullable: true
+
+    EnrollmentBindRequest:
+      type: object
+      required: [realm, client_id, user_id, device_id, jkt, public_jwk]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        user_id:
+          type: string
+          description: Keycloak internal user id
+        user_hint:
+          type: string
+          description: Optional username (e.g., phone E.164)
+        device_id:
+          type: string
+        jkt:
+          type: string
+        public_jwk:
+          type: object
+          additionalProperties: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Extra attributes to store with the device
+        created_at:
+          type: string
+          format: date-time
+        proof:
+          type: object
+          description: Optional proof summary (ts, nonce, sig hash) for audit
+          additionalProperties: true
+
+    EnrollmentBindResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [BOUND, ALREADY_BOUND]
+        device_record_id:
+          type: string
+          nullable: true
+        bound_user_id:
+          type: string
+
+    ApprovalCreateRequest:
+      type: object
+      required: [realm, client_id, user_id, new_device]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        user_id:
+          type: string
+        new_device:
+          $ref: '#/components/schemas/DeviceDescriptor'
+        reason:
+          type: string
+          example: add_new_device
+        expires_at:
+          type: string
+          format: date-time
+        context:
+          type: object
+          additionalProperties: true
+          description: ip, user agent, geo hints, etc.
+
+    ApprovalCreateResponse:
+      type: object
+      required: [request_id, status]
+      properties:
+        request_id:
+          type: string
+          example: apr_01HZX8V9A3M1Y8S9R6W3B4KQ2P
+        status:
+          type: string
+          enum: [PENDING]
+        expires_at:
+          type: string
+          format: date-time
+
+    ApprovalStatusResponse:
+      type: object
+      required: [request_id, status]
+      properties:
+        request_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, DENIED, EXPIRED]
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        decided_by_device_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    DeviceDescriptor:
+      type: object
+      required: [device_id, jkt]
+      properties:
+        device_id:
+          type: string
+        jkt:
+          type: string
+        public_jwk:
+          type: object
+          additionalProperties: true
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+          example: ios
+        model:
+          type: string
+          nullable: true
+        app_version:
+          type: string
+          nullable: true
+
+    UserDevicesResponse:
+      type: object
+      required: [user_id, devices]
+      properties:
+        user_id:
+          type: string
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceRecord'
+
+    DeviceRecord:
+      type: object
+      required: [device_id, jkt, status, created_at]
+      properties:
+        device_id:
+          type: string
+        jkt:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, REVOKED, SUSPENDED]
+        created_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        label:
+          type: string
+          nullable: true
+
+    DeviceLookupRequest:
+      type: object
+      properties:
+        device_id:
+          type: string
+          nullable: true
+        jkt:
+          type: string
+          nullable: true
+      anyOf:
+        - required: [device_id]
+        - required: [jkt]
+
+    DeviceLookupResponse:
+      type: object
+      required: [found]
+      properties:
+        found:
+          type: boolean
+        user_id:
+          type: string
+          nullable: true
+        device:
+          $ref: '#/components/schemas/DeviceRecord'
+        public_jwk:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: bad_request
+        message:
+          type: string
+          example: Invalid payload
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+x-authentication:
+  description: |
+    Suggested request signing:
+    
+    - Keycloak sends:
+      - X-KC-Timestamp: epoch seconds
+      - X-KC-Signature: base64url(HMAC_SHA256(secret, canonical))
+    
+    canonical = timestamp + "\n" + method + "\n" + path + "\n" + sha256(body)
+    
+    Backend should reject if timestamp outside allowed skew (e.g., 60s).

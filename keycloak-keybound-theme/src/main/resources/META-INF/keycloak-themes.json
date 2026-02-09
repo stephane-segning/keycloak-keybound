@@ -1,0 +1,8 @@
+{
+  "themes": [
+    {
+      "name": "base",
+      "types": ["login"]
+    }
+  ]
+}

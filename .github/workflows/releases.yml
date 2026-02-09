@@ -1,0 +1,67 @@
+name: CI
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - 'f*'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v3
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: shadow
+      - name: Centralize Artifacts
+        run: |
+          mkdir -p dist
+          cp */build/libs/*.jar ./
+        
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: target-jar
+          path: "*.jar"
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: target-jar
+
+      # Upload as an artifact of the current workflow
+      - name: Upload build zip artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: Release artifacts
+          path: '*.jar'
+
+      # Make official GitHub release which will trigger
+      # sending the mail with link for access
+      - name: Release
+        uses: ncipollo/release-action@v1
+        # Release only on tag push
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        with:
+          artifacts: '*.jar'
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          bodyFile: CHANGELOG.md
+          tag: v0.1.0
