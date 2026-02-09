@@ -2,6 +2,7 @@ package com.ssegning.keycloak.keybound.enrollment
 
 import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import org.keycloak.authentication.AuthenticationFlowContext
+import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
 
 class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
@@ -20,6 +21,15 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
         val sig = queryParameters.getFirst("sig")
         val action = queryParameters.getFirst("action")
         val aud = queryParameters.getFirst("aud")
+
+        // Input length validation to prevent potential DoS attacks
+        // We limit the length of each parameter to 2048 characters to avoid unbounded input storage
+        val maxInputLength = 2048
+        if (listOf(deviceId, publicKey, ts, nonce, sig, action, aud).any { it != null && it.length > maxInputLength }) {
+            log.warn("Input parameter exceeded maximum length of $maxInputLength characters")
+            context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
+            return
+        }
 
         val session = context.authenticationSession
         deviceId?.let { session.setAuthNote(DEVICE_ID_NOTE_NAME, it) }

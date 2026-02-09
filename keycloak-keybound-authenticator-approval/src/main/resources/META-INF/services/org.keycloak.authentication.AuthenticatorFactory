@@ -1,0 +1,2 @@
+com.ssegning.keycloak.keybound.approval.StartApprovalRequestAuthenticatorFactory
+com.ssegning.keycloak.keybound.approval.WaitForApprovalFormAuthenticatorFactory

@@ -1,5 +1,7 @@
 package com.ssegning.keycloak.keybound.spi
 
+import com.ssegning.keycloak.keybound.models.ApprovalStatus
+import com.ssegning.keycloak.keybound.models.DeviceDescriptor
 import com.ssegning.keycloak.keybound.models.SmsRequest
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.provider.Provider
@@ -12,5 +14,13 @@ interface ApiGateway : Provider {
         phoneNumber: String,
         code: String,
         hash: String
+    ): String?
+
+    fun checkApprovalStatus(requestId: String): ApprovalStatus?
+
+    fun createApprovalRequest(
+        context: AuthenticationFlowContext,
+        userId: String,
+        deviceData: DeviceDescriptor
     ): String?
 }

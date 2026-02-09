@@ -1,6 +1,5 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.helper.getEnv
 import org.keycloak.authentication.AuthenticationFlowContext
@@ -8,6 +7,7 @@ import org.keycloak.authentication.AuthenticationFlowError
 import org.keycloak.crypto.*
 import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.SingleUseObjectProvider
+import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
 import kotlin.io.encoding.Base64
 import kotlin.math.abs
@@ -64,34 +64,31 @@ class VerifySignedBlobAuthenticator : AbstractKeyAuthenticator() {
             val publicKey = jwkParser.toPublicKey()
 
             // Construct canonical string: device_id + public_key + ts + nonce
-            val canonicalString = deviceId + publicKeyJwk + tsStr + nonce
+            // SECURITY: Use a structured format (JSON) to prevent canonicalization attacks.
+            // Simple concatenation is ambiguous and allows signature forgery.
+            val canonicalData = mapOf(
+                "deviceId" to deviceId,
+                "publicKey" to publicKeyJwk,
+                "ts" to tsStr,
+                "nonce" to nonce
+            )
+            val canonicalString = JsonSerialization.writeValueAsString(canonicalData)
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
             // Choose decoder depending on what your client sends:
             // - Base64 URL-safe is common for JOSE-ish payloads
             val signatureBytes = Base64.decode(sig)
 
-            val alg = jwk.algorithm ?: run {
-                log.error("Missing 'alg' in JWK; cannot verify signature safely")
-                context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
-                return
-            }
+            // SECURITY: Enforce ES256 to prevent algorithm confusion attacks.
+            // We do not trust the 'alg' header from the user-provided JWK.
+            val alg = Algorithm.ES256
 
             val key = KeyWrapper().apply {
                 setPublicKey(publicKey)
                 algorithm = alg
             }
 
-            val verifier: SignatureVerifierContext = when {
-                JavaAlgorithm.isECJavaAlgorithm(alg) ->
-                    ECDSASignatureVerifierContext(key)
-
-                JavaAlgorithm.isEddsaJavaAlgorithm(alg) || alg == Algorithm.EdDSA -> ServerEdDSASignatureVerifierContext(
-                    key
-                )
-
-                else -> AsymmetricSignatureVerifierContext(key) // RSA/RS*/PS*
-            }
+            val verifier = ECDSASignatureVerifierContext(key)
 
             if (!verifier.verify(data, signatureBytes)) {
                 log.error("Signature verification failed for device: $deviceId")
