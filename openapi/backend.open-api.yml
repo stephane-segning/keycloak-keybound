@@ -477,16 +477,17 @@ components:
 
     DeviceLookupRequest:
       type: object
-      properties:
-        device_id:
-          type: string
-          nullable: true
-        jkt:
-          type: string
-          nullable: true
       anyOf:
         - required: [device_id]
+          properties:
+            device_id:
+              type: string
+              nullable: true
         - required: [jkt]
+          properties:
+            jkt:
+              type: string
+              nullable: true
 
     DeviceLookupResponse:
       type: object
@@ -518,15 +519,3 @@ components:
           type: object
           additionalProperties: true
           nullable: true
-
-x-authentication:
-  description: |
-    Suggested request signing:
-    
-    - Keycloak sends:
-      - X-KC-Timestamp: epoch seconds
-      - X-KC-Signature: base64url(HMAC_SHA256(secret, canonical))
-    
-    canonical = timestamp + "\n" + method + "\n" + path + "\n" + sha256(body)
-    
-    Backend should reject if timestamp outside allowed skew (e.g., 60s).

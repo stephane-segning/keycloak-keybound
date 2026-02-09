@@ -1,5 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     kotlin("jvm")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.ssegning.keycloak.keybound"
@@ -19,4 +22,15 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks {
+    val shadowJar by existing(ShadowJar::class) {
+        dependencies {
+            include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+            include(dependency("com.googlecode.libphonenumber:libphonenumber"))
+            include(dependency("com.google.code.gson:gson"))
+        }
+        dependsOn(build)
+    }
 }
