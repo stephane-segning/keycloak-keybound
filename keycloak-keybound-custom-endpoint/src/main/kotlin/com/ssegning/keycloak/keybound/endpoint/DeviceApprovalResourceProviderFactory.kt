@@ -9,7 +9,7 @@ import org.keycloak.services.resource.RealmResourceProviderFactory
 class DeviceApprovalResourceProviderFactory : RealmResourceProviderFactory {
 
     companion object {
-        const val ID = "device-approval-resource"
+        const val ID = "device-approval"
     }
 
     override fun create(session: KeycloakSession): RealmResourceProvider {

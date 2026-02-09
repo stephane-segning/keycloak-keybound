@@ -1,6 +1,6 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticatorFactory
+import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticatorFactory
 import com.ssegning.keycloak.keybound.spi.ApiGateway
 import org.keycloak.authentication.Authenticator
 import org.keycloak.models.AuthenticationExecutionModel

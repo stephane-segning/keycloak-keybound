@@ -12,18 +12,12 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
 
-    implementation("org.keycloak", "keycloak-services", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
 
     implementation(project(":keycloak-keybound-core"))
-    implementation(project(":keycloak-keybound-credentials-device-key"))
 }
 
 tasks.test {
     useJUnitPlatform()
-}
-
-kotlin {
-    jvmToolchain(21)
 }

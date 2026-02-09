@@ -1,6 +1,6 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.helper.getApi
 import com.ssegning.keycloak.keybound.models.SmsRequest
 import jakarta.ws.rs.core.MultivaluedMap

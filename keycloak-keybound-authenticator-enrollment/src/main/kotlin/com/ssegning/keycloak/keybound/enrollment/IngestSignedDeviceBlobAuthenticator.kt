@@ -35,7 +35,7 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
         deviceId?.let { session.setAuthNote(DEVICE_ID_NOTE_NAME, it) }
         publicKey?.let { session.setAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME, it) }
         ts?.let { session.setAuthNote(DEVICE_TS_NOTE_NAME, it) }
-        nonce?.let { session.setAuthNote(DEVICE_NONE_NOTE_NAME, it) }
+        nonce?.let { session.setAuthNote(DEVICE_NONCE_NOTE_NAME, it) }
         sig?.let { session.setAuthNote(DEVICE_SIG_NOTE_NAME, it) }
         action?.let { session.setAuthNote(DEVICE_ACTION_NOTE_NAME, it) }
         aud?.let { session.setAuthNote(DEVICE_AUD_NOTE_NAME, it) }

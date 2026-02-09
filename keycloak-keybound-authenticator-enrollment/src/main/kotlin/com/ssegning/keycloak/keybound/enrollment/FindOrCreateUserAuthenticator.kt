@@ -1,6 +1,6 @@
 package com.ssegning.keycloak.keybound.enrollment
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticator
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory

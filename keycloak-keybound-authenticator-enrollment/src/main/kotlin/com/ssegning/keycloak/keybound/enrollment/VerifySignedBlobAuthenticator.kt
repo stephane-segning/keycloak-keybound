@@ -23,7 +23,7 @@ class VerifySignedBlobAuthenticator : AbstractKeyAuthenticator() {
         val deviceId = session.getAuthNote(DEVICE_ID_NOTE_NAME)
         val publicKeyJwk = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
         val tsStr = session.getAuthNote(DEVICE_TS_NOTE_NAME)
-        val nonce = session.getAuthNote(DEVICE_NONE_NOTE_NAME)
+        val nonce = session.getAuthNote(DEVICE_NONCE_NOTE_NAME)
         val sig = session.getAuthNote(DEVICE_SIG_NOTE_NAME)
 
         if (deviceId == null || publicKeyJwk == null || tsStr == null || nonce == null || sig == null) {

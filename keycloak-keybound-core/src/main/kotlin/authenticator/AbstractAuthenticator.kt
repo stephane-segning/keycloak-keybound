@@ -1,4 +1,4 @@
-package com.ssegning.keycloak.keybound.authentcator
+package com.ssegning.keycloak.keybound.authenticator
 
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.ssegning.keycloak.keybound.helper.noop

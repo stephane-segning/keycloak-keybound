@@ -12,6 +12,6 @@ class DeviceKeyGrantTypeFactory : AbstractGrantType<DeviceKeyGrantType>() {
 
     companion object {
         const val DEVICE_KEY_GRANT_SHORTCUT = "dvk"
-        const val DEVICE_KEY_GRANT_ID = "device_key_grant_id"
+        const val DEVICE_KEY_GRANT_ID = "urn:ietf:params:oauth:grant-type:device_key"
     }
 }

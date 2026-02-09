@@ -1,4 +1,4 @@
-package com.ssegning.keycloak.keybound.authentcator
+package com.ssegning.keycloak.keybound.authenticator
 
 import com.ssegning.keycloak.keybound.helper.SPI_CORE_INFO
 import com.ssegning.keycloak.keybound.helper.getApi

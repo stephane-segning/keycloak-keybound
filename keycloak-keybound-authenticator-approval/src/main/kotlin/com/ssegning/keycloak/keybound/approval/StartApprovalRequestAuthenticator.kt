@@ -1,7 +1,7 @@
 package com.ssegning.keycloak.keybound.approval
 
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticator
-import com.ssegning.keycloak.keybound.authentcator.AbstractAuthenticatorFactory
+import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticatorFactory
 import com.ssegning.keycloak.keybound.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.models.DeviceDescriptor
 import com.ssegning.keycloak.keybound.spi.ApiGateway
