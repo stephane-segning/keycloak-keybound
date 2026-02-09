@@ -1,5 +1,0 @@
-com.ssegning.keycloak.keybound.authenticator.PhoneNumberConfirmNumberFactory
-com.ssegning.keycloak.keybound.authenticator.PhoneNumberGetNumberFactory
-com.ssegning.keycloak.keybound.authenticator.PhoneNumberChooseUserFactory
-com.ssegning.keycloak.keybound.authenticator.PhoneNumberSendTanFactory
-com.ssegning.keycloak.keybound.authenticator.PhoneNumberValidateTanFactory

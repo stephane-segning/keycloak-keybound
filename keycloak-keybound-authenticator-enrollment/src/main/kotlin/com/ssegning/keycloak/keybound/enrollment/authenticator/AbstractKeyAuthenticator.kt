@@ -1,0 +1,4 @@
+package authenticator
+
+class AbstractKeyAuthenticator {
+}

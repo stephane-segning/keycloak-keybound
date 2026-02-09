@@ -1,0 +1,5 @@
+com.ssegning.keycloak.keybound.enrollment.IngestSignedDeviceBlobAuthenticatorFactory
+com.ssegning.keycloak.keybound.enrollment.VerifySignedBlobAuthenticatorFactory
+com.ssegning.keycloak.keybound.enrollment.CollectPhoneFormAuthenticatorFactory
+com.ssegning.keycloak.keybound.enrollment.FindOrCreateUserAuthenticatorFactory
+com.ssegning.keycloak.keybound.enrollment.PersistDeviceCredentialAuthenticatorFactory

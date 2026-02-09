@@ -1,6 +1,5 @@
 package com.ssegning.keycloak.keybound.credentials
 
-import com.ssegning.keycloak.keybound.core.AbstractCredentialProviderFactory
 import com.ssegning.keycloak.keybound.helper.getApi
 import org.keycloak.models.KeycloakSession
 

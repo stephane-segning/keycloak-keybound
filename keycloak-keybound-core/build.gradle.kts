@@ -16,8 +16,11 @@ dependencies {
     testImplementation(kotlin("test"))
 
     implementation("com.googlecode.libphonenumber", "libphonenumber", "9.0.20")
+    implementation("com.squareup.okhttp3", "okhttp", "4.12.0")
 
     implementation("org.keycloak", "keycloak-services", "26.5.2")
+    implementation("org.keycloak", "keycloak-server-spi", "26.5.2")
+    implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
 }
 
 tasks.test {

@@ -3,6 +3,8 @@ x-keycloak-common-env: &keycloak-common-env
   BACKEND_HTTP_AUTH_USERNAME: "admin"
   BACKEND_HTTP_AUTH_PASSWORD: "password"
 
+  NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
+
 x-keycloak-common-extra: &keycloak-common-extra
   entrypoint: /bin/sh
   command:
