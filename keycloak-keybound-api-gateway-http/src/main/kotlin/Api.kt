@@ -7,9 +7,10 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
-import com.ssegning.keycloak.keybound.helper.noop
-import com.ssegning.keycloak.keybound.models.ApprovalStatus
-import com.ssegning.keycloak.keybound.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.helper.noop
+import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
+import com.ssegning.keycloak.keybound.core.models.SmsRequest
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -39,7 +40,7 @@ open class Api(
      */
     override fun sendSmsAndGetHash(
         context: AuthenticationFlowContext,
-        request: com.ssegning.keycloak.keybound.models.SmsRequest,
+        request: SmsRequest,
         phoneNumber: String
     ): String {
         val otp = request.metadata?.get("otp") as? String
@@ -77,7 +78,7 @@ open class Api(
      */
     override fun confirmSmsCode(
         context: AuthenticationFlowContext,
-        request: com.ssegning.keycloak.keybound.models.SmsRequest,
+        request: SmsRequest,
         phoneNumber: String,
         code: String,
         hash: String
@@ -108,7 +109,7 @@ open class Api(
         }
     }
 
-    override fun checkApprovalStatus(requestId: String) = try {
+    override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {
         val response = approvalsApi.getApproval(requestId)
         when (response.status) {
             ApprovalStatusResponse.Status.PENDING -> ApprovalStatus.PENDING
@@ -124,8 +125,8 @@ open class Api(
     override fun createApprovalRequest(
         context: AuthenticationFlowContext,
         userId: String,
-        deviceData: com.ssegning.keycloak.keybound.models.DeviceDescriptor
-    ) = try {
+        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
+    ): String? = try {
         val response = approvalsApi.createApproval(
             ApprovalCreateRequest(
                 realm = context.realm.name,

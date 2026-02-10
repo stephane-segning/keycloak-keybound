@@ -1,5 +1,6 @@
 package com.ssegning.keycloak.keybound.endpoint
 
+import com.ssegning.keycloak.keybound.core.helper.noop
 import org.keycloak.Config
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.KeycloakSessionFactory
@@ -12,11 +13,11 @@ open class DeviceApprovalResourceProviderFactory : RealmResourceProviderFactory 
 
     override fun create(session: KeycloakSession) = DeviceApprovalResourceProvider(session)
 
-    override fun init(config: Config.Scope) {}
+    override fun init(config: Config.Scope) = noop()
 
-    override fun postInit(factory: KeycloakSessionFactory) {}
+    override fun postInit(factory: KeycloakSessionFactory) = noop()
 
-    override fun close() {}
+    override fun close() = noop()
 
     override fun getId() = ID
 }

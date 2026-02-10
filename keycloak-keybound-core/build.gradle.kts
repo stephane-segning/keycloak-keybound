@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.jvm.tasks.Jar
 
 plugins {
     kotlin("jvm")
@@ -30,11 +31,13 @@ tasks.test {
     useJUnitPlatform()
 }
 
+val shadowJarTask = tasks.named<ShadowJar>("shadowJar")
+
 shadow {
     addShadowVariantIntoJavaComponent = false
 }
 
-tasks.shadowJar {
+shadowJarTask.configure {
     archiveBaseName = "keycloak-keybound-all"
 
     dependencies {
@@ -44,4 +47,18 @@ tasks.shadowJar {
         include(dependency("com.squareup.okhttp3:okhttp"))
         include(dependency("com.squareup.okio:okio-jvm"))
     }
+}
+
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
+listOf("apiElements", "runtimeElements").forEach {
+    configurations.named(it) {
+        outgoing.artifact(shadowJarTask)
+    }
+}
+
+tasks.named("build") {
+    dependsOn(shadowJarTask)
 }

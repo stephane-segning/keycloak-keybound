@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.endpoint
 
-import com.ssegning.keycloak.keybound.helper.getApi
+import com.ssegning.keycloak.keybound.core.helper.getApi
+import com.ssegning.keycloak.keybound.core.helper.noop
 import org.keycloak.models.KeycloakSession
 import org.keycloak.services.resource.RealmResourceProvider
 
@@ -10,6 +11,5 @@ class DeviceApprovalResourceProvider(
 
     override fun getResource(): Any = DeviceApprovalResource(session.getApi(), session.tokens())
 
-    override fun close() {
-    }
+    override fun close() = noop()
 }

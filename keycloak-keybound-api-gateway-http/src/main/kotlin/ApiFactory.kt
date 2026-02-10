@@ -3,10 +3,10 @@ package com.ssegning.keycloak.keybound.api
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
-import com.ssegning.keycloak.keybound.helper.noop
-import com.ssegning.keycloak.keybound.models.HttpConfig
-import com.ssegning.keycloak.keybound.spi.ApiGateway
-import com.ssegning.keycloak.keybound.spi.ApiGatewayProviderFactory
+import com.ssegning.keycloak.keybound.core.helper.noop
+import com.ssegning.keycloak.keybound.core.models.HttpConfig
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.spi.ApiGatewayProviderFactory
 import org.keycloak.Config
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.KeycloakSessionFactory

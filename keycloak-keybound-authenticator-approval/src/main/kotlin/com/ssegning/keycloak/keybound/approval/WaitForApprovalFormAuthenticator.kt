@@ -1,12 +1,14 @@
 package com.ssegning.keycloak.keybound.approval
 
-import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticator
-import com.ssegning.keycloak.keybound.authenticator.AbstractAuthenticatorFactory
-import com.ssegning.keycloak.keybound.models.ApprovalStatus
-import com.ssegning.keycloak.keybound.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticatorFactory
+import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.keycloak.crypto.Algorithm
+import org.keycloak.crypto.KeyUse
+import org.keycloak.crypto.ServerAsymmetricSignatureSignerContext
 import org.keycloak.jose.jws.JWSBuilder
 import org.keycloak.models.KeycloakSession
 import org.slf4j.LoggerFactory
@@ -71,8 +73,8 @@ class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
                 )
             )
             .sign(
-                org.keycloak.crypto.ServerAsymmetricSignatureSignerContext(
-                    context.session.keys().getActiveKey(context.realm, org.keycloak.crypto.KeyUse.SIG, Algorithm.RS256)
+                ServerAsymmetricSignatureSignerContext(
+                    context.session.keys().getActiveKey(context.realm, KeyUse.SIG, Algorithm.RS256)
                 )
             )
     }

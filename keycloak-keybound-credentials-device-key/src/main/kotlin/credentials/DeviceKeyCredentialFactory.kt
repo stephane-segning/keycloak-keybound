@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.credentials
 
-import com.ssegning.keycloak.keybound.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.credentials.AbstractCredentialProviderFactory
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
 
 open class DeviceKeyCredentialFactory : AbstractCredentialProviderFactory<DeviceKeyCredential>() {

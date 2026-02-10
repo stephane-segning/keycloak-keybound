@@ -5,6 +5,9 @@ x-keycloak-common-env: &keycloak-common-env
 
   NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
 
+  KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  KC_BOOTSTRAP_ADMIN_PASSWORD: password
+
 x-keycloak-common-extra: &keycloak-common-extra
   entrypoint: /bin/sh
   command:

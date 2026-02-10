@@ -1,6 +1,6 @@
 package com.ssegning.keycloak.keybound.endpoint
 
-import com.ssegning.keycloak.keybound.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
 import jakarta.ws.rs.Produces

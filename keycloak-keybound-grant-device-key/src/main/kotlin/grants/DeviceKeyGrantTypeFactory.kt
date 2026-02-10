@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.grants
 
-import com.ssegning.keycloak.keybound.spi.ApiGateway
+import com.ssegning.keycloak.keybound.core.grants.AbstractGrantType
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
 
 open class DeviceKeyGrantTypeFactory : AbstractGrantType<DeviceKeyGrantType>() {

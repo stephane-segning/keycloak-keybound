@@ -1,8 +1,8 @@
 package com.ssegning.keycloak.keybound.credentials
 
 import com.ssegning.keycloak.keybound.core.models.DeviceCredentialData
+import com.ssegning.keycloak.keybound.core.models.DeviceKeyCredentialModel
 import com.ssegning.keycloak.keybound.core.models.DeviceSecretData
-import com.ssegning.keycloak.keybound.models.DeviceKeyCredentialModel
 import org.keycloak.common.util.Time
 import org.keycloak.credential.*
 import org.keycloak.models.KeycloakSession
