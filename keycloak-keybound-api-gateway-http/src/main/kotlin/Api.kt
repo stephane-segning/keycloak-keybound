@@ -1,34 +1,27 @@
 package com.ssegning.keycloak.keybound.api
 
-import com.google.gson.Gson
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
+import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsConfirmRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsSendRequest
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
 import com.ssegning.keycloak.keybound.core.models.SmsRequest
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 
 open class Api(
     val devicesApi: DevicesApi,
     val approvalsApi: ApprovalsApi,
-    val enrollmentApi: EnrollmentApi,
-    private val baseUrl: String,
-    private val client: OkHttpClient
+    val enrollmentApi: EnrollmentApi
 ) : ApiGateway {
     companion object {
         private val log = LoggerFactory.getLogger(Api::class.java)
-        private val JSON = "application/json; charset=utf-8".toMediaType()
-        private val gson = Gson()
     }
 
     /**
@@ -46,27 +39,22 @@ open class Api(
         val otp = request.metadata?.get("otp") as? String
             ?: throw IllegalArgumentException("OTP not found in request metadata")
 
-        val url = "$baseUrl/v1/sms/send"
-        val jsonBody = mapOf("phoneNumber" to phoneNumber, "otp" to otp)
-        val body = gson.toJson(jsonBody).toRequestBody(JSON)
+        val smsSendRequest = SmsSendRequest(
+            realm = request.realm ?: context.realm?.name.orEmpty(),
+            clientId = request.clientId ?: context.authenticationSession.client.clientId,
+            phoneNumber = phoneNumber,
+            otp = otp,
+            userId = context.user?.id,
+            sessionId = request.sessionId,
+            traceId = request.traceId,
+            metadata = request.metadata?.mapNotNull { (key, value) ->
+                key?.let { nonNullKey ->
+                    value?.let { nonNullValue -> nonNullKey to nonNullValue }
+                }
+            }?.toMap()
+        )
 
-        val httpRequest = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
-
-        return client.newCall(httpRequest).execute().use { response ->
-            if (!response.isSuccessful) {
-                log.error("Failed to send SMS: ${response.code} ${response.message}")
-                throw RuntimeException("Failed to send SMS: ${response.code}")
-            }
-
-            val responseBody = response.body?.string()
-                ?: throw RuntimeException("Empty response from SMS backend")
-
-            val jsonResponse = gson.fromJson(responseBody, Map::class.java)
-            jsonResponse["hash"] as? String ?: throw RuntimeException("Hash not found in response")
-        }
+        return enrollmentApi.sendSms(smsSendRequest).hash
     }
 
     /**
@@ -83,30 +71,8 @@ open class Api(
         code: String,
         hash: String
     ): String {
-        val url = "$baseUrl/v1/sms/confirm"
-        val jsonBody = mapOf("hash" to hash, "otp" to code)
-        val body = gson.toJson(jsonBody).toRequestBody(JSON)
-
-        val httpRequest = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
-
-        return try {
-            client.newCall(httpRequest).execute().use { response ->
-                if (response.isSuccessful) {
-                    val responseBody = response.body?.string()
-                    // Assuming the backend returns a boolean or a string "true"/"false"
-                    if (responseBody?.trim().equals("true", ignoreCase = true)) "true" else "false"
-                } else {
-                    log.warn("SMS confirmation failed: ${response.code} ${response.message}")
-                    "false"
-                }
-            }
-        } catch (e: Exception) {
-            log.error("Error confirming SMS code", e)
-            "false"
-        }
+        val smsConfirmRequest = SmsConfirmRequest(hash = hash, otp = code)
+        return enrollmentApi.confirmSms(smsConfirmRequest).confirmed.toString()
     }
 
     override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {

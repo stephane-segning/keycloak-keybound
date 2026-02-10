@@ -219,6 +219,55 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /v1/sms/send:
+    post:
+      tags: [enrollment]
+      summary: Send an OTP via SMS
+      description: |
+        Called when a new device enrollment needs an OTP delivered to the user's phone.
+      operationId: sendSms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsSendRequest'
+      responses:
+        '200':
+          description: OTP queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsSendResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/sms/confirm:
+    post:
+      tags: [enrollment]
+      summary: Confirm an OTP
+      description: |
+        Validates the OTP/hash pair that was previously issued to the user.
+      operationId: confirmSms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsConfirmRequest'
+      responses:
+        '200':
+          description: Confirmation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsConfirmResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     KCSignatureAuth:
@@ -503,6 +552,64 @@ components:
         public_jwk:
           type: object
           additionalProperties: true
+          nullable: true
+
+    SmsSendRequest:
+      type: object
+      required: [realm, client_id, phone_number, otp]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        user_id:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+        otp:
+          type: string
+        session_id:
+          type: string
+          nullable: true
+        trace_id:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    SmsSendResponse:
+      type: object
+      required: [hash]
+      properties:
+        hash:
+          type: string
+        ttl_seconds:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          nullable: true
+
+    SmsConfirmRequest:
+      type: object
+      required: [hash, otp]
+      properties:
+        hash:
+          type: string
+        otp:
+          type: string
+
+    SmsConfirmResponse:
+      type: object
+      required: [confirmed]
+      properties:
+        confirmed:
+          type: boolean
+        reason:
+          type: string
           nullable: true
 
     Error:

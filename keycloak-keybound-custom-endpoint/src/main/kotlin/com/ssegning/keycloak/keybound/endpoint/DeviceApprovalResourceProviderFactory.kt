@@ -1,23 +1,18 @@
 package com.ssegning.keycloak.keybound.endpoint
 
-import com.ssegning.keycloak.keybound.core.helper.noop
-import org.keycloak.Config
+import com.ssegning.keycloak.keybound.core.endpoint.AbstractRealmResourceProviderFactory
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
-import org.keycloak.models.KeycloakSessionFactory
-import org.keycloak.services.resource.RealmResourceProviderFactory
 
-open class DeviceApprovalResourceProviderFactory : RealmResourceProviderFactory {
+open class DeviceApprovalResourceProviderFactory :
+    AbstractRealmResourceProviderFactory<DeviceApprovalResourceProvider>() {
+
     companion object {
         const val ID = "device-approval"
     }
 
-    override fun create(session: KeycloakSession) = DeviceApprovalResourceProvider(session)
-
-    override fun init(config: Config.Scope) = noop()
-
-    override fun postInit(factory: KeycloakSessionFactory) = noop()
-
-    override fun close() = noop()
+    override fun create(session: KeycloakSession, apiGateway: ApiGateway) =
+        DeviceApprovalResourceProvider(session, apiGateway)
 
     override fun getId() = ID
 }

@@ -94,7 +94,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
 
     private fun generateOtp(): String {
         val random = SecureRandom()
-        val num = random.nextInt(1000000)
+        val num = random.nextInt(1_000_000)
         return String.format("%06d", num)
     }
 

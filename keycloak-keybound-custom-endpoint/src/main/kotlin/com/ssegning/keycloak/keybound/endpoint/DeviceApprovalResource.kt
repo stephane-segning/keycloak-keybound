@@ -1,5 +1,6 @@
 package com.ssegning.keycloak.keybound.endpoint
 
+import com.ssegning.keycloak.keybound.core.endpoint.AbstractResource
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
@@ -12,9 +13,9 @@ import org.keycloak.representations.JsonWebToken
 import org.slf4j.LoggerFactory
 
 class DeviceApprovalResource(
-    private val apiGateway: ApiGateway,
+    apiGateway: ApiGateway,
     private val tokenManager: TokenManager
-) {
+) : AbstractResource(apiGateway) {
 
     companion object {
         private val log = LoggerFactory.getLogger(DeviceApprovalResource::class.java)

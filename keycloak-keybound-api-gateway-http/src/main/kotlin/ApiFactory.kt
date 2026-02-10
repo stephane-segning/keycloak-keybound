@@ -24,9 +24,7 @@ open class ApiFactory : ApiGatewayProviderFactory {
         return Api(
             DevicesApi(config.baseUrl, config.client),
             ApprovalsApi(config.baseUrl, config.client),
-            EnrollmentApi(config.baseUrl, config.client),
-            config.baseUrl,
-            config.client
+            EnrollmentApi(config.baseUrl, config.client)
         )
     }
 
