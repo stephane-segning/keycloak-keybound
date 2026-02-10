@@ -10,6 +10,7 @@ import {
 
 export const useDeviceStorage = () => {
     useEffect(() => {
+        // Hydrate IndexedDB-backed device state once on mount.
         void ensureDeviceStoreReady();
     }, []);
 
@@ -29,6 +30,7 @@ export const useDeviceStorage = () => {
                 return device;
             }
 
+            // First-run bootstrap: create local device id + P-256 key pair.
             const deviceId = crypto.randomUUID();
             const {publicJwk, privateJwk} = await generateKeyPair();
             const record: DeviceRecord = {deviceId, publicJwk, privateJwk};
@@ -43,6 +45,7 @@ export const useDeviceStorage = () => {
         await ensureDeviceStoreReady();
         const current = getDeviceSnapshot();
         if (!current) return;
+        // Keep device->user binding so custom grant can recover after token expiry.
         await saveDeviceRecord({...current, userId});
     }, []);
 

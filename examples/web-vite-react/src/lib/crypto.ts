@@ -1,3 +1,4 @@
+// Converts binary signatures into URL-safe base64 so they can be sent as query/form params.
 const base64Url = (buffer: ArrayBuffer) => {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -8,6 +9,7 @@ const base64Url = (buffer: ArrayBuffer) => {
 };
 
 export async function generateKeyPair() {
+    // Device-bound key pair used for signed login params and custom grant proof.
     const keyPair = await window.crypto.subtle.generateKey(
         {name: 'ECDSA', namedCurve: 'P-256'},
         true,
@@ -20,6 +22,7 @@ export async function generateKeyPair() {
 }
 
 export async function signPayload(privateJwk: JsonWebKey, payload: string) {
+    // Re-import JWK each time to keep persisted key material interoperable.
     const key = await crypto.subtle.importKey(
         'jwk',
         privateJwk,
@@ -33,5 +36,6 @@ export async function signPayload(privateJwk: JsonWebKey, payload: string) {
 }
 
 export function stringifyPublicJwk(publicJwk: JsonWebKey) {
+    // Keycloak flow currently expects public_key as a JSON string.
     return JSON.stringify(publicJwk);
 }

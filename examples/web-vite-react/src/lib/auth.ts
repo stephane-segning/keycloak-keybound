@@ -15,12 +15,14 @@ export type TokenResponse = {
     scope?: string;
 };
 
+// Decodes URL-safe Base64 JWT parts into plain JSON text.
 function decodeBase64Url(value: string): string {
     const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
     const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
     return atob(normalized + padding);
 }
 
+// Minimal JWT payload reader used only for local claim checks (exp/sub).
 function decodeJwt(token?: string): Record<string, unknown> {
     if (!token) return {};
     const parts = token.split('.');
@@ -32,6 +34,7 @@ function decodeJwt(token?: string): Record<string, unknown> {
     }
 }
 
+// Subject is the canonical user id we can safely re-use with the custom grant.
 function extractSubject(tokens?: TokenResponse | null): string | null {
     if (!tokens) return null;
     const idClaims = decodeJwt(tokens.id_token);
@@ -40,6 +43,7 @@ function extractSubject(tokens?: TokenResponse | null): string | null {
     return typeof candidate === 'string' && candidate.length > 0 ? candidate : null;
 }
 
+// Keeps a small safety window so we renew before the token is actually invalid.
 function isAccessTokenValid(tokens?: TokenResponse | null): boolean {
     if (!tokens?.access_token) return false;
     const claims = decodeJwt(tokens.access_token);
@@ -49,6 +53,7 @@ function isAccessTokenValid(tokens?: TokenResponse | null): boolean {
     return exp > now + 15;
 }
 
+// Calls the custom device-key grant to mint a fresh access token.
 async function callCustomGrant(userId: string): Promise<TokenResponse> {
     const device = await loadDeviceRecord();
     if (!device?.deviceId || !device.publicJwk || !device.privateJwk) {
@@ -58,6 +63,7 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = crypto.randomUUID();
     const publicKey = stringifyPublicJwk(device.publicJwk);
+    // Signature payload must match the server-side canonical verification payload.
     const signaturePayload = JSON.stringify({
         deviceId: device.deviceId,
         publicKey,
@@ -97,6 +103,7 @@ export async function exchangeAuthorizationCode(code: string): Promise<TokenResp
         throw new Error('Missing code_verifier in sessionStorage');
     }
 
+    // Standard OIDC code exchange with PKCE verifier created at login-start time.
     const body = new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: CLIENT_ID,
@@ -137,6 +144,7 @@ export async function fetchUserInfo(accessToken: string): Promise<Record<string,
 }
 
 export function extractUserId(tokens: TokenResponse, userInfo?: Record<string, unknown>): string | null {
+    // Prefer UserInfo subject, then token claims, to keep backend/device linkage stable.
     const idClaims = decodeJwt(tokens.id_token);
     const accessClaims = decodeJwt(tokens.access_token);
     const fromId = idClaims.sub;
@@ -147,6 +155,7 @@ export function extractUserId(tokens: TokenResponse, userInfo?: Record<string, u
 }
 
 export function saveTokens(tokens: TokenResponse) {
+    // Session storage keeps auth state browser-tab scoped for this demo.
     sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
 }
 
@@ -162,15 +171,18 @@ export function loadTokens(): TokenResponse | null {
 
 export function saveGrantUserId(userId: string | null | undefined) {
     if (!userId) return;
+    // Explicitly store the subject used by the custom grant fallback path.
     sessionStorage.setItem(GRANT_USER_ID_STORAGE_KEY, userId);
 }
 
 export async function ensureAccessToken(): Promise<string> {
+    // Fast path: current token is still valid.
     const currentTokens = loadTokens();
     if (isAccessTokenValid(currentTokens)) {
         return currentTokens!.access_token;
     }
 
+    // Renewal path: prefer token subject, then stored subject, then device-bound user id.
     const device = await loadDeviceRecord();
     const userId =
         extractSubject(currentTokens) ??
@@ -183,6 +195,7 @@ export async function ensureAccessToken(): Promise<string> {
     }
 
     const renewedTokens = await callCustomGrant(userId);
+    // Replace session tokens with the new token set.
     saveTokens(renewedTokens);
     saveGrantUserId(userId);
     return renewedTokens.access_token;

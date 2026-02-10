@@ -7,6 +7,7 @@ export const CallbackPage = () => {
     const [info, setInfo] = useState<Record<string, string>>({});
 
     useEffect(() => {
+        // Normalize callback query params into a plain object for UI + postMessage.
         const payloadObject: Record<string, string> = {};
         params.forEach((value, key) => {
             payloadObject[key] = value;
@@ -18,12 +19,14 @@ export const CallbackPage = () => {
             ...payloadObject,
         };
 
+        // Popup mode: send payload back to opener, then close quickly.
         if (window.opener && !window.opener.closed) {
             window.opener.postMessage(message, window.location.origin);
             setTimeout(() => window.close(), 50);
             return;
         }
 
+        // Iframe mode fallback.
         if (window.parent !== window) {
             window.parent.postMessage(message, window.location.origin);
         }

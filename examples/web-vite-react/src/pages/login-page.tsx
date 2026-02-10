@@ -18,11 +18,13 @@ export const LoginPage = () => {
 
     const completeCodeFlow = useCallback(
         async (code: string) => {
+            // Guard against duplicate callback events from popup/tab races.
             if (completionLock.current) return;
             completionLock.current = true;
             setStatus('exchanging');
 
             try {
+                // Complete OIDC code flow, then cache tokens/user identity for renewal.
                 const tokens = await exchangeAuthorizationCode(code);
                 const userInfo = await fetchUserInfo(tokens.access_token);
                 saveTokens(tokens);
@@ -55,6 +57,7 @@ export const LoginPage = () => {
     );
 
     useEffect(() => {
+        // Receives callback payload from /callback popup and finishes code exchange in this window.
         const handler = (event: MessageEvent) => {
             if (event.origin !== window.location.origin) return;
             const payload = event.data as {
@@ -106,9 +109,11 @@ export const LoginPage = () => {
 
     const handleStart = async () => {
         setStatus('preparing');
+        // Ensure a persisted device identity exists before starting auth.
         const current = await ensureDevice();
         const ts = Math.floor(Date.now() / 1000).toString();
         const nonce = crypto.randomUUID();
+        // Canonical payload signed by the device key and verified server-side.
         const canonical = JSON.stringify({
             deviceId: current.deviceId,
             publicKey: stringifyPublicJwk(current.publicJwk),
@@ -116,12 +121,14 @@ export const LoginPage = () => {
             nonce,
         });
         const signature = await signPayload(current.privateJwk, canonical);
+        // PKCE verifier/challenge pair for authorization code flow.
         const codeVerifier = createCodeVerifier();
         const codeChallenge = await createCodeChallenge(codeVerifier);
         sessionStorage.setItem('code_verifier', codeVerifier);
         sessionStorage.setItem('last_login_nonce', nonce);
         sessionStorage.setItem('last_login_ts', ts);
 
+        // Custom auth params (device key, signature, metadata) are attached to /auth request.
         const params = new URLSearchParams({
             scope: 'openid profile email',
             response_type: 'code',

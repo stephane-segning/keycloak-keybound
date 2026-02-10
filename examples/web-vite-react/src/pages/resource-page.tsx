@@ -10,6 +10,7 @@ export const ResourcePage = () => {
     const fetchResource = useCallback(async () => {
         setLoading(true);
         try {
+            // Ensures missing/expired access token is renewed with custom grant before request.
             const token = await ensureAccessToken();
             const response = await fetch(`${RESOURCE_SERVER}/get`, {
                 headers: token ? {Authorization: `Bearer ${token}`} : {},

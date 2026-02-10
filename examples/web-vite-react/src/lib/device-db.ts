@@ -59,6 +59,7 @@ async function persistState() {
     }
 
     try {
+        // Persist the in-memory auth device store as a single payload in IndexedDB.
         const entries = Array.from(deviceCollection.state.values()) as DeviceRecord[];
         if (entries.length === 0) {
             await del(STORAGE_KEY);
@@ -110,6 +111,7 @@ function createIdbSync() {
 
             void (async () => {
                 try {
+                    // Rehydrate device identity before auth code/custom grant logic runs.
                     const records = await loadStoredState();
                     const entries = Object.values(records) as DeviceRecord[];
                     if (entries.length > 0) {
@@ -195,12 +197,14 @@ export async function loadDeviceRecord(): Promise<DeviceRecord | null> {
 export async function saveDeviceRecord(record: DeviceRecord): Promise<void> {
     await ensureDeviceStoreReady();
     if (deviceCollection.state.has(record.deviceId)) {
+        // Update existing device identity atomically.
         const tx = deviceCollection.update(record.deviceId, (draft) => {
             Object.assign(draft, record);
         });
         await tx.isPersisted.promise;
         return;
     }
+    // First insert for a new device identity.
     const tx = deviceCollection.insert(record);
     await tx.isPersisted.promise;
 }
