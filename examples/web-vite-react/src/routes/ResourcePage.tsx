@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RESOURCE_SERVER } from '../config';
-import { loadTokens } from '../lib/auth';
+import { ensureAccessToken } from '../lib/auth';
 
 export function ResourcePage() {
   const [output, setOutput] = useState<string>('No request yet');
@@ -8,7 +8,7 @@ export function ResourcePage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = loadTokens()?.access_token;
+        const token = await ensureAccessToken();
         const response = await fetch(`${RESOURCE_SERVER}/get`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

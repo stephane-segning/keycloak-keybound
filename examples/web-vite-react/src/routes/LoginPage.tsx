@@ -3,7 +3,7 @@ import { useDeviceStorage } from '../hooks/useDeviceStorage';
 import { KEYCLOAK_BASE_URL, KEYCLOAK_REALM, CLIENT_ID, REDIRECT_URI } from '../config';
 import { createCodeChallenge, createCodeVerifier } from '../lib/pkce';
 import { signPayload, stringifyPublicJwk } from '../lib/crypto';
-import { exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveTokens } from '../lib/auth';
+import { exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveGrantUserId, saveTokens } from '../lib/auth';
 
 export function LoginPage() {
   const { device, ensureDevice, setUserId } = useDeviceStorage();
@@ -27,6 +27,7 @@ export function LoginPage() {
         saveTokens(tokens);
 
         const userId = extractUserId(tokens, userInfo);
+        saveGrantUserId(userId);
         if (userId) {
           await ensureDevice();
           await setUserId(userId);

@@ -60,24 +60,24 @@ class DeviceKeyGrantType(
         val tsStr = params.getFirst("ts")
         val nonce = params.getFirst("nonce")
         val sig = params.getFirst("sig")
-        val username = params.getFirst("username")
+        val userId = params.getFirst("user_id")
         val requestPublicKey = params.getFirst("public_key")
 
-        if (deviceId == null || tsStr == null || nonce == null || sig == null || username == null) {
+        if (deviceId == null || tsStr == null || nonce == null || sig == null || userId == null) {
             event.error(Errors.INVALID_REQUEST)
             throw CorsErrorResponseException(
                 cors,
                 OAuthErrorException.INVALID_REQUEST,
-                "Missing parameters: device_id, ts, nonce, sig, and username are required",
+                "Missing parameters: device_id, ts, nonce, sig, and user_id are required",
                 Response.Status.BAD_REQUEST
             )
         }
 
-        log.debug("DeviceKeyGrantType invoked username={} deviceId={}", username, deviceId)
+        log.debug("DeviceKeyGrantType invoked userId={} deviceId={}", userId, deviceId)
 
-        val user = session.users().getUserByUsername(realm, username)
+        val user = session.users().getUserById(realm, userId)
         if (user == null || !user.isEnabled) {
-            log.debug("User {} not found or disabled", username)
+            log.debug("User {} not found or disabled", userId)
             event.error(Errors.USER_NOT_FOUND)
             throw CorsErrorResponseException(
                 cors,
@@ -237,7 +237,7 @@ class DeviceKeyGrantType(
             .createUserSession(
                 UUID.randomUUID().toString(),
                 realm, user,
-                username, session.context.connection.remoteAddr,
+                user.username ?: user.id, session.context.connection.remoteAddr,
                 "device-grant", false,
                 null, null,
             UserSessionModel.SessionPersistenceState.PERSISTENT
