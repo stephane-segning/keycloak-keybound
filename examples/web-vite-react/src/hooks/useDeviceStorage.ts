@@ -25,8 +25,8 @@ export function useDeviceStorage() {
   };
 
   const setUserId = async (userId: string) => {
-    if (!device) return;
-    const updated = { ...device, userId };
+    const current = device ?? (await ensureDevice());
+    const updated = { ...current, userId };
     await saveDeviceRecord(updated);
     setDevice(updated);
   };

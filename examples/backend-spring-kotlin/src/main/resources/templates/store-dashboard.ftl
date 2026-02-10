@@ -4,234 +4,264 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Backend Store Dashboard</title>
-    <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-            rel="stylesheet"
-            integrity="sha384-sgfQv6ZfQ5Ee9La73xJpYp2NANX2rTKoK3tH9or8eB/nS1xR0o4nLd5zrW7jN0WL"
-            crossorigin="anonymous"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css"/>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-light text-dark">
-<header class="bg-primary text-white py-4 mb-4 shadow-sm">
-    <div class="container">
-        <h1 class="h3 mb-1">Backend Store Snapshot</h1>
-        <p class="mb-0 text-white-50">Live view of all in-memory backend stores.</p>
+<body class="bg-base-200 text-base-content min-h-screen">
+<header class="bg-base-100 border-b border-base-300 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-5">
+        <h1 class="text-2xl font-semibold">Backend Store Snapshot</h1>
+        <p class="text-sm opacity-70">Live view of all in-memory backend stores.</p>
     </div>
 </header>
-<main class="container mb-5">
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Users</h2>
-            <span class="badge bg-secondary fs-6">${users?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>User ID</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Realm</th>
-                <th>Enabled</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if users?size == 0>
-                <tr>
-                    <td colspan="5" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list users as user>
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Users</h2>
+                <span class="badge badge-neutral badge-lg">${users?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${user.user_id}</td>
-                        <td>${user.username}</td>
-                        <td>${user.email!''}</td>
-                        <td>${user.realm}</td>
-                        <td><#if user.enabled?? && user.enabled=='true'>✅<#else>⚪</#if></td>
+                        <th>User ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Realm</th>
+                        <th>Enabled</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if users?size == 0>
+                        <tr>
+                            <td colspan="5" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list users as user>
+                            <tr>
+                                <td class="font-mono text-xs">${user.getUserId()!''}</td>
+                                <td>${user.getUsername()!''}</td>
+                                <td>${user.getEmail()!''}</td>
+                                <td>${user.getRealm()!''}</td>
+                                <td><#if (user.getEnabled())!false>✅<#else>⚪</#if></td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Devices</h2>
-            <span class="badge bg-secondary fs-6">${devices?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>Device ID</th>
-                <th>User ID</th>
-                <th>Status</th>
-                <th>JKT</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if devices?size == 0>
-                <tr>
-                    <td colspan="4" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list devices as device>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Devices</h2>
+                <span class="badge badge-neutral badge-lg">${devices?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${device.deviceId}</td>
-                        <td>${device.userId}</td>
-                        <td>${device.status}</td>
-                        <td title="${device.jkt}">${device.jkt?substring(0, min(device.jkt?length, 8))}…</td>
+                        <th>Device ID</th>
+                        <th>User ID</th>
+                        <th>Status</th>
+                        <th>JKT</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if devices?size == 0>
+                        <tr>
+                            <td colspan="4" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list devices as device>
+                            <#assign deviceJkt = device.getJkt()!''>
+                            <tr>
+                                <td class="font-mono text-xs">${device.getDeviceId()!''}</td>
+                                <td class="font-mono text-xs">${device.getUserId()!''}</td>
+                                <td>${device.getStatus()!''}</td>
+                                <td class="font-mono text-xs" title="${deviceJkt}">
+                                    <#if deviceJkt?length gt 8>${deviceJkt?substring(0, 8)}…<#else>${deviceJkt}</#if>
+                                </td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Devices By JKT Index</h2>
-            <span class="badge bg-secondary fs-6">${devicesByJkt?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>JKT</th>
-                <th>Device ID</th>
-                <th>User ID</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if devicesByJkt?size == 0>
-                <tr>
-                    <td colspan="3" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list devicesByJkt as entry>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Devices By JKT Index</h2>
+                <span class="badge badge-neutral badge-lg">${devicesByJkt?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td title="${entry.jkt}">${entry.jkt?substring(0, min(entry.jkt?length, 8))}…</td>
-                        <td>${entry.deviceId}</td>
-                        <td>${entry.userId}</td>
+                        <th>JKT</th>
+                        <th>Device ID</th>
+                        <th>User ID</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if devicesByJkt?size == 0>
+                        <tr>
+                            <td colspan="3" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list devicesByJkt as entry>
+                            <#assign indexedJkt = entry.getJkt()!''>
+                            <tr>
+                                <td class="font-mono text-xs" title="${indexedJkt}">
+                                    <#if indexedJkt?length gt 8>${indexedJkt?substring(0, 8)}…<#else>${indexedJkt}</#if>
+                                </td>
+                                <td class="font-mono text-xs">${entry.getDeviceId()!''}</td>
+                                <td class="font-mono text-xs">${entry.getUserId()!''}</td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Username Index</h2>
-            <span class="badge bg-secondary fs-6">${usernameIndex?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>Key</th>
-                <th>User ID</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if usernameIndex?size == 0>
-                <tr>
-                    <td colspan="2" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list usernameIndex as entry>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Username Index</h2>
+                <span class="badge badge-neutral badge-lg">${usernameIndex?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${entry.key}</td>
-                        <td>${entry.value}</td>
+                        <th>Key</th>
+                        <th>User ID</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if usernameIndex?size == 0>
+                        <tr>
+                            <td colspan="2" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list usernameIndex as entry>
+                            <tr>
+                                <td>${entry.getKey()!''}</td>
+                                <td class="font-mono text-xs">${entry.getValue()!''}</td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Email Index</h2>
-            <span class="badge bg-secondary fs-6">${emailIndex?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>Key</th>
-                <th>User ID</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if emailIndex?size == 0>
-                <tr>
-                    <td colspan="2" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list emailIndex as entry>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Email Index</h2>
+                <span class="badge badge-neutral badge-lg">${emailIndex?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${entry.key}</td>
-                        <td>${entry.value}</td>
+                        <th>Key</th>
+                        <th>User ID</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if emailIndex?size == 0>
+                        <tr>
+                            <td colspan="2" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list emailIndex as entry>
+                            <tr>
+                                <td>${entry.getKey()!''}</td>
+                                <td class="font-mono text-xs">${entry.getValue()!''}</td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">Approvals</h2>
-            <span class="badge bg-secondary fs-6">${approvals?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>Request ID</th>
-                <th>User ID</th>
-                <th>Device ID</th>
-                <th>Status</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if approvals?size == 0>
-                <tr>
-                    <td colspan="4" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list approvals as approval>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">Approvals</h2>
+                <span class="badge badge-neutral badge-lg">${approvals?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${approval.requestId}</td>
-                        <td>${approval.userId}</td>
-                        <td>${approval.deviceId}</td>
-                        <td>${approval.status}</td>
+                        <th>Request ID</th>
+                        <th>User ID</th>
+                        <th>Device ID</th>
+                        <th>Status</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if approvals?size == 0>
+                        <tr>
+                            <td colspan="4" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list approvals as approval>
+                            <tr>
+                                <td class="font-mono text-xs">${approval.getRequestId()!''}</td>
+                                <td class="font-mono text-xs">${approval.getUserId()!''}</td>
+                                <td class="font-mono text-xs">${approval.getDeviceId()!''}</td>
+                                <td>${approval.getStatus()!''}</td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
-    <section class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h5 mb-0">SMS Challenges</h2>
-            <span class="badge bg-secondary fs-6">${smsChallenges?size} entries</span>
-        </div>
-        <table class="table table-striped table-bordered table-sm align-middle">
-            <thead class="table-dark">
-            <tr>
-                <th>Hash</th>
-                <th>OTP</th>
-                <th>Expires At</th>
-            </tr>
-            </thead>
-            <tbody>
-            <#if smsChallenges?size == 0>
-                <tr>
-                    <td colspan="3" class="text-center text-muted">No entries</td>
-                </tr>
-            <#else>
-                <#list smsChallenges as challenge>
+    <section class="card bg-base-100 shadow-md">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="card-title">SMS Challenges</h2>
+                <span class="badge badge-neutral badge-lg">${smsChallenges?size} entries</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra text-sm">
+                    <thead>
                     <tr>
-                        <td>${challenge.hash}</td>
-                        <td>${challenge.otp}</td>
-                        <td>${challenge.expiresAt}</td>
+                        <th>Hash</th>
+                        <th>OTP</th>
+                        <th>Expires At</th>
                     </tr>
-                </#list>
-            </#if>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                    <#if smsChallenges?size == 0>
+                        <tr>
+                            <td colspan="3" class="text-center opacity-60">No entries</td>
+                        </tr>
+                    <#else>
+                        <#list smsChallenges as challenge>
+                            <tr>
+                                <td class="font-mono text-xs">${challenge.getHash()!''}</td>
+                                <td class="font-mono">${challenge.getOtp()!''}</td>
+                                <td>${challenge.getExpiresAt()!''}</td>
+                            </tr>
+                        </#list>
+                    </#if>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
 </main>
 </body>

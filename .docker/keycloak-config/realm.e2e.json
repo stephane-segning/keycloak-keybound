@@ -7,6 +7,16 @@
   "rememberMe": false,
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": false,
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 10
+    }
+  ],
   "browserFlow": "keybound-publickey-browser-flow",
   "enabled": true,
   "authenticationFlows": [
