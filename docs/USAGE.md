@@ -42,6 +42,12 @@ Keycloak will be available at `http://localhost:9026`.
 
 WireMock will be available at `http://localhost:8080`.
 
+## E2E realm
+
+- The new `e2e-realm` file (`.docker/keycloak-config/e2e-realm.json`) defines clients for the Vite React UI (`web-vite`) and the httpbin-style resource server, and binds the realm to the Spring backend via `BACKEND_HTTP_BASE_PATH_e2e-realm`.
+- Build the backend example first: `./gradlew :examples:backend-spring-kotlin:bootJar`.
+- Compose now runs both WireMock (default user-mock mode) and `api-backend-example` (the Spring Boot mock backend) alongside Keycloak; use `docker compose up --build`.
+
 ## Keycloak bootstrap credentials
 
 From `compose.yaml`:

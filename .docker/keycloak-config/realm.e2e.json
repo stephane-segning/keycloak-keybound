@@ -1,0 +1,87 @@
+{
+  "id": "e2e-realm",
+  "realm": "e2e-realm",
+  "displayName": "Keybound E2E Realm",
+  "displayNameHtml": "<b>Keybound</b> E2E Realm",
+  "registrationAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "browserFlow": "keybound-publickey-browser-flow",
+  "enabled": true,
+  "authenticationFlows": [
+    {
+      "alias": "keybound-publickey-browser-flow",
+      "description": "Public-key browser login flow",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "ingest-signed-device-blob",
+          "requirement": "REQUIRED",
+          "priority": 10
+        },
+        {
+          "authenticator": "verify-signed-blob",
+          "requirement": "REQUIRED",
+          "priority": 20
+        },
+        {
+          "authenticator": "find-or-create-user",
+          "requirement": "REQUIRED",
+          "priority": 30
+        },
+        {
+          "authenticator": "persist-device-credential",
+          "requirement": "REQUIRED",
+          "priority": 40
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "backend-user-storage",
+        "providerId": "backend-user-storage",
+        "config": {
+          "enabled": ["true"],
+          "priority": ["0"],
+          "cachePolicy": ["DEFAULT"]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "web-vite",
+      "name": "Keybound Vite Web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "baseUrl": "http://localhost:5173"
+    },
+    {
+      "clientId": "resource-server",
+      "name": "Keybound Resource Server",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [],
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ]
+}

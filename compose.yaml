@@ -1,5 +1,6 @@
 x-keycloak-common-env: &keycloak-common-env
   BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://api-mock:8080"
+  BACKEND_HTTP_BASE_PATH_e2e-realm: "http://api-backend-example:18080"
   BACKEND_HTTP_AUTH_USERNAME: "admin"
   BACKEND_HTTP_AUTH_PASSWORD: "password"
 
@@ -50,3 +51,11 @@ services:
     command: ["--global-response-templating"]
     volumes:
       - ./.docker/wiremock:/home/wiremock
+
+  api-backend-example:
+    image: amazoncorretto:21
+    ports:
+      - "127.0.0.1:18080:18080"
+    command: ["java", "-jar", "/app/backend-spring-kotlin-example-0.1.0.jar"]
+    volumes:
+      - ./examples/backend-spring-kotlin/build/libs:/app:ro

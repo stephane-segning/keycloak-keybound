@@ -109,9 +109,10 @@ Docker Compose update (later phase):
 
 ## Delivery Phases
 
-Phase 1 (current):
-- Create architecture doc.
-- Scaffold folder structure and starter files.
+- Phase 1 (current):
+  - Create architecture doc.
+  - Scaffold folder structure and starter files.
+  - Add the `e2e-realm` import (`.docker/keycloak-config/e2e-realm.json`) that binds `web-vite` + `resource-server` clients to the Spring backend service (controlled via `BACKEND_HTTP_BASE_PATH_e2e-realm`). 
 
 Phase 2:
 - Implement backend endpoints and in-memory services.
