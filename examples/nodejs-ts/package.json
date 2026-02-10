@@ -1,0 +1,17 @@
+{
+  "name": "keycloak-keybound-nodejs-ts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "auth-code": "tsx src/auth-code.ts",
+    "device-grant": "tsx src/device-grant.ts"
+  },
+  "dependencies": {
+    "openid-client": "^6.6.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}

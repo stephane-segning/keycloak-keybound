@@ -9,10 +9,28 @@
   "loginWithEmailAllowed": false,
   "resetPasswordAllowed": false,
   "enabled": true,
+  "clients": [
+    {
+      "clientId": "node-cli",
+      "name": "Node CLI Example",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3005/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3005"
+      ]
+    }
+  ],
   "users": [
     {
       "email": "test@admin",
-      "username": "test",
+      "username": "test@admin",
       "firstName": "DevOps",
       "lastName": "SRE",
       "enabled": true,
@@ -21,7 +39,7 @@
         {
           "temporary": false,
           "type": "password",
-          "value": "test"
+          "value": "test@admin"
         }
       ]
     }

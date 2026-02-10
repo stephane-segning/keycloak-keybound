@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/enrollments/bind"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "status": "BOUND",
+      "device_record_id": "devrec_test_001",
+      "bound_user_id": "{{jsonPath request.body '$.user_id'}}"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

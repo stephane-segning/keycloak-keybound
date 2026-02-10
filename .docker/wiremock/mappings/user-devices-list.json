@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPattern": "/v1/users/.*/devices.*"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "user_id": "UNKNOWN_USER_ID",
+      "devices": []
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

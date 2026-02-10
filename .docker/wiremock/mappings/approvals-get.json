@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPattern": "/v1/approvals/.*"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "request_id": "apr_test_001",
+      "status": "PENDING",
+      "decided_at": null,
+      "decided_by_device_id": null,
+      "message": null
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

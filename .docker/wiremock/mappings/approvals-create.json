@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/approvals"
+  },
+  "response": {
+    "status": 201,
+    "jsonBody": {
+      "request_id": "apr_test_001",
+      "status": "PENDING",
+      "expires_at": null
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

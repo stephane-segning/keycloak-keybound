@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/enrollments/precheck"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "decision": "ALLOW",
+      "reason": null,
+      "bound_user_id": null,
+      "retry_after_seconds": null
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

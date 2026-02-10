@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/sms/send"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "hash": "hash_test_001",
+      "ttl_seconds": 300,
+      "status": "queued"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/sms/confirm"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "confirmed": true,
+      "reason": null
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

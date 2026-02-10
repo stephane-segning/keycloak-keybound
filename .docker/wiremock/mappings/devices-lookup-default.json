@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/v1/devices/lookup"
+  },
+  "response": {
+    "status": 200,
+    "jsonBody": {
+      "found": false,
+      "user_id": null,
+      "device": null,
+      "public_jwk": null
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
