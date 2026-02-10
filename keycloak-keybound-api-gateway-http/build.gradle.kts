@@ -1,9 +1,6 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
     kotlin("jvm")
     id("org.openapi.generator") version "7.19.0"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.ssegning.keycloak.keybound"
@@ -78,13 +75,5 @@ tasks {
 
     val compileKotlin by getting {
         dependsOn(openApiGenerate)
-    }
-
-    val shadowJar by existing(ShadowJar::class) {
-        dependencies {
-            include(dependency("com.squareup.okhttp3:okhttp"))
-            include(dependency("com.squareup.okio:okio-jvm"))
-        }
-        dependsOn(build)
     }
 }

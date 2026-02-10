@@ -11,16 +11,21 @@ x-keycloak-common-extra: &keycloak-common-extra
     - -c
     - |
       set -ex
-      cp /tmp/libs-*/*-all.jar /opt/keycloak/providers # Copy the provider jars to the providers directory
+      ls -lash /tmp/libs-*/*.jar
+      cp /tmp/libs-*/*.jar /opt/keycloak/providers # Copy the provider jars to the providers directory
       /opt/keycloak/bin/kc.sh start-dev --import-realm # Start Keycloak in dev mode and import the realm
   volumes:
     - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
-    - ./keycloak-keybound-authenticator-phone-number/build/libs:/tmp/libs-core:ro
-    - ./keycloak-keybound-core/build/libs:/tmp/libs-core:ro
-    - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-core:ro
-    - ./keycloak-keybound-grant-device-key/build/libs:/tmp/libs-core:ro
-    - ./keycloak-keybound-theme/build/libs:/tmp/libs-core:ro
+    - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-api-gateway-http
+    - ./keycloak-keybound-authenticator-approval/build/libs:/tmp/libs-authenticator-approval
+    - ./keycloak-keybound-authenticator-enrollment/build/libs:/tmp/libs-authenticator-enrollment
+    - ./keycloak-keybound-core/build/libs:/tmp/libs-core
+    - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-credentials-device-key
+    - ./keycloak-keybound-custom-endpoint/build/libs:/tmp/libs-custom-endpoint
+    - ./keycloak-keybound-grant-device-key/build/libs:/tmp/libs-grant-device-key
+    - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
+    - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
   links:
     - prism
 

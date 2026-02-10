@@ -2,7 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     kotlin("jvm")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow")
 }
 
 group = "com.ssegning.keycloak.keybound"
@@ -14,7 +14,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    
+
     annotationProcessor("com.google.auto.service", "auto-service", "1.1.1")
     compileOnly("com.google.auto.service", "auto-service", "1.1.1")
 
@@ -30,13 +30,18 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks {
-    val shadowJar by existing(ShadowJar::class) {
-        dependencies {
-            include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
-            include(dependency("com.googlecode.libphonenumber:libphonenumber"))
-            include(dependency("com.google.code.gson:gson"))
-        }
-        dependsOn(build)
+shadow {
+    addShadowVariantIntoJavaComponent = false
+}
+
+tasks.shadowJar {
+    archiveBaseName = "keycloak-keybound-all"
+
+    dependencies {
+        include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+        include(dependency("com.googlecode.libphonenumber:libphonenumber"))
+        include(dependency("com.google.code.gson:gson"))
+        include(dependency("com.squareup.okhttp3:okhttp"))
+        include(dependency("com.squareup.okio:okio-jvm"))
     }
 }

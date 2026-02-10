@@ -10,7 +10,7 @@ class HttpConfig(val baseUrl: String, val client: OkHttpClient) {
         const val HTTP_AUTH_PASSWORD_KEY = "BACKEND_HTTP_AUTH_PASSWORD"
 
         fun fromEnv(context: KeycloakContext): HttpConfig {
-            val baseUrl = "${HTTP_BASE_PATH_KEY}_${context.realm.name}"
+            val baseUrl = "${HTTP_BASE_PATH_KEY}_${context.realm?.name ?: ""}"
 
             val client = OkHttpClient.Builder()
                 .followRedirects(true)
