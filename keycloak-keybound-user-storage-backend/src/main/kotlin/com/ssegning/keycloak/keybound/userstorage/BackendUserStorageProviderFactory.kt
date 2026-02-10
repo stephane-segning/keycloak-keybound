@@ -12,6 +12,7 @@ class BackendUserStorageProviderFactory :
     UserStorageProviderFactory<BackendUserStorageProvider>,
     ServerInfoAwareProviderFactory {
     companion object {
+        private val log = LoggerFactory.getLogger(BackendUserStorageProviderFactory::class.java)
         const val ID = "backend-user-storage"
     }
 
@@ -22,10 +23,6 @@ class BackendUserStorageProviderFactory :
             componentModel = model,
             apiGateway = session.getProvider(ApiGateway::class.java)
         )
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(BackendUserStorageProviderFactory::class.java)
     }
 
     override fun getId(): String = ID

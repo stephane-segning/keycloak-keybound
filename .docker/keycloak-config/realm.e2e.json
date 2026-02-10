@@ -28,14 +28,19 @@
           "priority": 20
         },
         {
-          "authenticator": "find-or-create-user",
+          "authenticator": "collect-phone-form",
           "requirement": "REQUIRED",
           "priority": 30
         },
         {
-          "authenticator": "persist-device-credential",
+          "authenticator": "find-or-create-user",
           "requirement": "REQUIRED",
           "priority": 40
+        },
+        {
+          "authenticator": "persist-device-credential",
+          "requirement": "REQUIRED",
+          "priority": 50
         }
       ]
     }

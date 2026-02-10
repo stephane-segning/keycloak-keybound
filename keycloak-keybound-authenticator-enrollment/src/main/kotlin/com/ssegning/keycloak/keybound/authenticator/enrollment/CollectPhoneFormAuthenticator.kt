@@ -1,5 +1,6 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
+import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
 import com.ssegning.keycloak.keybound.core.models.SmsRequest
@@ -16,6 +17,18 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
+        val userHint = context.authenticationSession.getAuthNote(AbstractKeyAuthenticator.USER_HINT_NOTE_NAME)?.trim()
+        if (!userHint.isNullOrBlank()) {
+            val hintedUser = context.session.users().getUserByUsername(context.realm, userHint)
+                ?: context.session.users().getUserByEmail(context.realm, userHint)
+            if (hintedUser != null) {
+                log.debug("Skipping phone collection because user_hint '{}' resolved to user '{}'", userHint, hintedUser.username)
+                context.success()
+                return
+            }
+            log.debug("user_hint '{}' was provided but not resolved; falling back to phone collection", userHint)
+        }
+
         log.debug("Presenting phone collection form")
         val challenge = context.form()
             .createForm("enroll-collect-phone.ftl")

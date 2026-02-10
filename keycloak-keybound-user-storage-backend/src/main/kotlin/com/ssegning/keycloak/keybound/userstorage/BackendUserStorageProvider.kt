@@ -39,7 +39,9 @@ class BackendUserStorageProvider(
         UserModel.GROUPS
     )
 
-    private val log = LoggerFactory.getLogger(BackendUserStorageProvider::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(BackendUserStorageProvider::class.java)
+    }
 
     override fun close() = noop()
 

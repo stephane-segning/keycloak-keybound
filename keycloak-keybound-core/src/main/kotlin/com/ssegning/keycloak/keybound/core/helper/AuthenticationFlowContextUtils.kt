@@ -12,7 +12,7 @@ fun String.getEnv(defaultValue: String? = null): String? {
 
     getenv = System.getProperty(this, defaultValue)
     if (getenv.isNullOrEmpty()) {
-        log.error("Environment variable $this is empty")
+        log.debug("Environment variable $this is empty")
     }
 
     return getenv
