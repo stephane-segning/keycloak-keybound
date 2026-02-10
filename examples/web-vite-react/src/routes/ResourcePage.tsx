@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { RESOURCE_SERVER } from '../config';
 import { ensureAccessToken } from '../lib/auth';
+import ReactJsonView from "@microlink/react-json-view";
 
 export function ResourcePage() {
-  const [output, setOutput] = useState<string>('No request yet');
+  const [output, setOutput] = useState<any>({msg: 'No request yet'});
 
   useEffect(() => {
     (async () => {
@@ -13,9 +14,12 @@ export function ResourcePage() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await response.json();
-        setOutput(JSON.stringify(data, null, 2));
+        setOutput(data);
       } catch (error) {
-        setOutput(`Request failed: ${(error as Error).message}`);
+        setOutput({
+          msg: `Request failed: ${(error as Error).message}`,
+          error,
+        });
       }
     })();
   }, []);
@@ -26,7 +30,9 @@ export function ResourcePage() {
         <div className="card-body">
           <h2 className="card-title">Resource Server Call</h2>
           <p className="text-sm opacity-80">Requests `${RESOURCE_SERVER}/get` with bearer token if available.</p>
-          <pre className="bg-base-200 rounded-lg p-3 overflow-auto text-xs">{output}</pre>
+          <div className="mockup-code w-full">
+            <ReactJsonView src={output} theme="monokai" />
+          </div>
         </div>
       </div>
     </section>
