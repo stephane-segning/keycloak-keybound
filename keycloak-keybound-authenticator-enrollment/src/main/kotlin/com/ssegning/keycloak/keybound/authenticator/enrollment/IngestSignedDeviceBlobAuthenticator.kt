@@ -12,20 +12,28 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
 
     override fun authenticate(context: AuthenticationFlowContext) {
         val httpRequest = context.httpRequest
-        val queryParameters = httpRequest.decodedFormParameters
+        val formParameters = httpRequest.decodedFormParameters
+        val queryParameters = context.uriInfo.queryParameters
 
-        val deviceId = queryParameters.getFirst("device_id")
-        val publicKey = queryParameters.getFirst("public_key")
-        val ts = queryParameters.getFirst("ts")
-        val nonce = queryParameters.getFirst("nonce")
-        val sig = queryParameters.getFirst("sig")
-        val action = queryParameters.getFirst("action")
-        val aud = queryParameters.getFirst("aud")
+        fun param(name: String): String? = queryParameters.getFirst(name) ?: formParameters.getFirst(name)
+
+        val deviceId = param("device_id")
+        val publicKey = param("public_key")
+        val ts = param("ts")
+        val nonce = param("nonce")
+        val sig = param("sig")
+        val action = param("action")
+        val aud = param("aud")
+        val userHint = param("user_hint") ?: param("username")
+        val deviceOs = param("device_os")
+        val deviceModel = param("device_model")
 
         // Input length validation to prevent potential DoS attacks
         // We limit the length of each parameter to 2048 characters to avoid unbounded input storage
         val maxInputLength = 2048
-        if (listOf(deviceId, publicKey, ts, nonce, sig, action, aud).any { it != null && it.length > maxInputLength }) {
+        if (listOf(deviceId, publicKey, ts, nonce, sig, action, aud, userHint, deviceOs, deviceModel)
+                .any { it != null && it.length > maxInputLength }
+        ) {
             log.warn("Input parameter exceeded maximum length of $maxInputLength characters")
             context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
             return
@@ -39,6 +47,9 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
         sig?.let { session.setAuthNote(DEVICE_SIG_NOTE_NAME, it) }
         action?.let { session.setAuthNote(DEVICE_ACTION_NOTE_NAME, it) }
         aud?.let { session.setAuthNote(DEVICE_AUD_NOTE_NAME, it) }
+        userHint?.let { session.setAuthNote(USER_HINT_NOTE_NAME, it) }
+        deviceOs?.let { session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME, it) }
+        deviceModel?.let { session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME, it) }
 
         context.success()
     }

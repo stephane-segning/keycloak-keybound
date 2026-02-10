@@ -3,7 +3,7 @@
 This example demonstrates:
 - OIDC Authorization Code flow with PKCE against Keycloak
 - calling the UserInfo endpoint
-- calling the custom `device_key` grant and printing tokens to bash
+- starting a custom public-key browser auth flow and printing tokens to bash
 
 ## Environment variables
 
@@ -13,7 +13,6 @@ Defaults match `compose.yaml`.
 - `REALM` (default: `ssegning-keybound-wh-01`)
 - `CLIENT_ID` (default: `node-cli`)
 - `REDIRECT_URI` (default: `http://localhost:3005/callback`)
-- `WIREMOCK_ADMIN` (default: `http://localhost:8080/__admin`)
 
 ## Install
 
@@ -27,9 +26,8 @@ npm install
 npm run auth-code
 ```
 
-## Custom grant (prints bash exports)
+## Public-key browser flow (prints bash exports)
 
 ```bash
 npm run device-grant -- --username test --bash
 ```
-

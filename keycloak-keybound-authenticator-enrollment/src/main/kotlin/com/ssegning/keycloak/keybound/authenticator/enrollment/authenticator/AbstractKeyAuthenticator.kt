@@ -11,5 +11,6 @@ abstract class AbstractKeyAuthenticator : AbstractAuthenticator() {
         const val DEVICE_SIG_NOTE_NAME = "device.sig"
         const val DEVICE_ACTION_NOTE_NAME = "device.action"
         const val DEVICE_AUD_NOTE_NAME = "device.aud"
+        const val USER_HINT_NOTE_NAME = "device.user_hint"
     }
 }

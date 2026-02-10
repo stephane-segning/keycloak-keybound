@@ -8,7 +8,66 @@
   "rememberMe": false,
   "loginWithEmailAllowed": false,
   "resetPasswordAllowed": false,
+  "browserFlow": "keybound-publickey-browser-flow",
   "enabled": true,
+  "authenticationFlows": [
+    {
+      "alias": "keybound-publickey-browser-flow",
+      "description": "Public-key browser login flow",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "ingest-signed-device-blob",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "verify-signed-blob",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "find-or-create-user",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "persist-device-credential",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 40,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "backend-user-storage",
+        "providerId": "backend-user-storage",
+        "config": {
+          "enabled": [
+            "true"
+          ],
+          "priority": [
+            "0"
+          ],
+          "cachePolicy": [
+            "DEFAULT"
+          ]
+        }
+      }
+    ]
+  },
   "clients": [
     {
       "clientId": "node-cli",
@@ -24,23 +83,6 @@
       ],
       "webOrigins": [
         "http://localhost:3005"
-      ]
-    }
-  ],
-  "users": [
-    {
-      "email": "test@admin",
-      "username": "test@admin",
-      "firstName": "DevOps",
-      "lastName": "SRE",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "temporary": false,
-          "type": "password",
-          "value": "test@admin"
-        }
       ]
     }
   ]

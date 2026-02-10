@@ -14,7 +14,7 @@ open class FindOrCreateUserAuthenticatorFactory : AbstractAuthenticatorFactory()
 
     override fun getDisplayType() = "DK4- Find or Create User"
 
-    override fun getHelpText() = "Finds a user by their phone number or creates a new one if the user doesn't exist."
+    override fun getHelpText() = "Finds a user from user_hint (preferred) or verified phone data."
 
     override fun getRequirementChoices() = arrayOf(
         AuthenticationExecutionModel.Requirement.REQUIRED,

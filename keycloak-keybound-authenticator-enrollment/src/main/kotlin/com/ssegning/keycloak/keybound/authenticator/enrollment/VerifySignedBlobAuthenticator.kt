@@ -10,16 +10,14 @@ import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.math.abs
+import java.util.Base64
 
 class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(VerifySignedBlobAuthenticator::class.java)
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
     override fun authenticate(context: AuthenticationFlowContext) {
         val session = context.authenticationSession
         val deviceId = session.getAuthNote(DEVICE_ID_NOTE_NAME)
@@ -73,7 +71,7 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
             val canonicalString = JsonSerialization.writeValueAsString(canonicalData)
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
-            val signatureBytes = Base64.decode(sig)
+            val signatureBytes = decodeBase64OrBase64Url(sig)
             val alg = Algorithm.ES256
 
             val key = KeyWrapper().apply {
@@ -100,5 +98,13 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
 
     override fun action(context: AuthenticationFlowContext) {
         // No action needed
+    }
+
+    private fun decodeBase64OrBase64Url(value: String): ByteArray {
+        return try {
+            Base64.getUrlDecoder().decode(value)
+        } catch (_: IllegalArgumentException) {
+            Base64.getDecoder().decode(value)
+        }
     }
 }

@@ -5,10 +5,10 @@ This repository contains Keycloak extensions for "device-bound" authentication a
 This guide covers:
 1. A Node.js + TypeScript example that:
    - generates an EC P-256 keypair
-   - runs the OIDC Authorization Code (PKCE) flow (browser redirect)
+   - starts the custom public-key browser flow with `device_id + public_key + ts + nonce + sig + pkce`
    - exchanges the code for tokens
    - calls the UserInfo endpoint
-   - calls the custom `device_key` grant and prints tokens in a bash-friendly format
+   - prints tokens in a bash-friendly format
 2. A WireMock setup with example stubs for `openapi/backend.open-api.yml`.
 
 ## Prerequisites
@@ -54,6 +54,12 @@ Recommended client settings:
 
 For the local `docker compose` stack, `node-cli` is imported by default via `./.docker/keycloak-config/realm.theme.vymalo-wh-01.json`.
 
+The same realm import also binds `node-cli` to a custom browser flow:
+- `ingest-signed-device-blob`
+- `verify-signed-blob`
+- `find-or-create-user`
+- `persist-device-credential`
+
 ## Node.js + TypeScript example
 
 The example lives in `examples/nodejs-ts`.
@@ -79,11 +85,13 @@ Expected output:
 - Token response JSON
 - UserInfo JSON (includes `sub`)
 
-### Run the custom `device_key` grant
+### Run the direct public-key browser flow
 
-This calls Keycloak's token endpoint with:
-- `grant_type=urn:ssegning:params:oauth:grant-type:device_key`
-- `device_id`, `ts`, `nonce`, `sig`, `username`
+This starts the browser auth request directly with custom parameters:
+- `user_hint`
+- `device_id`, `public_key`, `ts`, `nonce`, `sig`
+- `pkce` (`code_challenge` / `code_verifier`)
+- optional `action`, `aud`, `device_os`, `device_model`
 
 `sig` is:
 - ECDSA P-256 signature over a canonical JSON string
@@ -104,12 +112,11 @@ Important:
 - `publicKey` is a JSON *string*. If the backend returns extra JWK fields (e.g. `kid`, `use`, `alg`) the signature payload changes.
 - For predictable signatures, keep the backend `public_jwk` minimal (`kty`, `crv`, `x`, `y`).
 
-The grant implementation is in:
-- `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt`
-- grant type id: `urn:ssegning:params:oauth:grant-type:device_key`
-
-In dev mode with WireMock, the example can also register a per-device stub in WireMock so Keycloak can resolve:
-- `POST /v1/devices/lookup`
+The authenticators used by the custom flow are in:
+- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/IngestSignedDeviceBlobAuthenticator.kt`
+- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt`
+- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/FindOrCreateUserAuthenticator.kt`
+- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/PersistDeviceCredentialAuthenticator.kt`
 
 Run:
 
@@ -131,6 +138,5 @@ The stubs are intentionally simple (stateless) and meant for local development.
 
 Notes:
 - `docker compose` starts WireMock with `--global-response-templating` so mappings can echo request fields.
-- The Node.js `device-grant` script can register a per-device `POST /v1/devices/lookup` stub through `http://localhost:8080/__admin`.
 
 If you need a realistic CRUD backend, implement `openapi/backend.open-api.yml` in a real service.
