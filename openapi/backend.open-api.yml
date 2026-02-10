@@ -13,6 +13,7 @@ tags:
   - name: health
   - name: enrollment
   - name: approvals
+  - name: users
   - name: devices
 
 paths:
@@ -155,6 +156,133 @@ paths:
           description: Cancelled
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/users:
+    post:
+      tags: [users]
+      summary: Create a user
+      description: |
+        Creates a backend user record that is used by Keycloak user-storage SPI.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpsertRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflict (e.g., duplicate username/email)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/users/{user_id}:
+    get:
+      tags: [users]
+      summary: Get user by id
+      operationId: getUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [users]
+      summary: Update user by id
+      operationId: updateUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpsertRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [users]
+      summary: Delete user by id
+      operationId: deleteUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/users:search:
+    post:
+      tags: [users]
+      summary: Search users by fields and attributes
+      description: |
+        Supports exact/general search plus custom user attributes.
+      operationId: searchUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -514,6 +642,122 @@ components:
           nullable: true
         app_version:
           type: string
+          nullable: true
+
+    UserRecord:
+      type: object
+      required: [user_id, username, enabled, email_verified]
+      properties:
+        user_id:
+          type: string
+        realm:
+          type: string
+        username:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+
+    UserUpsertRequest:
+      type: object
+      required: [realm, username]
+      properties:
+        realm:
+          type: string
+        username:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+          nullable: true
+        email_verified:
+          type: boolean
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+
+    UserSearchRequest:
+      type: object
+      required: [realm]
+      properties:
+        realm:
+          type: string
+        search:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+          nullable: true
+        email_verified:
+          type: boolean
+          nullable: true
+        exact:
+          type: boolean
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+        first_result:
+          type: integer
+          nullable: true
+        max_results:
+          type: integer
+          nullable: true
+
+    UserSearchResponse:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRecord'
+        total_count:
+          type: integer
           nullable: true
 
     UserDevicesResponse:

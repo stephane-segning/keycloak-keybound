@@ -3,6 +3,7 @@ package com.ssegning.keycloak.keybound.api
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
+import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceLookupRequest
@@ -12,6 +13,11 @@ import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrechec
 import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrecheckResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsConfirmRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsSendRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserRecord
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserSearchRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserUpsertRequest
+import com.ssegning.keycloak.keybound.core.models.BackendUser
+import com.ssegning.keycloak.keybound.core.models.BackendUserSearchCriteria
 import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
 import com.ssegning.keycloak.keybound.core.models.DeviceStatus
@@ -28,7 +34,8 @@ import java.time.OffsetDateTime
 open class Api(
     val devicesApi: DevicesApi,
     val approvalsApi: ApprovalsApi,
-    val enrollmentApi: EnrollmentApi
+    val enrollmentApi: EnrollmentApi,
+    val usersApi: UsersApi
 ) : ApiGateway {
     companion object {
         private val log = LoggerFactory.getLogger(Api::class.java)
@@ -247,6 +254,115 @@ open class Api(
         log.error("Failed to disable device $deviceId for user $userId", e)
         false
     }
+
+    override fun createUser(
+        realmName: String,
+        username: String,
+        firstName: String?,
+        lastName: String?,
+        email: String?,
+        enabled: Boolean?,
+        emailVerified: Boolean?,
+        attributes: Map<String, String>?
+    ): BackendUser? = try {
+        usersApi.createUser(
+            UserUpsertRequest(
+                realm = realmName,
+                username = username,
+                firstName = firstName,
+                lastName = lastName,
+                email = email,
+                enabled = enabled,
+                emailVerified = emailVerified,
+                attributes = attributes
+            )
+        ).toBackendUser()
+    } catch (e: Exception) {
+        log.error("Failed to create user username={} in realm={}", username, realmName, e)
+        null
+    }
+
+    override fun getUser(userId: String): BackendUser? = try {
+        usersApi.getUser(userId).toBackendUser()
+    } catch (e: Exception) {
+        log.error("Failed to get user {}", userId, e)
+        null
+    }
+
+    override fun updateUser(
+        userId: String,
+        realmName: String,
+        username: String,
+        firstName: String?,
+        lastName: String?,
+        email: String?,
+        enabled: Boolean?,
+        emailVerified: Boolean?,
+        attributes: Map<String, String>?
+    ): BackendUser? = try {
+        usersApi.updateUser(
+            userId = userId,
+            userUpsertRequest = UserUpsertRequest(
+                realm = realmName,
+                username = username,
+                firstName = firstName,
+                lastName = lastName,
+                email = email,
+                enabled = enabled,
+                emailVerified = emailVerified,
+                attributes = attributes
+            )
+        ).toBackendUser()
+    } catch (e: Exception) {
+        log.error("Failed to update user {}", userId, e)
+        null
+    }
+
+    override fun deleteUser(userId: String): Boolean = try {
+        usersApi.deleteUser(userId)
+        true
+    } catch (e: Exception) {
+        log.error("Failed to delete user {}", userId, e)
+        false
+    }
+
+    override fun searchUsers(
+        realmName: String,
+        criteria: BackendUserSearchCriteria
+    ): List<BackendUser>? = try {
+        usersApi.searchUsers(
+            UserSearchRequest(
+                realm = realmName,
+                search = criteria.search,
+                username = criteria.username,
+                firstName = criteria.firstName,
+                lastName = criteria.lastName,
+                email = criteria.email,
+                enabled = criteria.enabled,
+                emailVerified = criteria.emailVerified,
+                exact = criteria.exact,
+                attributes = criteria.attributes,
+                firstResult = criteria.firstResult,
+                maxResults = criteria.maxResults
+            )
+        ).users.map { it.toBackendUser() }
+    } catch (e: Exception) {
+        log.error("Failed to search users in realm={}", realmName, e)
+        null
+    }
+
+    private fun UserRecord.toBackendUser() = BackendUser(
+        userId = userId,
+        realm = realm,
+        username = username,
+        firstName = firstName,
+        lastName = lastName,
+        email = email,
+        enabled = enabled,
+        emailVerified = emailVerified,
+        attributes = attributes.orEmpty(),
+        createdAt = createdAt
+    )
 
     override fun close() = noop()
 }

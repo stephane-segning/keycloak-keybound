@@ -29,6 +29,7 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./keycloak-keybound-grant-device-key/build/libs:/tmp/libs-grant-device-key
     - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
     - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
+    - ./keycloak-keybound-user-storage-backend/build/libs:/tmp/libs-user-storage-backend
   links:
     - api-mock
 
@@ -43,8 +44,8 @@ services:
     <<: *keycloak-common-extra
 
   api-mock:
-    image: dimabarbul/wiremock-openapi-validation:1.6.0-alpine
+    image: wiremock/wiremock:3.13.0
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
-      - ./openapi/backend.open-api.yml:/home/wiremock/openapi.json
+      - ./.docker/wiremock:/home/wiremock
