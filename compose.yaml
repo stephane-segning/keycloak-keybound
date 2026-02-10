@@ -1,5 +1,5 @@
 x-keycloak-common-env: &keycloak-common-env
-  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://prism:4010"
+  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://api-mock:8080"
   BACKEND_HTTP_AUTH_USERNAME: "admin"
   BACKEND_HTTP_AUTH_PASSWORD: "password"
 
@@ -30,7 +30,7 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
     - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
   links:
-    - prism
+    - api-mock
 
 services:
   keycloak-26:
@@ -42,15 +42,9 @@ services:
       KC_HTTP_PORT: 9026
     <<: *keycloak-common-extra
 
-  prism:
-    image: stoplight/prism:latest
+  api-mock:
+    image: dimabarbul/wiremock-openapi-validation:1.6.0-alpine
     ports:
-      - '127.0.0.1:4010:4010'
-    command:
-      - mock
-      - -h
-      - 0.0.0.0
-      - /backend.open-api.yml
+      - "127.0.0.1:8080:8080"
     volumes:
-      - ./openapi/backend.open-api.yml:/backend.open-api.yml
-    restart: unless-stopped
+      - ./openapi/backend.open-api.yml:/home/wiremock/openapi.json
