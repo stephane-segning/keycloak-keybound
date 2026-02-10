@@ -40,7 +40,7 @@ class DeviceKeyGrantType(
     override fun getEventType(): EventType = EventType.LOGIN
 
     override fun process(context: OAuth2GrantType.Context): Response {
-        setContext(context)
+        setContext(context) // DO NOT REMOVE THIS LINE.
 
         val httpRequest = session.context.httpRequest
         val params = httpRequest.decodedFormParameters
@@ -243,10 +243,8 @@ class DeviceKeyGrantType(
         event.detail(Details.AUTH_METHOD, "device_key")
         updateClientSession(clientSession)
         updateUserSessionFromClientAuth(userSession)
-
         val scopeParam = params.getFirst("scope")
         clientSessionCtx.setAttribute(Constants.GRANT_TYPE, context.grantType)
-
         val accessToken = tokenManager.createClientAccessToken(
             session,
             realm,

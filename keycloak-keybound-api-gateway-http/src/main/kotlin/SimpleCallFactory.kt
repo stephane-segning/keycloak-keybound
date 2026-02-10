@@ -3,15 +3,14 @@ package com.ssegning.keycloak.keybound.api
 import com.ssegning.keycloak.keybound.core.models.HttpConfig
 import okhttp3.Call
 import okhttp3.ConnectionPool
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okio.Buffer
 import org.keycloak.models.KeycloakSession
 import java.security.SecureRandom
 import java.time.Instant
-import java.util.Base64
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -21,6 +20,7 @@ class SimpleCallFactory(
     private val config: HttpConfig = HttpConfig.fromEnv(session.context)
 ) : Call.Factory {
     val baseUrl: String = config.baseUrl
+
     // Keep the generated client's base-path prefix so we can replace only host/base-path per request.
     private val baseUrlPath = baseUrl.toHttpUrlOrNull()?.encodedPath?.trimEnd('/') ?: ""
 
@@ -107,6 +107,7 @@ class SimpleCallFactory(
             normalizedBase.isBlank() || normalizedBase == "/" -> {
                 if (normalizedSuffix.isBlank()) "/" else "/$normalizedSuffix"
             }
+
             normalizedSuffix.isBlank() -> if (normalizedBase.startsWith("/")) normalizedBase else "/$normalizedBase"
             else -> {
                 val start = if (normalizedBase.startsWith("/")) normalizedBase else "/$normalizedBase"
@@ -156,6 +157,7 @@ class SimpleCallFactory(
     companion object {
         private val RANDOM = SecureRandom()
         private val IDEMPOTENCY_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
+
         // One shared client/pool for all provider instances to maximize connection reuse.
         private val CONNECTION_POOL = ConnectionPool(64, 10, TimeUnit.MINUTES)
         private val SHARED_CLIENT: OkHttpClient = OkHttpClient.Builder()
