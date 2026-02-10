@@ -18,6 +18,7 @@ import org.keycloak.protocol.oidc.grants.OAuth2GrantType
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase
 import org.keycloak.services.CorsErrorResponseException
 import org.keycloak.services.util.DefaultClientSessionContext
+import org.keycloak.storage.StorageId
 import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -56,6 +57,7 @@ class DeviceKeyGrantType(
         val nonce = params.getFirst("nonce")
         val sig = params.getFirst("sig")
         val username = params.getFirst("username")
+        val requestPublicKey = params.getFirst("public_key")
 
         if (deviceId == null || tsStr == null || nonce == null || sig == null || username == null) {
             event.error(Errors.INVALID_REQUEST)
@@ -89,7 +91,14 @@ class DeviceKeyGrantType(
             )
         }
 
-        if (lookup.userId != user.id) {
+        val backendUserId = lookup.userId
+        val userIdCandidates = linkedSetOf<String>().apply {
+            add(user.id)
+            StorageId.externalId(user.id)?.takeIf { it.isNotBlank() }?.let { add(it) }
+            user.getFirstAttribute("backend_user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
+            user.getFirstAttribute("user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
+        }
+        if (backendUserId.isNullOrBlank() || backendUserId !in userIdCandidates) {
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -153,13 +162,14 @@ class DeviceKeyGrantType(
 
         // Signature Verification
         try {
-            val publicJwk = lookup.publicJwk ?: throw CorsErrorResponseException(
-                cors,
-                OAuthErrorException.INVALID_GRANT,
-                "Device public key not found",
-                Response.Status.BAD_REQUEST
-            )
-            val publicKeyJwk = JsonSerialization.writeValueAsString(publicJwk)
+            val publicKeyJwk = lookup.publicJwk?.let { JsonSerialization.writeValueAsString(it) }
+                ?: requestPublicKey
+                ?: throw CorsErrorResponseException(
+                    cors,
+                    OAuthErrorException.INVALID_GRANT,
+                    "Device public key not found",
+                    Response.Status.BAD_REQUEST
+                )
 
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
@@ -227,12 +237,16 @@ class DeviceKeyGrantType(
         event.user(user)
         event.session(userSession)
         event.detail(Details.AUTH_METHOD, "device_key")
-        event.success()
+        updateClientSession(clientSession)
+        updateUserSessionFromClientAuth(userSession)
 
-        val accessTokenResponse =
-            tokenManager.responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
-                .build()
-
-        return Response.ok(accessTokenResponse).type("application/json").build()
+        return createTokenResponse(
+            user,
+            userSession,
+            clientSessionCtx,
+            params.getFirst("scope"),
+            false,
+            null
+        )
     }
 }

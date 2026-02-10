@@ -145,5 +145,7 @@ The stubs are intentionally simple (stateless) and meant for local development.
 
 Notes:
 - `docker compose` starts WireMock with `--global-response-templating` so mappings can echo request fields.
+- the default `devices-lookup` mock returns `found=true` with an `ACTIVE` device and `public_jwk=null`;
+  in local mock mode, the custom grant uses the `public_key` form parameter for signature verification fallback.
 
 If you need a realistic CRUD backend, implement `openapi/backend.open-api.yml` in a real service.

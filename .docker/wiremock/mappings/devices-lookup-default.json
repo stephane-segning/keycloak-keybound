@@ -6,9 +6,15 @@
   "response": {
     "status": 200,
     "jsonBody": {
-      "found": false,
-      "user_id": null,
-      "device": null,
+      "found": true,
+      "user_id": "u_test_001",
+      "device": {
+        "device_id": "{{jsonPath request.body '$.device_id'}}",
+        "jkt": "jkt_mock_001",
+        "status": "ACTIVE",
+        "created_at": "2026-02-10T00:00:00Z",
+        "label": "iOS Simulator"
+      },
       "public_jwk": null
     },
     "headers": {

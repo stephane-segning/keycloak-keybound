@@ -114,6 +114,7 @@ async function main() {
         clientId: CLIENT_ID,
         username: grantUsername,
         deviceId,
+        publicKey: publicKeyJwk,
         ts: grantTs,
         nonce: grantNonce,
         sig: grantSig,
@@ -192,6 +193,7 @@ async function callCustomGrant(params: {
     clientId: string;
     username: string;
     deviceId: string;
+    publicKey: string;
     ts: string;
     nonce: string;
     sig: string;
@@ -204,6 +206,7 @@ async function callCustomGrant(params: {
             client_id: params.clientId,
             username: params.username,
             device_id: params.deviceId,
+            public_key: params.publicKey,
             ts: params.ts,
             nonce: params.nonce,
             sig: params.sig,
