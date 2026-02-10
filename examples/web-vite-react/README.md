@@ -1,19 +1,27 @@
 # Web Vite React Example
 
-This example implements the public-key login flow in a browser app.
+Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-backed device storage.
 
 Stack:
 - Vite
 - React + TypeScript
 - React Router
-- IndexedDB via `idb-keyval`
+- Tailwind CSS v4 + DaisyUI v5 (installed locally)
+- TanStack DB + IndexedDB persistence through `idb-keyval`
 
 Routes:
-- `/` (status + device info)
-- `/login` (start public-key redirect)
-- `/callback` (reads the authorization code)
-- `/session` (persist backend user ID, inspect stored key material)
-- `/resource` (calls the resource server)
+- `/` landing hero + device dashboard
+- `/login` popup login and code exchange
+- `/callback` auth callback payload relay
+- `/session` backend user-id binding
+- `/resource` protected resource call
+
+File layout:
+- `src/app/` app shell + routing
+- `src/pages/` route pages (kebab-case filenames)
+- `src/hooks/` app hooks
+- `src/lib/` auth, crypto, and persistence logic
+- `src/styles/` global Tailwind/DaisyUI stylesheet
 
 Keycloak config:
 - Realm: `e2e-realm`
@@ -24,5 +32,3 @@ Keycloak config:
 Environment overrides (prefixed `VITE_`):
 - `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_REDIRECT_URI`
 - `VITE_RESOURCE_SERVER`
-
-Paths such as `/login` compute PKCE + canonical signature parameters, store the code verifier in `sessionStorage`, and open the Keycloak authorization URL.
