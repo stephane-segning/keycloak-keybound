@@ -4,7 +4,7 @@ import {useDeviceStorage} from '../hooks/use-device-storage';
 import {exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveGrantUserId, saveTokens,} from '../lib/auth';
 import {signPayload, stringifyPublicJwk} from '../lib/crypto';
 import {createCodeChallenge, createCodeVerifier} from '../lib/pkce';
-import JsonView from "@microlink/react-json-view";
+import {JsonDisplay} from "../components/json-display";
 
 export const LoginPage = () => {
     const {device, ensureDevice, setUserId} = useDeviceStorage();
@@ -185,13 +185,8 @@ export const LoginPage = () => {
             </article>
 
             {result && (
-                <JsonView
-                    style={{ background: 'none' }}
+                <JsonDisplay
                     src={result}
-                    theme="bright"
-                    collapsed={1}
-                    displayDataTypes={false}
-                    enableClipboard={false}
                 />
             )}
         </section>

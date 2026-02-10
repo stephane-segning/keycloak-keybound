@@ -1,6 +1,7 @@
 import JsonView from '@microlink/react-json-view';
 import {Link} from 'react-router-dom';
 import {useDeviceStorage} from '../hooks/use-device-storage';
+import {JsonDisplay} from "../components/json-display";
 
 export const HomePage = () => {
     const {device, ensureDevice} = useDeviceStorage();
@@ -72,14 +73,8 @@ export const HomePage = () => {
 
             <article className="border border-base-300 bg-base-100 p-5">
                 <h2 className="text-base font-semibold">stored snapshot</h2>
-                <div className="mt-4 overflow-auto p-3 text-xs">
-                    <JsonView
-                        src={device ?? {ready: false}}
-                        theme="bright" collapsed={1}
-                        displayDataTypes={false}
-                        enableClipboard={false}
-                        style={{ background: 'none' }}
-                    />
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={device ?? {ready: false}} />
                 </div>
             </article>
         </section>

@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
+import {JsonDisplay} from "../components/json-display";
 
 export const CallbackPage = () => {
     const [params] = useSearchParams();
@@ -40,8 +41,10 @@ export const CallbackPage = () => {
 
             <article className="border border-base-300 bg-base-100 p-4">
                 <h2 className="text-base font-semibold">callback payload</h2>
-                <pre
-                    className="mt-3 overflow-auto border border-base-300 bg-base-200 p-3 text-xs">{JSON.stringify(info, null, 2)}</pre>
+
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={info}/>
+                </div>
             </article>
         </section>
     );

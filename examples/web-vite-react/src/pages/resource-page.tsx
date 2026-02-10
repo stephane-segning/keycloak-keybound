@@ -1,7 +1,7 @@
-import JsonView from '@microlink/react-json-view';
 import {useCallback, useEffect, useState} from 'react';
 import {RESOURCE_SERVER} from '../config';
 import {ensureAccessToken} from '../lib/auth';
+import {JsonDisplay} from "../components/json-display";
 
 export const ResourcePage = () => {
     const [output, setOutput] = useState<Record<string, unknown>>({msg: 'No request yet'});
@@ -48,9 +48,8 @@ export const ResourcePage = () => {
                     </button>
                 </div>
 
-                <div className="mt-4 overflow-auto p-3 text-xs">
-                    <JsonView src={output} theme="bright" collapsed={1} displayDataTypes={false}
-                              style={{background: 'none'}} enableClipboard={false}/>
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={output} collapsed={false}/>
                 </div>
             </article>
         </section>

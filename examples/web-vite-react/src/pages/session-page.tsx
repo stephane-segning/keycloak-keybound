@@ -1,6 +1,6 @@
-import JsonView from '@microlink/react-json-view';
 import {useCallback, useEffect, useState} from 'react';
 import {useDeviceStorage} from '../hooks/use-device-storage';
+import {JsonDisplay} from "../components/json-display";
 
 export const SessionPage = () => {
     const {device, setUserId} = useDeviceStorage();
@@ -22,15 +22,8 @@ export const SessionPage = () => {
                 <p className="mt-2 text-sm text-base-content/80">Store the backend user identifier for custom grant
                     refresh.</p>
 
-                <div className="mt-4 overflow-auto p-3 text-xs">
-                    <JsonView
-                        src={device ?? {ready: false}}
-                        style={{ background: 'none' }}
-                        theme="bright"
-                        collapsed={1}
-                        displayDataTypes={false}
-                        enableClipboard={false}
-                    />
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={device ?? {ready: false}}/>
                 </div>
             </article>
 
