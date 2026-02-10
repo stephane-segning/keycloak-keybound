@@ -26,6 +26,7 @@ class DeviceApprovalResource(
     @Produces(MediaType.APPLICATION_JSON)
     fun checkStatus(@QueryParam("token") token: String?): Response {
         if (token.isNullOrBlank()) {
+            log.debug("Missing token for approval status check")
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(mapOf("error" to "Missing token"))
                 .build()
@@ -34,11 +35,12 @@ class DeviceApprovalResource(
         val jwt = try {
             tokenManager.decode(token, JsonWebToken::class.java)
         } catch (e: Exception) {
-            log.error(e.message, e)
+            log.error("Failed to decode token for approval status", e)
             null
         }
 
         if (jwt == null || !jwt.isActive) {
+            log.debug("Approval polling token invalid or expired")
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(mapOf("error" to "Invalid or expired token"))
                 .build()
@@ -47,6 +49,7 @@ class DeviceApprovalResource(
         val requestId = jwt.otherClaims["request_id"] as? String
 
         if (requestId.isNullOrBlank()) {
+            log.debug("Approval token missing request_id claim")
             return Response.status(Response.Status.BAD_REQUEST)
                 .entity(mapOf("error" to "Token missing request_id"))
                 .build()
@@ -56,6 +59,7 @@ class DeviceApprovalResource(
             .entity(mapOf("error" to "Approval request not found"))
             .build()
 
+        log.debug("Approval status for request {} -> {}", requestId, status)
         return Response.ok(mapOf("status" to status.name.lowercase())).build()
     }
 }

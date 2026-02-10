@@ -17,6 +17,7 @@ import org.keycloak.storage.user.UserQueryProvider
 import org.keycloak.storage.user.UserRegistrationProvider
 import org.keycloak.models.KeycloakSession
 import java.util.stream.Stream
+import org.slf4j.LoggerFactory
 
 class BackendUserStorageProvider(
     private val session: KeycloakSession,
@@ -38,9 +39,12 @@ class BackendUserStorageProvider(
         UserModel.GROUPS
     )
 
+    private val log = LoggerFactory.getLogger(BackendUserStorageProvider::class.java)
+
     override fun close() = noop()
 
     override fun getUserById(realm: RealmModel, id: String): UserModel? {
+        log.debug("Getting user by id {} in realm {}", id, realm.name)
         val backendUserId = StorageId.externalId(id)
         val user = apiGateway.getUser(backendUserId) ?: return null
         if (!isInRealm(realm, user)) {
@@ -50,6 +54,7 @@ class BackendUserStorageProvider(
     }
 
     override fun getUserByUsername(realm: RealmModel, username: String): UserModel? {
+        log.debug("Looking up user by username {} in realm {}", username, realm.name)
         val users = apiGateway.searchUsers(
             realmName = realm.name,
             criteria = BackendUserSearchCriteria(
@@ -63,6 +68,7 @@ class BackendUserStorageProvider(
     }
 
     override fun getUserByEmail(realm: RealmModel, email: String): UserModel? {
+        log.debug("Looking up user by email {} in realm {}", email, realm.name)
         val users = apiGateway.searchUsers(
             realmName = realm.name,
             criteria = BackendUserSearchCriteria(
@@ -76,6 +82,7 @@ class BackendUserStorageProvider(
     }
 
     override fun addUser(realm: RealmModel, username: String): UserModel? {
+        log.debug("Adding backend user {} to realm {}", username, realm.name)
         val normalizedUsername = KeycloakModelUtils.toLowerCaseSafe(username)
         val createdUser = apiGateway.createUser(
             realmName = realm.name,
@@ -85,6 +92,7 @@ class BackendUserStorageProvider(
     }
 
     override fun removeUser(realm: RealmModel, user: UserModel): Boolean {
+        log.debug("Removing user {} from realm {}", user.username, realm.name)
         val backendUserId = StorageId.externalId(user.id)
         return apiGateway.deleteUser(backendUserId)
     }
@@ -95,6 +103,7 @@ class BackendUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?
     ): Stream<UserModel> {
+        log.debug("Searching for users in realm {} params={}", realm.name, params)
         if (params.containsKey(UserModel.IDP_ALIAS) || params.containsKey(UserModel.IDP_USER_ID)) {
             return Stream.empty()
         }
@@ -112,6 +121,7 @@ class BackendUserStorageProvider(
         attrName: String,
         attrValue: String
     ): Stream<UserModel> {
+        log.debug("Searching for user attribute {}={} in realm {}", attrName, attrValue, realm.name)
         if (attrName == BackendUserAdapter.BACKEND_USER_ID_ATTRIBUTE || attrName == "id" || attrName == "user_id") {
             return getUserById(realm, attrValue)?.let { Stream.of(it) } ?: Stream.empty()
         }
@@ -138,6 +148,7 @@ class BackendUserStorageProvider(
     ): Stream<UserModel> = Stream.empty()
 
     override fun getUsersCount(realm: RealmModel, includeServiceAccount: Boolean): Int {
+        log.debug("Counting users in realm {} includeServiceAccount={}", realm.name, includeServiceAccount)
         return apiGateway.searchUsers(
             realmName = realm.name,
             criteria = BackendUserSearchCriteria()

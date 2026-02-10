@@ -9,6 +9,7 @@ import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper
 import org.keycloak.protocol.oidc.mappers.OIDCIDTokenMapper
 import org.keycloak.provider.ProviderConfigProperty
 import org.keycloak.representations.IDToken
+import org.slf4j.LoggerFactory
 
 open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTokenMapper, OIDCAccessTokenMapper {
 
@@ -17,6 +18,8 @@ open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTok
         const val DEVICE_ID_NOTE = "device.id"
         const val JKT_NOTE = "jkt"
     }
+
+    private val log = LoggerFactory.getLogger(DeviceBindingProtocolMapper::class.java)
 
     override fun getDisplayCategory() = TOKEN_MAPPER_CATEGORY
 
@@ -39,13 +42,19 @@ open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTok
         val deviceId = clientSession.getNote(DEVICE_ID_NOTE) ?: userSession.getNote(DEVICE_ID_NOTE)
         val jkt = clientSession.getNote(JKT_NOTE) ?: userSession.getNote(JKT_NOTE)
 
+        if (deviceId == null && jkt == null) {
+            log.debug("No device binding notes found for clientSession {} userSession {}", clientSession.id, userSession.id)
+        }
+
         if (deviceId != null) {
             token.otherClaims["device_id"] = deviceId
+            log.debug("Mapped device_id claim {}", deviceId)
         }
 
         if (jkt != null) {
             val cnf = mapOf("jkt" to jkt)
             token.otherClaims["cnf"] = cnf
+            log.debug("Mapped cnf.jkt claim {}", jkt)
         }
     }
 }

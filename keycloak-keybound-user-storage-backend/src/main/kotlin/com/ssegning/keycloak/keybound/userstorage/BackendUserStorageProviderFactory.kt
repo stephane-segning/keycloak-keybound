@@ -6,6 +6,7 @@ import org.keycloak.component.ComponentModel
 import org.keycloak.models.KeycloakSession
 import org.keycloak.provider.ServerInfoAwareProviderFactory
 import org.keycloak.storage.UserStorageProviderFactory
+import org.slf4j.LoggerFactory
 
 class BackendUserStorageProviderFactory :
     UserStorageProviderFactory<BackendUserStorageProvider>,
@@ -14,12 +15,18 @@ class BackendUserStorageProviderFactory :
         const val ID = "backend-user-storage"
     }
 
-    override fun create(session: KeycloakSession, model: ComponentModel): BackendUserStorageProvider =
-        BackendUserStorageProvider(
+    override fun create(session: KeycloakSession, model: ComponentModel): BackendUserStorageProvider {
+        log.debug("Creating BackendUserStorageProvider for component {}", model.name)
+        return BackendUserStorageProvider(
             session = session,
             componentModel = model,
             apiGateway = session.getProvider(ApiGateway::class.java)
         )
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(BackendUserStorageProviderFactory::class.java)
+    }
 
     override fun getId(): String = ID
 

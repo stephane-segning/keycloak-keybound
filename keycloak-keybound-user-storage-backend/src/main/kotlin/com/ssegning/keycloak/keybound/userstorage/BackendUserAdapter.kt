@@ -11,6 +11,7 @@ import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.keycloak.storage.adapter.AbstractUserAdapter
 import java.util.stream.Stream
+import org.slf4j.LoggerFactory
 
 class BackendUserAdapter(
     session: KeycloakSession,
@@ -23,6 +24,7 @@ class BackendUserAdapter(
         const val BACKEND_USER_ID_ATTRIBUTE = "backend_user_id"
     }
 
+    private val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)
     private var user: BackendUser = backendUser
     private var createdTimestamp = backendUser.createdAt?.toInstant()?.toEpochMilli()
     private val keycloakStorageId = StorageId.keycloakId(componentModel, backendUser.userId)
@@ -161,6 +163,7 @@ class BackendUserAdapter(
     }
 
     private fun persistUser(updatedUser: BackendUser) {
+        log.debug("Persisting backend user {} attribute change", user.userId)
         val persistedUser = apiGateway.updateUser(
             userId = user.userId,
             realmName = realm.name,
@@ -171,7 +174,10 @@ class BackendUserAdapter(
             enabled = updatedUser.enabled,
             emailVerified = updatedUser.emailVerified,
             attributes = updatedUser.attributes
-        ) ?: throw ModelException("Failed to update backend user ${user.userId}")
+        ) ?: run {
+            log.error("Failed to persist backend user {}", user.userId)
+            throw ModelException("Failed to update backend user ${user.userId}")
+        }
 
         user = persistedUser
         createdTimestamp = persistedUser.createdAt

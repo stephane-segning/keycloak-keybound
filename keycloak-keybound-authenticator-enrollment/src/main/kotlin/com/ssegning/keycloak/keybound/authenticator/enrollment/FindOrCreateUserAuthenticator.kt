@@ -24,6 +24,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
         val phoneVerified = authSession.getAuthNote("phone_verified") == "true"
         val phoneE164 = authSession.getAuthNote("phone_e164")?.trim()
 
+        log.debug("Resolving user with hint='{}' phone_verified={} phone='{}'", userHint, phoneVerified, phoneE164)
         val user = when {
             !userHint.isNullOrBlank() -> {
                 session.users().getUserByUsername(realm, userHint)
@@ -43,6 +44,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
             return
         }
 
+        log.debug("Resolved user {} for enrollment", user.username)
         context.user = user
         context.success()
     }

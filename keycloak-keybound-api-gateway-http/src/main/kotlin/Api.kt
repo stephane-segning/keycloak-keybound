@@ -54,6 +54,13 @@ open class Api(
             }?.toMap()
         )
 
+        log.debug(
+            "Sending SMS hash realm={} client={} phone={}",
+            smsSendRequest.realm,
+            smsSendRequest.clientId,
+            phoneNumber
+        )
+
         return enrollmentApi.sendSms(smsSendRequest).hash
     }
 
@@ -72,11 +79,16 @@ open class Api(
         hash: String
     ): String {
         val smsConfirmRequest = SmsConfirmRequest(hash = hash, otp = code)
+
+        log.debug("Confirming SMS hash={} phone={}", hash, phoneNumber)
+
         return enrollmentApi.confirmSms(smsConfirmRequest).confirmed.toString()
     }
 
     override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {
+        log.debug("Checking approval status for request {}", requestId)
         val response = approvalsApi.getApproval(requestId)
+        log.debug("Approval request {} reported status {}", requestId, response.status)
         when (response.status) {
             ApprovalStatusResponse.Status.PENDING -> ApprovalStatus.PENDING
             ApprovalStatusResponse.Status.APPROVED -> ApprovalStatus.APPROVED
@@ -93,6 +105,7 @@ open class Api(
         userId: String,
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
     ): String? = try {
+        log.debug("Creating approval request for user {} device {}", userId, deviceData.deviceId)
         val response = approvalsApi.createApproval(
             ApprovalCreateRequest(
                 realm = context.realm.name,
@@ -120,6 +133,7 @@ open class Api(
         userHint: String?,
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
     ): EnrollmentPrecheckResult? = try {
+        log.debug("Performing enrollment precheck realm={} user={} device={}", context.realm.name, userId, deviceData.deviceId)
         val response = enrollmentApi.enrollmentPrecheck(
             EnrollmentPrecheckRequest(
                 realm = context.realm.name,
@@ -155,6 +169,7 @@ open class Api(
         proof: Map<String, Any>?
     ): Boolean = try {
         val publicJwk = deviceData.publicJwk ?: return false
+        log.debug("Binding device {} for user {} realm={}", deviceData.deviceId, userId, context.realm.name)
         val response = enrollmentApi.enrollmentBind(
             EnrollmentBindRequest(
                 realm = context.realm.name,
@@ -176,6 +191,7 @@ open class Api(
     }
 
     override fun listUserDevices(userId: String, includeDisabled: Boolean): List<DeviceRecord>? = try {
+        log.debug("Listing devices for user {} includeDisabled={}", userId, includeDisabled)
         devicesApi.listUserDevices(userId, includeDisabled).devices.map { device ->
             DeviceRecord(
                 deviceId = device.deviceId,
@@ -196,6 +212,7 @@ open class Api(
     }
 
     override fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResult? = try {
+        log.debug("Looking up device deviceId={} jkt={}", deviceId, jkt)
         if (deviceId.isNullOrBlank() && jkt.isNullOrBlank()) {
             return null
         }
@@ -229,6 +246,7 @@ open class Api(
     }
 
     override fun disableDevice(userId: String, deviceId: String): Boolean = try {
+        log.debug("Disabling device {} for user {}", deviceId, userId)
         devicesApi.disableUserDevice(userId, deviceId)
         true
     } catch (e: Exception) {
@@ -246,6 +264,7 @@ open class Api(
         emailVerified: Boolean?,
         attributes: Map<String, String>?
     ): BackendUser? = try {
+        log.debug("Creating backend user {} realm={}", username, realmName)
         usersApi.createUser(
             UserUpsertRequest(
                 realm = realmName,
@@ -264,6 +283,7 @@ open class Api(
     }
 
     override fun getUser(userId: String): BackendUser? = try {
+        log.debug("Fetching backend user {}", userId)
         usersApi.getUser(userId).toBackendUser()
     } catch (e: Exception) {
         log.error("Failed to get user {}", userId, e)
@@ -281,6 +301,7 @@ open class Api(
         emailVerified: Boolean?,
         attributes: Map<String, String>?
     ): BackendUser? = try {
+        log.debug("Updating backend user {} realm={}", userId, realmName)
         usersApi.updateUser(
             userId = userId,
             userUpsertRequest = UserUpsertRequest(
@@ -300,6 +321,7 @@ open class Api(
     }
 
     override fun deleteUser(userId: String): Boolean = try {
+        log.debug("Deleting backend user {}", userId)
         usersApi.deleteUser(userId)
         true
     } catch (e: Exception) {
@@ -311,6 +333,7 @@ open class Api(
         realmName: String,
         criteria: BackendUserSearchCriteria
     ): List<BackendUser>? = try {
+        log.debug("Searching backend users realm={} criteria={}", realmName, criteria)
         usersApi.searchUsers(
             UserSearchRequest(
                 realm = realmName,

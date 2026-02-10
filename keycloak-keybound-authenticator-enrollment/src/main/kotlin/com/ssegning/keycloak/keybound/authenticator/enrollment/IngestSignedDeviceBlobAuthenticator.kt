@@ -28,6 +28,15 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
         val deviceOs = param("device_os")
         val deviceModel = param("device_model")
 
+        log.debug(
+            "Ingesting signed blob deviceId={} action={} userHint={} deviceOs={} deviceModel={}",
+            deviceId,
+            action,
+            userHint,
+            deviceOs,
+            deviceModel
+        )
+
         // Input length validation to prevent potential DoS attacks
         // We limit the length of each parameter to 2048 characters to avoid unbounded input storage
         val maxInputLength = 2048

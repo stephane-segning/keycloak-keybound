@@ -16,6 +16,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
+        log.debug("Presenting phone collection form")
         val challenge = context.form()
             .createForm("enroll-collect-phone.ftl")
         context.challenge(challenge)
@@ -25,6 +26,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         val formData = context.httpRequest.decodedFormParameters
 
         if (formData.containsKey("otp")) {
+            log.debug("Handling OTP submission")
             handleOtpSubmission(context, formData)
             return
         }
@@ -32,6 +34,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         val phoneNumber = formData.getFirst("phone")?.trim()
 
         if (phoneNumber.isNullOrBlank() || !isValidE164(phoneNumber)) {
+            log.debug("Invalid phone number submitted: {}", phoneNumber)
             val challenge = context.form()
                 .setError("invalidPhoneNumber")
                 .setAttribute("phone", phoneNumber)
@@ -55,9 +58,10 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         )
 
         try {
+            log.debug("Sending enrollment SMS to {}", phoneNumber)
             context.session.getApi().sendSmsAndGetHash(context, smsRequest, phoneNumber)
         } catch (e: Exception) {
-            log.error("Failed to send SMS", e)
+            log.error("Failed to send SMS to {}", phoneNumber, e)
             val challenge = context.form()
                 .setError("smsSendError")
                 .setAttribute("phone", phoneNumber)
@@ -78,12 +82,14 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         val phoneNumber = context.authenticationSession.getAuthNote("enroll.phone_e164")
 
         if (submittedOtp != null && submittedOtp == storedOtp) {
+            log.debug("OTP verified for phone {}", phoneNumber)
             context.authenticationSession.setAuthNote("phone_verified", "true")
             context.authenticationSession.setAuthNote("phone_e164", phoneNumber)
             context.authenticationSession.removeAuthNote("enroll.otp")
             context.authenticationSession.removeAuthNote("enroll.phone_e164")
             context.success()
         } else {
+            log.debug("OTP verification failed for phone {}", phoneNumber)
             val challenge = context.form()
                 .setError("invalidOtp")
                 .setAttribute("phone", phoneNumber)

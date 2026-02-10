@@ -29,6 +29,7 @@ class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
             return
         }
 
+        log.debug("Rendering approval wait page for request {}", requestId)
         val pollingToken = createPollingToken(context, requestId)
         val pollingUrl = "/realms/${context.realm.name}/device-approval/status"
 
@@ -50,6 +51,7 @@ class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
         }
 
         val apiGateway = context.session.getProvider(ApiGateway::class.java)
+        log.debug("Polling approval status for request {}", requestId)
         val status = apiGateway.checkApprovalStatus(requestId)
 
         when (status) {
@@ -57,6 +59,7 @@ class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
             ApprovalStatus.DENIED -> context.failure(AuthenticationFlowError.ACCESS_DENIED)
             ApprovalStatus.EXPIRED -> context.failure(AuthenticationFlowError.EXPIRED_CODE)
             else -> {
+                log.debug("Approval request {} still pending or error ({})", requestId, status)
                 // Still pending or error, show form again
                 authenticate(context)
             }

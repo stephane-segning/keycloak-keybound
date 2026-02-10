@@ -26,6 +26,7 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
         val nonce = session.getAuthNote(DEVICE_NONCE_NOTE_NAME)
         val sig = session.getAuthNote(DEVICE_SIG_NOTE_NAME)
 
+        log.debug("Verifying signed blob deviceId={}", deviceId)
         if (deviceId == null || publicKeyJwk == null || tsStr == null || nonce == null || sig == null) {
             log.error("Missing required authentication notes for signature verification")
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
@@ -93,6 +94,7 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
         }
 
         session.setAuthNote("device_proof", "ok")
+        log.debug("Signature verification succeeded for device {}", deviceId)
         context.success()
     }
 

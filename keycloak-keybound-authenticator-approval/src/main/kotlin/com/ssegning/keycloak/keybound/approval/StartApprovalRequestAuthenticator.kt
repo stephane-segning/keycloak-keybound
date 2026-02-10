@@ -30,8 +30,9 @@ class StartApprovalRequestAuthenticator(
         val deviceOs = session.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME)
         val deviceModel = session.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME)
 
-        if (deviceId == null || publicKeyStr == null) {
-            log.error("Missing device details in session")
+        log.debug("Starting approval request for user={} device={}", userId, deviceId)
+        if (deviceId.isNullOrBlank() || publicKeyStr.isNullOrBlank()) {
+            log.error("Missing device details (deviceId={} publicKey={}) in session", deviceId, publicKeyStr?.let { "[REDACTED]" })
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
@@ -53,6 +54,7 @@ class StartApprovalRequestAuthenticator(
 
         if (requestId != null) {
             session.setAuthNote(APPROVAL_REQUEST_ID_NOTE, requestId)
+            log.debug("Recorded approval request {} for user {}", requestId, userId)
             context.success()
         } else {
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)

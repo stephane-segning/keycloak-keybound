@@ -33,6 +33,8 @@ class PersistDeviceCredentialAuthenticator(
         val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME) ?: "Unknown"
         val deviceModel = session.getAuthNote(DEVICE_MODEL_NOTE_NAME) ?: "Unknown"
 
+        log.debug("Persisting device credential for user={} device={}", user.id, deviceId)
+
         if (deviceId == null || publicKey == null) {
             log.error("Missing device.id or device.public_key in authentication session notes")
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
@@ -92,6 +94,7 @@ class PersistDeviceCredentialAuthenticator(
                 return
             }
 
+            log.debug("Device credential {} persisted for user {}", deviceId, user.id)
             context.success()
         } catch (e: Exception) {
             log.error("Failed to persist device credential in backend", e)

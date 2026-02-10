@@ -23,6 +23,8 @@ open class ApiFactory : ApiGatewayProviderFactory {
         val client = SimpleCallFactory(session)
         val baseUrl = client.baseUrl
 
+        log.debug("Creating ApiGateway with baseUrl={}", baseUrl)
+
         return Api(
             DevicesApi(basePath = baseUrl, client = client),
             ApprovalsApi(basePath = baseUrl, client = client),
