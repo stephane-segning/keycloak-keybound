@@ -37,6 +37,23 @@ Implements a custom OAuth2 Grant Type.
 - **Purpose**: Allows clients to exchange a Device Key credential for access tokens.
 - **Key Component**: `DeviceKeyGrantType`.
 
+### `keycloak-keybound-protocol-mapper`
+Implements an OIDC Protocol Mapper for device-binding claims.
+- **Purpose**: Decorates tokens with device-binding claims (`cnf.jkt`, `device_id`) when configured on a client / client scope.
+- **Key Component**: `DeviceBindingProtocolMapper`.
+
+### `keycloak-keybound-user-storage-backend`
+Implements a User Storage Provider backed by the backend API (via `ApiGateway`).
+- **Purpose**: Resolve users through the backend, enabling CRUD/search without Keycloak-local storage.
+
+### `keycloak-keybound-authenticator-approval`
+Contains authenticators used for “new device approval” flows.
+- **Purpose**: Create/poll approval requests against the backend while a Keycloak authentication flow is paused.
+
+### `keycloak-keybound-custom-endpoint`
+Implements a custom realm endpoint.
+- **Purpose**: Exposes REST endpoints used by the approval/auth flows (e.g. polling status).
+
 ### `keycloak-keybound-theme`
 Contains the frontend resources for the custom authentication flows.
 - **Purpose**: Provides FreeMarker templates (FTL) for custom forms.

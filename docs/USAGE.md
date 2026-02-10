@@ -10,6 +10,13 @@ This guide covers:
    - calls the UserInfo endpoint
    - prints tokens in a bash-friendly format
 2. A WireMock setup with example stubs for `openapi/backend.open-api.yml`.
+3. Where to find the flow-level documentation (sequence diagrams).
+
+For deeper “what calls what” documentation (authenticators, grant, protocol mapper, user-storage), see:
+- `docs/WORKFLOWS/README.md`
+- `docs/WORKFLOWS/current-enrollment-authenticators.md`
+- `docs/WORKFLOWS/current-device-key-grant.md`
+- `docs/WORKFLOWS/current-protocol-mapper.md`
 
 ## Prerequisites
 
@@ -149,3 +156,25 @@ Notes:
   in local mock mode, the custom grant uses the `public_key` form parameter for signature verification fallback.
 
 If you need a realistic CRUD backend, implement `openapi/backend.open-api.yml` in a real service.
+
+## Troubleshooting
+
+### `jwt.io` cannot verify the signature
+
+`jwt.io` often cannot auto-fetch keys from a local `iss` (localhost). For Keycloak, the JWKS endpoint is:
+
+- `http://localhost:9026/realms/ssegning-keybound-wh-01/protocol/openid-connect/certs`
+
+To verify a token:
+- decode the JWT header and note the `kid`
+- fetch the JWKS and pick the matching key
+- paste the public key/JWK into your verifier
+
+### Standard auth-code flow fails with “missing device notes”
+
+The minimal realm import sets:
+- `"browserFlow": "keybound-publickey-browser-flow"`
+
+That means *all* browser logins require the custom device signature parameters. If you want both:
+- keep a normal browser flow as the realm default
+- bind `keybound-publickey-browser-flow` only to specific clients (requires a richer realm import than the minimal one)

@@ -2,6 +2,9 @@
 
 This plan details the implementation of the custom credential provider, protocol mapper, and custom grant type to enable device-bound authentication.
 
+Note:
+- This is a design/plan document. For “current behavior” documentation, prefer `docs/WORKFLOWS/*` (sequence diagrams) and `docs/USAGE.md` (runnable steps).
+
 ## 1. Custom Credential Provider
 
 The `DeviceKeyCredentialProvider` is responsible for managing the lifecycle of device credentials (public keys) associated with users.
@@ -58,9 +61,9 @@ The `DeviceBindingProtocolMapper` ensures that the issued tokens (ID Token, Acce
 
 ### 2.1. `DeviceBindingProtocolMapper`
 
-*   **Class**: `com.ssegning.keycloak.keybound.protocol.DeviceBindingProtocolMapper`
+*   **Class**: `com.ssegning.keycloak.keybound.mapper.DeviceBindingProtocolMapper`
 *   **Parent**: `AbstractOIDCProtocolMapper`
-*   **Implements**: `OIDCAccessTokenMapper`, `OIDCIDTokenMapper`, `UserInfoTokenMapper`
+*   **Implements**: `OIDCAccessTokenMapper`, `OIDCIDTokenMapper`
 *   **Configuration**:
     *   `claim.name`: Default to `cnf` (Confirmation).
 *   **Logic (`transformAccessToken`, `transformIDToken`)**:
@@ -76,10 +79,8 @@ The `DeviceBindingProtocolMapper` ensures that the issued tokens (ID Token, Acce
         ```
     4.  Optionally add a `device_id` claim if configured.
 
-### 2.2. `DeviceBindingProtocolMapperFactory`
-
-*   **Class**: `com.ssegning.keycloak.keybound.protocol.DeviceBindingProtocolMapperFactory`
-*   **Responsibility**: Register the mapper in Keycloak.
+Registration:
+- The mapper is registered via `META-INF/services/org.keycloak.protocol.ProtocolMapper` in `keycloak-keybound-protocol-mapper`.
 
 ## 3. Custom OAuth2 Grant Type
 
@@ -89,7 +90,7 @@ The `DeviceKeyGrantType` allows a client to exchange a device signature for toke
 
 *   **Class**: `com.ssegning.keycloak.keybound.grants.DeviceKeyGrantType`
 *   **Implements**: `OAuth2GrantType`
-*   **Grant Name**: `urn:ietf:params:oauth:grant-type:device_key` (or similar custom URN).
+*   **Grant Name**: `urn:ssegning:params:oauth:grant-type:device_key` (project-specific URN).
 *   **Parameters**:
     *   `device_id`: The device identifier.
     *   `client_assertion`: The signed JWT or blob proving possession of the private key.
@@ -109,7 +110,7 @@ The `DeviceKeyGrantType` allows a client to exchange a device signature for toke
     4.  **Session Creation**:
         *   If valid, create a `UserSession`.
         *   Set the `jkt` in the session notes for the Protocol Mapper to pick up.
-    5.  **Token Generation**: Issue Access Token, Refresh Token, and ID Token.
+    5.  **Token Generation**: Issue Access Token (optionally ID Token). No refresh token for this custom grant.
 
 ### 3.2. `DeviceKeyGrantTypeFactory`
 

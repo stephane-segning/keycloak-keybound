@@ -243,8 +243,10 @@ class DeviceKeyGrantType(
         event.detail(Details.AUTH_METHOD, "device_key")
         updateClientSession(clientSession)
         updateUserSessionFromClientAuth(userSession)
+
         val scopeParam = params.getFirst("scope")
         clientSessionCtx.setAttribute(Constants.GRANT_TYPE, context.grantType)
+
         val accessToken = tokenManager.createClientAccessToken(
             session,
             realm,

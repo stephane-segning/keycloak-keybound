@@ -1,6 +1,6 @@
 # Current: Device Key OAuth2 Grant Type
 
-This is the `urn:ietf:params:oauth:grant-type:device_key` flow implemented by `keycloak-keybound-grant-device-key`.
+This is the `urn:ssegning:params:oauth:grant-type:device_key` flow implemented by `keycloak-keybound-grant-device-key`.
 
 ## Directed Graph
 
@@ -44,10 +44,11 @@ Grant->>Grant: verify lookup.user_id == kcUser.id\nverify device status == ACTIV
 Grant->>Grant: verify signature using public_jwk\n(ts window + nonce replay protection)
 
 Grant->>KC: create UserSession + ClientSession
-Grant->>KC: set userSession note cnf.jkt = device.jkt
-KC-->>Device: tokens (access/refresh/id)
+Grant->>KC: mint access token with device-binding claims\n(device_id + cnf.jkt)
+KC-->>Device: tokens (access + optional id)
 ```
 
 Notes:
 - Backend is authoritative for device binding, device status, and public key material.
-- `cnf.jkt` is used downstream by the protocol mapper.
+- This custom grant is intended to be “access-token only” (no refresh token).
+- The protocol mapper exists, but is not configured in the minimal dev realm import by default.

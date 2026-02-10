@@ -4,28 +4,11 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
-import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
-import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceLookupRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.*
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
-import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentBindRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrecheckRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrecheckResponse
-import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsConfirmRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsSendRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.UserRecord
-import com.ssegning.keycloak.keybound.api.openapi.client.model.UserSearchRequest
-import com.ssegning.keycloak.keybound.api.openapi.client.model.UserUpsertRequest
-import com.ssegning.keycloak.keybound.core.models.BackendUser
-import com.ssegning.keycloak.keybound.core.models.BackendUserSearchCriteria
-import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
-import com.ssegning.keycloak.keybound.core.models.DeviceRecord
-import com.ssegning.keycloak.keybound.core.models.DeviceStatus
-import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
-import com.ssegning.keycloak.keybound.core.models.EnrollmentPrecheckResult
 import com.ssegning.keycloak.keybound.core.helper.noop
-import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
-import com.ssegning.keycloak.keybound.core.models.SmsRequest
+import com.ssegning.keycloak.keybound.core.models.*
+import com.ssegning.keycloak.keybound.core.models.DeviceRecord
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
@@ -223,22 +206,19 @@ open class Api(
                 jkt = jkt
             )
         )
-        log.warn("> $response")
         DeviceLookupResult(
             found = response.found,
             userId = response.userId,
-            device = response.device?.let { device ->
+            device = response.device?.let {
                 DeviceRecord(
-                    deviceId = device.deviceId,
-                    jkt = device.jkt,
-                    status = when (device.status) {
-                        com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE ->
-                            DeviceStatus.ACTIVE
-
+                    deviceId = it.deviceId,
+                    jkt = it.jkt,
+                    status = when (it.status) {
+                        com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE -> DeviceStatus.ACTIVE
                         else -> DeviceStatus.DISABLED
                     },
-                    createdAt = device.createdAt,
-                    label = device.label
+                    createdAt = it.createdAt,
+                    label = it.label
                 )
             },
             publicJwk = response.publicJwk
