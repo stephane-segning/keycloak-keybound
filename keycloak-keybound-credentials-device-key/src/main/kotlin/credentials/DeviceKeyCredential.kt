@@ -68,18 +68,6 @@ class DeviceKeyCredential(
     }
 
     override fun isValid(realm: RealmModel?, user: UserModel?, credentialInput: CredentialInput?): Boolean {
-        // This method is primarily used for verifying the credential during authentication.
-        // For the Device Key credential, the verification logic (signature check)
-        // is typically handled within the Authenticator or a custom Grant Type,
-        // as it involves checking a signed challenge against the public key.
-        // However, if we have a custom CredentialInput that carries the signature,
-        // we could implement the check here.
-        // For now, we'll return false as the standard flow doesn't pass the signature here directly
-        // in a way that fits the standard CredentialInput interface easily without a custom implementation.
-        // The actual verification will happen in the Authenticator/GrantType which will then
-        // likely not call this method directly, or we will implement a custom CredentialInput later.
-
-        // TODO: Implement signature verification if a suitable CredentialInput is defined.
         return false
     }
 

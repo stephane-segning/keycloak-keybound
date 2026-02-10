@@ -21,11 +21,12 @@ open class ApiFactory : ApiGatewayProviderFactory, ServerInfoAwareProviderFactor
 
     override fun create(session: KeycloakSession): ApiGateway {
         val client = SimpleCallFactory(session)
+        val baseUrl = client.baseUrl
 
         return Api(
-            DevicesApi(client = client),
-            ApprovalsApi(client = client),
-            EnrollmentApi(client = client)
+            DevicesApi(basePath = baseUrl, client = client),
+            ApprovalsApi(basePath = baseUrl, client = client),
+            EnrollmentApi(basePath = baseUrl, client = client)
         )
     }
 

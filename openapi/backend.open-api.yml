@@ -9,9 +9,6 @@ servers:
   - url: https://backend.example.com
     description: Backend base URL
 
-security:
-  - KCSignatureAuth: []
-
 tags:
   - name: health
   - name: enrollment
@@ -306,15 +303,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
-  securitySchemes:
-    KCSignatureAuth:
-      type: apiKey
-      in: header
-      name: X-KC-Signature
-      description: |
-        HMAC signature over (timestamp + method + path + body) with a shared secret.
-        Pair with X-KC-Timestamp to prevent replay.
-
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
