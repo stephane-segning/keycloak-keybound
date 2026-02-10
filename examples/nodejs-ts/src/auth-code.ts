@@ -1,5 +1,12 @@
 import http from 'node:http';
-import { authorizationCodeGrant, buildAuthorizationUrl, discovery, fetchUserInfo, skipSubjectCheck } from 'openid-client';
+import {
+  allowInsecureRequests,
+  authorizationCodeGrant,
+  buildAuthorizationUrl,
+  discovery,
+  fetchUserInfo,
+  skipSubjectCheck
+} from 'openid-client';
 import {
   env,
   issuerUrl,
@@ -15,7 +22,9 @@ const REDIRECT_URI = env('REDIRECT_URI', 'http://localhost:3005/callback');
 
 async function main() {
   const issuer = issuerUrl(KEYCLOAK_BASE_URL, REALM);
-  const config = await discovery(new URL(issuer), CLIENT_ID);
+  const config = await discovery(new URL(issuer), CLIENT_ID, undefined, undefined, {
+    execute: [allowInsecureRequests],
+  });
 
   const codeVerifier = randomBase64Url(32);
   const codeChallenge = sha256Base64Url(codeVerifier);
