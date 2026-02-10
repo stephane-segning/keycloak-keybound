@@ -1,8 +1,9 @@
 import { Link, Route, Routes } from 'react-router-dom';
-
-function Placeholder({ title }: { title: string }) {
-  return <h2>{title}</h2>;
-}
+import { HomePage } from './routes/HomePage';
+import { LoginPage } from './routes/LoginPage';
+import { CallbackPage } from './routes/CallbackPage';
+import { SessionPage } from './routes/SessionPage';
+import { ResourcePage } from './routes/ResourcePage';
 
 export function App() {
   return (
@@ -13,11 +14,11 @@ export function App() {
         <Link to="/session">Session</Link> | <Link to="/resource">Resource</Link>
       </nav>
       <Routes>
-        <Route path="/" element={<Placeholder title="Home" />} />
-        <Route path="/login" element={<Placeholder title="Login" />} />
-        <Route path="/callback" element={<Placeholder title="Callback" />} />
-        <Route path="/session" element={<Placeholder title="Session" />} />
-        <Route path="/resource" element={<Placeholder title="Resource" />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/callback" element={<CallbackPage />} />
+        <Route path="/session" element={<SessionPage />} />
+        <Route path="/resource" element={<ResourcePage />} />
       </Routes>
     </main>
   );
