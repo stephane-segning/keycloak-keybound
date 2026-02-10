@@ -5,15 +5,25 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.ApprovalStatusResponse
+import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceLookupRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
+import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentBindRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrecheckRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPrecheckResponse
 import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsConfirmRequest
 import com.ssegning.keycloak.keybound.api.openapi.client.model.SmsSendRequest
+import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
+import com.ssegning.keycloak.keybound.core.models.DeviceRecord
+import com.ssegning.keycloak.keybound.core.models.DeviceStatus
+import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPrecheckResult
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
 import com.ssegning.keycloak.keybound.core.models.SmsRequest
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
+import java.time.OffsetDateTime
 
 open class Api(
     val devicesApi: DevicesApi,
@@ -112,6 +122,130 @@ open class Api(
     } catch (e: Exception) {
         log.error("Failed to create approval request for user $userId", e)
         null
+    }
+
+    override fun enrollmentPrecheck(
+        context: AuthenticationFlowContext,
+        userId: String,
+        userHint: String?,
+        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
+    ): EnrollmentPrecheckResult? = try {
+        val response = enrollmentApi.enrollmentPrecheck(
+            EnrollmentPrecheckRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                userHint = userHint ?: userId,
+                deviceId = deviceData.deviceId,
+                jkt = deviceData.jkt,
+                publicJwk = deviceData.publicJwk
+            )
+        )
+
+        EnrollmentPrecheckResult(
+            decision = when (response.decision) {
+                EnrollmentPrecheckResponse.Decision.ALLOW -> EnrollmentDecision.ALLOW
+                EnrollmentPrecheckResponse.Decision.REQUIRE_APPROVAL -> EnrollmentDecision.REQUIRE_APPROVAL
+                EnrollmentPrecheckResponse.Decision.REJECT -> EnrollmentDecision.REJECT
+            },
+            reason = response.reason,
+            boundUserId = response.boundUserId,
+            retryAfterSeconds = response.retryAfterSeconds
+        )
+    } catch (e: Exception) {
+        log.error("Failed to precheck device enrollment for user $userId", e)
+        null
+    }
+
+    override fun enrollmentBind(
+        context: AuthenticationFlowContext,
+        userId: String,
+        userHint: String?,
+        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
+        attributes: Map<String, String>?,
+        proof: Map<String, Any>?
+    ): Boolean = try {
+        val publicJwk = deviceData.publicJwk ?: return false
+        val response = enrollmentApi.enrollmentBind(
+            EnrollmentBindRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                userId = userId,
+                userHint = userHint,
+                deviceId = deviceData.deviceId,
+                jkt = deviceData.jkt,
+                publicJwk = publicJwk,
+                attributes = attributes,
+                proof = proof,
+                createdAt = OffsetDateTime.now()
+            )
+        )
+        response.boundUserId == userId
+    } catch (e: Exception) {
+        log.error("Failed to bind device ${deviceData.deviceId} for user $userId", e)
+        false
+    }
+
+    override fun listUserDevices(userId: String, includeDisabled: Boolean): List<DeviceRecord>? = try {
+        devicesApi.listUserDevices(userId, includeDisabled).devices.map { device ->
+            DeviceRecord(
+                deviceId = device.deviceId,
+                jkt = device.jkt,
+                status = when (device.status) {
+                    com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE ->
+                        DeviceStatus.ACTIVE
+
+                    else -> DeviceStatus.DISABLED
+                },
+                createdAt = device.createdAt,
+                label = device.label
+            )
+        }
+    } catch (e: Exception) {
+        log.error("Failed to list devices for user $userId", e)
+        null
+    }
+
+    override fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResult? = try {
+        if (deviceId.isNullOrBlank() && jkt.isNullOrBlank()) {
+            return null
+        }
+
+        val response = devicesApi.lookupDevice(
+            DeviceLookupRequest(
+                deviceId = deviceId,
+                jkt = jkt
+            )
+        )
+        DeviceLookupResult(
+            found = response.found,
+            userId = response.userId,
+            device = response.device?.let { device ->
+                DeviceRecord(
+                    deviceId = device.deviceId,
+                    jkt = device.jkt,
+                    status = when (device.status) {
+                        com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE ->
+                            DeviceStatus.ACTIVE
+
+                        else -> DeviceStatus.DISABLED
+                    },
+                    createdAt = device.createdAt,
+                    label = device.label
+                )
+            },
+            publicJwk = response.publicJwk
+        )
+    } catch (e: Exception) {
+        log.error("Failed to lookup device by deviceId=$deviceId and jkt=$jkt", e)
+        null
+    }
+
+    override fun disableDevice(userId: String, deviceId: String): Boolean = try {
+        devicesApi.disableUserDevice(userId, deviceId)
+        true
+    } catch (e: Exception) {
+        log.error("Failed to disable device $deviceId for user $userId", e)
+        false
     }
 
     override fun close() = noop()

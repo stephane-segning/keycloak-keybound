@@ -1,8 +1,7 @@
 package com.ssegning.keycloak.keybound.grants
 
-import com.ssegning.keycloak.keybound.core.models.DeviceSecretData
-import com.ssegning.keycloak.keybound.credentials.DeviceKeyCredential
-import com.ssegning.keycloak.keybound.credentials.DeviceKeyCredentialFactory
+import com.ssegning.keycloak.keybound.core.models.DeviceStatus
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.core.Response
 import org.keycloak.OAuthErrorException
 import org.keycloak.common.util.Time
@@ -24,7 +23,9 @@ import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.math.abs
 
-class DeviceKeyGrantType : OAuth2GrantTypeBase() {
+class DeviceKeyGrantType(
+    private val apiGateway: ApiGateway
+) : OAuth2GrantTypeBase() {
 
     companion object {
         private val log = LoggerFactory.getLogger(DeviceKeyGrantType::class.java)
@@ -78,27 +79,43 @@ class DeviceKeyGrantType : OAuth2GrantTypeBase() {
             )
         }
 
-        val credentialProvider = session.getProvider(
-            org.keycloak.credential.CredentialProvider::class.java,
-            DeviceKeyCredentialFactory.ID
-        ) as? DeviceKeyCredential
-        if (credentialProvider == null) {
-            event.error(Errors.CREDENTIAL_NOT_FOUND)
+        val lookup = apiGateway.lookupDevice(deviceId = deviceId)
+        if (lookup == null || !lookup.found) {
+            event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
-                OAuthErrorException.SERVER_ERROR,
-                "DeviceKeyCredential provider not found",
-                Response.Status.INTERNAL_SERVER_ERROR
+                OAuthErrorException.INVALID_GRANT,
+                "Device not found",
+                Response.Status.BAD_REQUEST
             )
         }
 
-        val deviceCredential = credentialProvider.getByDeviceId(user, deviceId)
-        if (deviceCredential == null) {
+        if (lookup.userId != user.id) {
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Device not registered for this user",
+                Response.Status.BAD_REQUEST
+            )
+        }
+
+        val deviceRecord = lookup.device ?: run {
+            event.error(Errors.INVALID_USER_CREDENTIALS)
+            throw CorsErrorResponseException(
+                cors,
+                OAuthErrorException.INVALID_GRANT,
+                "Device metadata not found",
+                Response.Status.BAD_REQUEST
+            )
+        }
+
+        if (deviceRecord.status != DeviceStatus.ACTIVE) {
+            event.error(Errors.INVALID_USER_CREDENTIALS)
+            throw CorsErrorResponseException(
+                cors,
+                OAuthErrorException.INVALID_GRANT,
+                "Device is disabled",
                 Response.Status.BAD_REQUEST
             )
         }
@@ -137,15 +154,20 @@ class DeviceKeyGrantType : OAuth2GrantTypeBase() {
 
         // Signature Verification
         try {
-            val secretData = JsonSerialization.readValue(deviceCredential.secretData, DeviceSecretData::class.java)
-            val publicKeyPem = secretData.publicKey
+            val publicJwk = lookup.publicJwk ?: throw CorsErrorResponseException(
+                cors,
+                OAuthErrorException.INVALID_GRANT,
+                "Device public key not found",
+                Response.Status.BAD_REQUEST
+            )
+            val publicKeyJwk = JsonSerialization.writeValueAsString(publicJwk)
 
-            val jwkParser = JWKParser.create().parse(publicKeyPem)
+            val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
             val canonicalData = mapOf(
                 "deviceId" to deviceId,
-                "publicKey" to publicKeyPem,
+                "publicKey" to publicKeyJwk,
                 "ts" to tsStr,
                 "nonce" to nonce
             )
@@ -195,11 +217,10 @@ class DeviceKeyGrantType : OAuth2GrantTypeBase() {
                 "device-grant", false,
                 null, null,
                 UserSessionModel.SessionPersistenceState.PERSISTENT
-            )
+        )
 
         // Add JKT to session notes
-        val secretData = JsonSerialization.readValue(deviceCredential.secretData, DeviceSecretData::class.java)
-        userSession.setNote("cnf.jkt", secretData.jkt)
+        userSession.setNote("cnf.jkt", deviceRecord.jkt)
 
         val clientSession = session.sessions().createClientSession(realm, client, userSession)
         val clientSessionCtx = DefaultClientSessionContext.fromClientSessionScopeParameter(clientSession, session)

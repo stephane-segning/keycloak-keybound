@@ -192,6 +192,43 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1/users/{user_id}/devices/{device_id}/disable:
+    post:
+      tags: [devices]
+      summary: Disable a device for a user
+      description: |
+        Disables a device binding for the specified user.
+        In Keycloak semantics, disable/revoke are treated the same.
+      operationId: disableUserDevice
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Device cannot be disabled in its current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /v1/devices/lookup:
     post:
       tags: [devices]
@@ -526,17 +563,14 @@ components:
 
     DeviceLookupRequest:
       type: object
-      anyOf:
-        - required: [device_id]
-          properties:
-            device_id:
-              type: string
-              nullable: true
-        - required: [jkt]
-          properties:
-            jkt:
-              type: string
-              nullable: true
+      description: Provide at least one of device_id or jkt
+      properties:
+        device_id:
+          type: string
+          nullable: true
+        jkt:
+          type: string
+          nullable: true
 
     DeviceLookupResponse:
       type: object

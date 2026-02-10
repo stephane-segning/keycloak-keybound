@@ -8,14 +8,14 @@ import org.keycloak.models.KeycloakSession
 
 open class PersistDeviceCredentialAuthenticatorFactory : AbstractAuthenticatorFactory() {
     override fun create(session: KeycloakSession, apiGateway: ApiGateway): Authenticator {
-        return PersistDeviceCredentialAuthenticator()
+        return PersistDeviceCredentialAuthenticator(apiGateway)
     }
 
     override fun getId() = ID
 
     override fun getDisplayType() = "DK5- Persist Device Credential"
 
-    override fun getHelpText() = "Persists the device credential (ID and Public Key) to the user's account."
+    override fun getHelpText() = "Persists the device credential (ID and Public Key) in the backend."
 
     override fun getRequirementChoices() = arrayOf(
         AuthenticationExecutionModel.Requirement.REQUIRED,

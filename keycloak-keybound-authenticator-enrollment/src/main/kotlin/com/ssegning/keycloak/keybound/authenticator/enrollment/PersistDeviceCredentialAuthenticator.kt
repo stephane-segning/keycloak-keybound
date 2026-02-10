@@ -1,17 +1,18 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
-import com.ssegning.keycloak.keybound.core.models.DeviceCredentialData
-import com.ssegning.keycloak.keybound.core.models.DeviceKeyCredentialModel
-import com.ssegning.keycloak.keybound.core.models.DeviceSecretData
+import com.ssegning.keycloak.keybound.core.helper.computeJkt
+import com.ssegning.keycloak.keybound.core.helper.parsePublicJwk
+import com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
+import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
-import org.keycloak.common.util.Time
-import org.keycloak.jose.jwk.JWKParser
-import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
 
-class PersistDeviceCredentialAuthenticator : AbstractKeyAuthenticator() {
+class PersistDeviceCredentialAuthenticator(
+    private val apiGateway: ApiGateway
+) : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(PersistDeviceCredentialAuthenticator::class.java)
         const val DEVICE_OS_NOTE_NAME = "device_os"
@@ -39,47 +40,61 @@ class PersistDeviceCredentialAuthenticator : AbstractKeyAuthenticator() {
         }
 
         try {
-            val jkt = try {
-                val jwk = JWKParser.create().parse(publicKey)
-                // JWKParser returns a JWK object. We need to compute the thumbprint.
-                // Keycloak's JWK class might not have a direct computeThumbprint method depending on the version,
-                // but let's assume standard Keycloak utilities or we might need to use a different approach if it fails.
-                // Actually, JWKParser.create().parse(String) returns JWK.
-                // Let's check if we can get the key ID or compute hash.
-                // For now, let's assume we can get it or use a placeholder if complex logic is needed without more deps.
-                // In standard Keycloak, JWK has a keyId.
-                jwk.jwk.keyId ?: "unknown"
-            } catch (e: Exception) {
-                log.warn("Could not parse public key to get key ID", e)
-                "unknown"
+            val jkt = computeJkt(publicKey)
+            val deviceDescriptor = DeviceDescriptor(
+                deviceId = deviceId,
+                jkt = jkt,
+                publicJwk = parsePublicJwk(publicKey),
+                platform = deviceOs,
+                model = deviceModel,
+                appVersion = null
+            )
+
+            val precheck = apiGateway.enrollmentPrecheck(
+                context = context,
+                userId = user.id,
+                userHint = user.username,
+                deviceData = deviceDescriptor
+            ) ?: run {
+                context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+                return
             }
 
-            val credentialData = DeviceCredentialData(
-                deviceId = deviceId,
-                deviceOs = deviceOs,
-                deviceModel = deviceModel,
-                createdAt = Time.currentTimeMillis()
+            if (precheck.decision != EnrollmentDecision.ALLOW) {
+                log.warn(
+                    "Enrollment precheck denied for user={}, device={}, decision={}, reason={}",
+                    user.id,
+                    deviceId,
+                    precheck.decision,
+                    precheck.reason
+                )
+                context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                return
+            }
+
+            val bound = apiGateway.enrollmentBind(
+                context = context,
+                userId = user.id,
+                userHint = user.username,
+                deviceData = deviceDescriptor,
+                attributes = mapOf(
+                    "device_os" to deviceOs,
+                    "device_model" to deviceModel
+                ),
+                proof = mapOf(
+                    "ts" to (session.getAuthNote(DEVICE_TS_NOTE_NAME) ?: ""),
+                    "nonce" to (session.getAuthNote(DEVICE_NONCE_NOTE_NAME) ?: "")
+                )
             )
 
-            val secretData = DeviceSecretData(
-                publicKey = publicKey,
-                jkt = jkt
-            )
-
-            val credentialModel = DeviceKeyCredentialModel()
-            credentialModel.type = DeviceKeyCredentialModel.TYPE
-            credentialModel.userLabel = "$deviceModel ($deviceOs)"
-            credentialModel.createdDate = Time.currentTimeMillis()
-            credentialModel.credentialData = JsonSerialization.writeValueAsString(credentialData)
-            credentialModel.secretData = JsonSerialization.writeValueAsString(secretData)
-
-            context.user
-                .credentialManager()
-                .createStoredCredential(credentialModel)
+            if (!bound) {
+                context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+                return
+            }
 
             context.success()
         } catch (e: Exception) {
-            log.error("Failed to persist device credential", e)
+            log.error("Failed to persist device credential in backend", e)
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
         }
     }

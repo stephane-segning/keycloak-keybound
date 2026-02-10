@@ -3,6 +3,8 @@ package com.ssegning.keycloak.keybound.credentials
 import com.ssegning.keycloak.keybound.core.models.DeviceCredentialData
 import com.ssegning.keycloak.keybound.core.models.DeviceKeyCredentialModel
 import com.ssegning.keycloak.keybound.core.models.DeviceSecretData
+import com.ssegning.keycloak.keybound.core.models.DeviceStatus
+import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.common.util.Time
 import org.keycloak.credential.*
 import org.keycloak.models.KeycloakSession
@@ -10,7 +12,10 @@ import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.keycloak.util.JsonSerialization
 
-class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<DeviceKeyCredentialModel>,
+class DeviceKeyCredential(
+    val session: KeycloakSession,
+    private val apiGateway: ApiGateway
+) : CredentialProvider<DeviceKeyCredentialModel>,
     CredentialInputValidator {
     override fun getType() = DeviceKeyCredentialModel.TYPE
 
@@ -19,10 +24,7 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
         user: UserModel,
         credentialModel: DeviceKeyCredentialModel
     ): CredentialModel {
-        if (credentialModel.createdDate == null) {
-            credentialModel.createdDate = Time.currentTimeMillis()
-        }
-        return user.credentialManager().createStoredCredential(credentialModel)
+        throw UnsupportedOperationException("Device credentials are persisted by backend APIs only.")
     }
 
     override fun deleteCredential(
@@ -30,7 +32,7 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
         user: UserModel,
         credentialId: String
     ): Boolean {
-        return user.credentialManager().removeStoredCredentialById(credentialId)
+        return disableDevice(user, credentialId)
     }
 
     override fun getCredentialFromModel(model: CredentialModel): DeviceKeyCredentialModel {
@@ -50,7 +52,6 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
             .category(CredentialTypeMetadata.Category.TWO_FACTOR)
             .displayName("Device Key")
             .helpText("A key bound to a specific device.")
-            .createAction(DeviceKeyCredentialModel.TYPE)
             .removeable(true)
             .build(session)
     }
@@ -61,8 +62,9 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
 
     override fun isConfiguredFor(realm: RealmModel?, user: UserModel?, credentialType: String?): Boolean {
         if (!supportsCredentialType(credentialType)) return false
-        return user?.credentialManager()?.getStoredCredentialsByTypeStream(credentialType)?.findAny()?.isPresent
-            ?: false
+        val userId = user?.id ?: return false
+        val devices = apiGateway.listUserDevices(userId, includeDisabled = false) ?: return false
+        return devices.any { it.status == DeviceStatus.ACTIVE }
     }
 
     override fun isValid(realm: RealmModel?, user: UserModel?, credentialInput: CredentialInput?): Boolean {
@@ -82,25 +84,37 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
     }
 
     fun getByDeviceId(user: UserModel, deviceId: String): DeviceKeyCredentialModel? {
-        return user.credentialManager().getStoredCredentialsByTypeStream(type)
-            .map { getCredentialFromModel(it) }
-            .filter {
-                val data = JsonSerialization.readValue(it.credentialData, DeviceCredentialData::class.java)
-                data.deviceId == deviceId
-            }
-            .findFirst()
-            .orElse(null)
+        val lookup = apiGateway.lookupDevice(deviceId = deviceId) ?: return null
+        if (!lookup.found || lookup.userId != user.id) return null
+        val device = lookup.device ?: return null
+        val publicJwk = lookup.publicJwk ?: return null
+
+        val createdAtMillis = device.createdAt?.toInstant()?.toEpochMilli() ?: Time.currentTimeMillis()
+
+        val credentialData = DeviceCredentialData(
+            deviceId = device.deviceId,
+            deviceOs = "Unknown",
+            deviceModel = device.label ?: "Unknown",
+            createdAt = createdAtMillis
+        )
+        val secretData = DeviceSecretData(
+            publicKey = JsonSerialization.writeValueAsString(publicJwk),
+            jkt = device.jkt
+        )
+        return DeviceKeyCredentialModel().apply {
+            id = device.deviceId
+            type = DeviceKeyCredentialModel.TYPE
+            userLabel = device.label ?: device.deviceId
+            createdDate = createdAtMillis
+            this.credentialData = JsonSerialization.writeValueAsString(credentialData)
+            this.secretData = JsonSerialization.writeValueAsString(secretData)
+        }
     }
 
     fun getByJkt(user: UserModel, jkt: String): DeviceKeyCredentialModel? {
-        return user.credentialManager().getStoredCredentialsByTypeStream(type)
-            .map { getCredentialFromModel(it) }
-            .filter {
-                val data = JsonSerialization.readValue(it.secretData, DeviceSecretData::class.java)
-                data.jkt == jkt
-            }
-            .findFirst()
-            .orElse(null)
+        val lookup = apiGateway.lookupDevice(jkt = jkt) ?: return null
+        val deviceId = lookup.device?.deviceId ?: return null
+        return getByDeviceId(user, deviceId)
     }
 
     fun isDeviceEnrolled(user: UserModel, deviceId: String): Boolean {
@@ -108,7 +122,6 @@ class DeviceKeyCredential(val session: KeycloakSession) : CredentialProvider<Dev
     }
 
     fun disableDevice(user: UserModel, deviceId: String): Boolean {
-        val credential = getByDeviceId(user, deviceId) ?: return false
-        return user.credentialManager().removeStoredCredentialById(credential.id)
+        return apiGateway.disableDevice(user.id, deviceId)
     }
 }

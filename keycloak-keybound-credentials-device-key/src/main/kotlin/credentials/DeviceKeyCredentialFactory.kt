@@ -8,7 +8,7 @@ open class DeviceKeyCredentialFactory : AbstractCredentialProviderFactory<Device
     override fun getId(): String = ID
 
     override fun create(session: KeycloakSession, apiGateway: ApiGateway): DeviceKeyCredential =
-        DeviceKeyCredential(session)
+        DeviceKeyCredential(session, apiGateway)
 
     companion object {
         const val ID = "device-key-credential-provider"
