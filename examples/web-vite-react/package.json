@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
+    "@paralleldrive/cuid2": "^3.0.4",
     "@microlink/react-json-view": "^1.27.1",
     "@tanstack/db": "^0.5.25",
     "idb-keyval": "^6.2.1",

@@ -3,7 +3,7 @@
 This represents the enrollment authentication flow implemented by `keycloak-keybound-authenticator-enrollment`.
 
 Assumptions:
-- A device constructs a signed blob containing at least `device_id`, `public_key` (JWK), `ts`, `nonce`, `sig`.
+- A device constructs a signed blob containing at least `device_id`, `public_key` (JWK), `ts`, `nonce`, `sig`, `device_os`.
 - Keycloak flow steps are modular authenticators.
 - Device credential persistence is backend-first (Keycloak is not storing device credentials locally).
 
@@ -39,7 +39,7 @@ participant Persist as PersistDeviceCredentialAuthenticator
 participant Api as ApiGateway (HTTP)
 participant BE as Backend
 
-Device->>Browser: Open enrollment URL with query params\n(device_id, public_key, ts, nonce, sig, ...)
+Device->>Browser: Open enrollment URL with query params\n(device_id, public_key, ts, nonce, sig, device_os, ...)
 Browser->>KC: GET /auth/... (start flow)
 
 KC->>Ingest: authenticate()

@@ -3,6 +3,7 @@ import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../con
 import {useDeviceStorage} from '../hooks/use-device-storage';
 import {exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveGrantUserId, saveTokens,} from '../lib/auth';
 import {signPayload, stringifyPublicJwk} from '../lib/crypto';
+import {createPrefixedId} from '../lib/id';
 import {createCodeChallenge, createCodeVerifier} from '../lib/pkce';
 import {JsonDisplay} from "../components/json-display";
 
@@ -107,12 +108,17 @@ export const LoginPage = () => {
         setStatus('awaiting-login');
     }, []);
 
+    const resolveDeviceOs = useCallback(() => {
+        const nav = window.navigator as Navigator & { userAgentData?: { platform?: string } };
+        return nav.userAgentData?.platform || nav.platform || 'web';
+    }, []);
+
     const handleStart = async () => {
         setStatus('preparing');
         // Ensure a persisted device identity exists before starting auth.
         const current = await ensureDevice();
         const ts = Math.floor(Date.now() / 1000).toString();
-        const nonce = crypto.randomUUID();
+        const nonce = createPrefixedId('nce');
         // Canonical payload signed by the device key and verified server-side.
         const canonical = JSON.stringify({
             deviceId: current.deviceId,
@@ -136,7 +142,7 @@ export const LoginPage = () => {
             redirect_uri: REDIRECT_URI,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
-            state: crypto.randomUUID(),
+            state: createPrefixedId('stt'),
             device_id: current.deviceId,
             public_key: stringifyPublicJwk(current.publicJwk),
             ts,
@@ -144,7 +150,7 @@ export const LoginPage = () => {
             sig: signature,
             action: 'login',
             aud: CLIENT_ID,
-            device_os: 'web',
+            device_os: resolveDeviceOs(),
             device_model: 'vite-react',
             user_hint: current.userId ?? '',
         });

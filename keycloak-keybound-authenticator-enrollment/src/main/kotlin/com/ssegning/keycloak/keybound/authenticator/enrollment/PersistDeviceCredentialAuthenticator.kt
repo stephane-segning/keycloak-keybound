@@ -31,15 +31,15 @@ class PersistDeviceCredentialAuthenticator(
         val session = context.authenticationSession
         val deviceId = session.getAuthNote(DEVICE_ID_NOTE_NAME)
         val publicKey = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
-        val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME) ?: "Unknown"
+        val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME)?.trim()
         val deviceModel = session.getAuthNote(DEVICE_MODEL_NOTE_NAME) ?: "Unknown"
         val backendUserId = resolveBackendUserId(user)
 
         log.debug("Persisting device credential for keycloak_user={} backend_user={} device={}", user.id, backendUserId, deviceId)
 
-        if (deviceId == null || publicKey == null) {
-            log.error("Missing device.id or device.public_key in authentication session notes")
-            context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+        if (deviceId == null || publicKey == null || deviceOs.isNullOrBlank()) {
+            log.error("Missing device.id, device.public_key, or required device_os in authentication session notes")
+            context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
             return
         }
 

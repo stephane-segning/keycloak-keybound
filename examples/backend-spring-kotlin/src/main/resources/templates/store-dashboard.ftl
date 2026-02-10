@@ -255,8 +255,11 @@
                     <table>
                         <thead>
                         <tr>
+                            <th>Record ID</th>
                             <th>Device ID</th>
                             <th>User ID</th>
+                            <th>OS</th>
+                            <th>Model</th>
                             <th>Status</th>
                             <th>JKT</th>
                         </tr>
@@ -264,14 +267,17 @@
                         <tbody>
                         <#if devices?size == 0>
                             <tr>
-                                <td colspan="4" class="empty">No entries</td>
+                                <td colspan="7" class="empty">No entries</td>
                             </tr>
                         <#else>
                             <#list devices as device>
                                 <#assign deviceJkt = device.getJkt()!''>
                                 <tr>
+                                    <td class="mono">${device.getRecordId()!''}</td>
                                     <td class="mono">${device.getDeviceId()!''}</td>
                                     <td class="mono">${device.getUserId()!''}</td>
+                                    <td>${device.getDeviceOs()!''}</td>
+                                    <td>${device.getDeviceModel()!''}</td>
                                     <td>${device.getStatus()!''}</td>
                                     <td class="mono" title="${deviceJkt}">
                                         <#if deviceJkt?length gt 8>${deviceJkt?substring(0, 8)}...<#else>${deviceJkt}</#if>
@@ -294,6 +300,7 @@
                         <thead>
                         <tr>
                             <th>JKT</th>
+                            <th>Record ID</th>
                             <th>Device ID</th>
                             <th>User ID</th>
                         </tr>
@@ -301,7 +308,7 @@
                         <tbody>
                         <#if devicesByJkt?size == 0>
                             <tr>
-                                <td colspan="3" class="empty">No entries</td>
+                                <td colspan="4" class="empty">No entries</td>
                             </tr>
                         <#else>
                             <#list devicesByJkt as entry>
@@ -310,6 +317,7 @@
                                     <td class="mono" title="${indexedJkt}">
                                         <#if indexedJkt?length gt 8>${indexedJkt?substring(0, 8)}...<#else>${indexedJkt}</#if>
                                     </td>
+                                    <td class="mono">${entry.getRecordId()!''}</td>
                                     <td class="mono">${entry.getDeviceId()!''}</td>
                                     <td class="mono">${entry.getUserId()!''}</td>
                                 </tr>

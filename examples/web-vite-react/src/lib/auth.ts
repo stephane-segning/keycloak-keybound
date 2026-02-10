@@ -1,5 +1,6 @@
 import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
 import {signPayload, stringifyPublicJwk} from './crypto';
+import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
 
 export const TOKEN_STORAGE_KEY = 'keybound.tokens';
@@ -61,7 +62,7 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     }
 
     const ts = Math.floor(Date.now() / 1000).toString();
-    const nonce = crypto.randomUUID();
+    const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
     // Signature payload must match the server-side canonical verification payload.
     const signaturePayload = JSON.stringify({

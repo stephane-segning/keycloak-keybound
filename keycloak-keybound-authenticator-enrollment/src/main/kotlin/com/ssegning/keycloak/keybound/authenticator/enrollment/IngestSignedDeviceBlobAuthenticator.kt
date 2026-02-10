@@ -48,6 +48,13 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
             return
         }
 
+        val normalizedDeviceOs = deviceOs?.trim()
+        if (normalizedDeviceOs.isNullOrBlank()) {
+            log.warn("Missing required device_os parameter")
+            context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
+            return
+        }
+
         val session = context.authenticationSession
         deviceId?.let { session.setAuthNote(DEVICE_ID_NOTE_NAME, it) }
         publicKey?.let { session.setAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME, it) }
@@ -57,8 +64,10 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
         action?.let { session.setAuthNote(DEVICE_ACTION_NOTE_NAME, it) }
         aud?.let { session.setAuthNote(DEVICE_AUD_NOTE_NAME, it) }
         userHint?.let { session.setAuthNote(USER_HINT_NOTE_NAME, it) }
-        deviceOs?.let { session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME, it) }
-        deviceModel?.let { session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME, it) }
+        session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME, normalizedDeviceOs)
+        deviceModel?.trim()?.takeIf { it.isNotBlank() }?.let {
+            session.setAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME, it)
+        }
 
         context.success()
     }

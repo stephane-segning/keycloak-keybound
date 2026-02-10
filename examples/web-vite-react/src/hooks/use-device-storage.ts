@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useSyncExternalStore} from 'react';
 import {generateKeyPair} from '../lib/crypto';
+import {createPrefixedId} from '../lib/id';
 import {
     DeviceRecord,
     ensureDeviceStoreReady,
@@ -31,7 +32,7 @@ export const useDeviceStorage = () => {
             }
 
             // First-run bootstrap: create local device id + P-256 key pair.
-            const deviceId = crypto.randomUUID();
+            const deviceId = createPrefixedId('dvc');
             const {publicJwk, privateJwk} = await generateKeyPair();
             const record: DeviceRecord = {deviceId, publicJwk, privateJwk};
             await saveDeviceRecord(record);

@@ -104,7 +104,8 @@ This starts the browser auth request directly with custom parameters:
 - `user_hint`
 - `device_id`, `public_key`, `ts`, `nonce`, `sig`
 - `pkce` (`code_challenge` / `code_verifier`)
-- optional `action`, `aud`, `device_os`, `device_model`
+- required `device_os`
+- optional `action`, `aud`, `device_model`
 
 `sig` is:
 - ECDSA P-256 signature over a canonical JSON string

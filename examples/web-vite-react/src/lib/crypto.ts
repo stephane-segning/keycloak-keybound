@@ -1,41 +1,69 @@
-// Converts binary signatures into URL-safe base64 so they can be sent as query/form params.
-const base64Url = (buffer: ArrayBuffer) => {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
+import {p256} from '@noble/curves/nist.js';
+import {utf8ToBytes} from '@noble/hashes/utils.js';
+
+const toBase64 = (bytes: Uint8Array): string => {
+    if (typeof btoa !== 'function') {
+        throw new Error('Missing base64 encoder in runtime');
     }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    let binary = '';
+    for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
 };
 
-export async function generateKeyPair() {
-    // Device-bound key pair used for signed login params and custom grant proof.
-    const keyPair = await window.crypto.subtle.generateKey(
-        {name: 'ECDSA', namedCurve: 'P-256'},
-        true,
-        ['sign', 'verify']
-    );
+const fromBase64 = (value: string): Uint8Array => {
+    if (typeof atob !== 'function') {
+        throw new Error('Missing base64 decoder in runtime');
+    }
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+};
 
-    const publicJwk = (await window.crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey;
-    const privateJwk = (await window.crypto.subtle.exportKey('jwk', keyPair.privateKey)) as JsonWebKey;
+const toBase64Url = (bytes: Uint8Array): string =>
+    toBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const fromBase64Url = (value: string): Uint8Array => {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+    return fromBase64(normalized + padding);
+};
+
+const parsePrivateKeyBytes = (privateJwk: JsonWebKey): Uint8Array => {
+    if (!privateJwk.d || privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256') {
+        throw new Error('Unsupported private JWK format: expected EC P-256 key');
+    }
+    const privateBytes = fromBase64Url(privateJwk.d);
+    if (privateBytes.length !== 32) {
+        throw new Error('Invalid EC private key length');
+    }
+    return privateBytes;
+};
+
+export const generateKeyPair = async () => {
+    const privateBytes = p256.utils.randomSecretKey();
+    const publicBytes = p256.getPublicKey(privateBytes, false);
+    const publicJwk: JsonWebKey = {
+        kty: 'EC',
+        crv: 'P-256',
+        x: toBase64Url(publicBytes.slice(1, 33)),
+        y: toBase64Url(publicBytes.slice(33, 65)),
+    };
+    const privateJwk: JsonWebKey = {
+        ...publicJwk,
+        d: toBase64Url(privateBytes),
+    };
     return {publicJwk, privateJwk};
-}
+};
 
-export async function signPayload(privateJwk: JsonWebKey, payload: string) {
-    // Re-import JWK each time to keep persisted key material interoperable.
-    const key = await crypto.subtle.importKey(
-        'jwk',
-        privateJwk,
-        {name: 'ECDSA', namedCurve: 'P-256'},
-        false,
-        ['sign']
-    );
-    const encoded = new TextEncoder().encode(payload);
-    const signature = await crypto.subtle.sign({name: 'ECDSA', hash: 'SHA-256'}, key, encoded);
-    return base64Url(signature);
-}
+export const signPayload = async (privateJwk: JsonWebKey, payload: string) => {
+    const privateBytes = parsePrivateKeyBytes(privateJwk);
+    const signature = p256.sign(utf8ToBytes(payload), privateBytes, {format: 'compact', lowS: true});
+    return toBase64Url(signature);
+};
 
-export function stringifyPublicJwk(publicJwk: JsonWebKey) {
-    // Keycloak flow currently expects public_key as a JSON string.
-    return JSON.stringify(publicJwk);
-}
+export const stringifyPublicJwk = (publicJwk: JsonWebKey) => JSON.stringify(publicJwk);

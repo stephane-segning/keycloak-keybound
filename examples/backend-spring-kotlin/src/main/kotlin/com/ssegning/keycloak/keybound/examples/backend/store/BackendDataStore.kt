@@ -7,7 +7,6 @@ import org.springframework.web.server.ResponseStatusException
 import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -160,27 +159,68 @@ class BackendDataStore {
         val deviceId = request.deviceId
         val jkt = request.jkt
         val user = request.userId
+        val now = LocalDateTime.now()
+        val attributes = request.attributes.orElse(null) ?: emptyMap()
+        val deviceOs = attributes["device_os"]?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "device_os is required")
+        val deviceModel = attributes["device_model"]?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: "unknown-model"
+        val label = "$deviceOs / $deviceModel"
 
-        val existing = devicesById[deviceId]
-        if (existing != null && existing.userId != user) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Device already bound to another user")
+        val existingByDeviceId = devicesById[deviceId]
+        if (existingByDeviceId != null) {
+            if (existingByDeviceId.userId != user) {
+                throw ResponseStatusException(HttpStatus.CONFLICT, "Device already bound to another user")
+            }
+            if (existingByDeviceId.jkt != jkt) {
+                throw ResponseStatusException(HttpStatus.CONFLICT, "Device ID already bound with a different key")
+            }
+            existingByDeviceId.lastSeenAt = now
+            existingByDeviceId.deviceOs = deviceOs
+            existingByDeviceId.deviceModel = deviceModel
+            existingByDeviceId.label = label
+            return EnrollmentBindResponse()
+                .status(EnrollmentBindResponse.StatusEnum.ALREADY_BOUND)
+                .deviceRecordId(existingByDeviceId.recordId)
+                .boundUserId(user)
+        }
+
+        val existingByJkt = devicesByJkt[jkt]
+        if (existingByJkt != null) {
+            if (existingByJkt.userId != user || existingByJkt.deviceId != deviceId) {
+                throw ResponseStatusException(HttpStatus.CONFLICT, "Device key already bound")
+            }
+            existingByJkt.lastSeenAt = now
+            existingByJkt.deviceOs = deviceOs
+            existingByJkt.deviceModel = deviceModel
+            existingByJkt.label = label
+            return EnrollmentBindResponse()
+                .status(EnrollmentBindResponse.StatusEnum.ALREADY_BOUND)
+                .deviceRecordId(existingByJkt.recordId)
+                .boundUserId(user)
         }
 
         val stored = StoredDevice(
+            recordId = nextPrefixedId("dvc"),
             deviceId = deviceId,
             jkt = jkt,
             userId = user,
             publicJwk = request.publicJwk ?: emptyMap(),
             status = DeviceRecord.StatusEnum.ACTIVE,
-            createdAt = LocalDateTime.now(),
-            lastSeenAt = LocalDateTime.now()
+            createdAt = now,
+            lastSeenAt = now,
+            deviceOs = deviceOs,
+            deviceModel = deviceModel,
+            label = label
         )
         devicesById[deviceId] = stored
         devicesByJkt[jkt] = stored
 
         return EnrollmentBindResponse()
-            .status(if (existing != null) EnrollmentBindResponse.StatusEnum.ALREADY_BOUND else EnrollmentBindResponse.StatusEnum.BOUND)
-            .deviceRecordId(deviceId)
+            .status(EnrollmentBindResponse.StatusEnum.BOUND)
+            .deviceRecordId(stored.recordId)
             .boundUserId(user)
     }
 
@@ -204,6 +244,7 @@ class BackendDataStore {
     fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResponse {
         val stored = deviceId?.let { devicesById[it] } ?: jkt?.let { devicesByJkt[it] }
         return if (stored != null) {
+            stored.lastSeenAt = LocalDateTime.now()
             DeviceLookupResponse()
                 .found(true)
                 .userId(stored.userId)
@@ -221,13 +262,23 @@ class BackendDataStore {
             emailIndex = emailIndex.entries.map { KeyValueSnapshot(it.key, it.value) },
             devices = devicesById.values.map {
                 DeviceSnapshot(
+                    recordId = it.recordId,
                     deviceId = it.deviceId,
                     userId = it.userId,
                     status = it.status.name,
-                    jkt = it.jkt
+                    jkt = it.jkt,
+                    deviceOs = it.deviceOs,
+                    deviceModel = it.deviceModel
                 )
             },
-            devicesByJkt = devicesByJkt.entries.map { DeviceJktSnapshot(it.key, it.value.deviceId, it.value.userId) },
+            devicesByJkt = devicesByJkt.entries.map {
+                DeviceJktSnapshot(
+                    jkt = it.key,
+                    recordId = it.value.recordId,
+                    deviceId = it.value.deviceId,
+                    userId = it.value.userId
+                )
+            },
             approvals = approvals.values.map(StoredApproval::toSnapshot),
             smsChallenges = smsChallenges.values.map {
                 SmsChallengeSnapshot(
@@ -240,7 +291,7 @@ class BackendDataStore {
     }
 
     fun sendSms(request: SmsSendRequest): SmsSendResponse {
-        val hash = UUID.randomUUID().toString()
+        val hash = nextPrefixedId("sms")
         val otp = (100000..999999).random().toString()
         smsChallenges[hash] = StoredSmsChallenge(hash, otp, OffsetDateTime.now().plusSeconds(300))
         return SmsSendResponse(hash)
@@ -266,7 +317,7 @@ class BackendDataStore {
     }
 
     fun createApproval(request: ApprovalCreateRequest): ApprovalCreateResponse {
-        val requestId = "apr-${UUID.randomUUID()}"
+        val requestId = nextPrefixedId("apr")
         val created = StoredApproval(
             requestId = requestId,
             userId = request.userId,
@@ -306,7 +357,9 @@ class BackendDataStore {
         else -> attributeKey
     }
 
-    private fun nextUserId(): String = "usr_${nextCuidLikeId()}"
+    private fun nextUserId(): String = nextPrefixedId("usr")
+
+    private fun nextPrefixedId(prefix: String): String = "${prefix}_${nextCuidLikeId()}"
 
     private fun nextCuidLikeId(): String {
         val timestamp = java.lang.Long.toString(System.currentTimeMillis(), 36)
@@ -348,14 +401,17 @@ class BackendDataStore {
     }
 
     private data class StoredDevice(
+        val recordId: String,
         val deviceId: String,
         val jkt: String,
-        val publicJwk: Map<String, Any?>,
+        var publicJwk: Map<String, Any?>,
         val userId: String,
         var status: DeviceRecord.StatusEnum,
         val createdAt: LocalDateTime,
         var lastSeenAt: LocalDateTime,
-        val label: String? = null
+        var deviceOs: String,
+        var deviceModel: String,
+        var label: String? = null
     ) {
         fun toRecord(): DeviceRecord = DeviceRecord()
             .deviceId(deviceId)
@@ -411,10 +467,13 @@ data class KeyValueSnapshot(
 )
 
 data class DeviceSnapshot(
+    val recordId: String,
     val deviceId: String,
     val userId: String,
     val status: String,
-    val jkt: String
+    val jkt: String,
+    val deviceOs: String,
+    val deviceModel: String
 )
 
 data class ApprovalSnapshot(
@@ -426,6 +485,7 @@ data class ApprovalSnapshot(
 
 data class DeviceJktSnapshot(
     val jkt: String,
+    val recordId: String,
     val deviceId: String,
     val userId: String
 )

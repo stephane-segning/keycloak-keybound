@@ -8,6 +8,8 @@ Stack:
 - React Router
 - Tailwind CSS v4 + DaisyUI v5 (installed locally)
 - TanStack DB + IndexedDB persistence through `idb-keyval`
+- Pure-JS device crypto with `@noble/curves` (no WebCrypto dependency)
+- Frontend ID generation with `@paralleldrive/cuid2` (`dvc_*`, `nce_*`, `stt_*`)
 
 Routes:
 - `/` landing hero + device dashboard
