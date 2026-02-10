@@ -3,7 +3,9 @@
 This example demonstrates:
 - OIDC Authorization Code flow with PKCE against Keycloak
 - calling the UserInfo endpoint
-- starting a custom public-key browser auth flow and printing tokens to bash
+- starting a custom public-key browser auth flow
+- then calling the custom grant type `urn:ssegning:params:oauth:grant-type:device_key`
+- printing both token responses to bash exports
 
 ## Environment variables
 
@@ -31,3 +33,6 @@ npm run auth-code
 ```bash
 npm run device-grant -- --username test --bash
 ```
+
+Optional:
+- `--grant-username test` to force the username sent to the custom grant request.

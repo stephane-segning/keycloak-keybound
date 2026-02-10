@@ -85,7 +85,7 @@ Expected output:
 - Token response JSON
 - UserInfo JSON (includes `sub`)
 
-### Run the direct public-key browser flow
+### Run the direct public-key browser flow, then custom grant
 
 This starts the browser auth request directly with custom parameters:
 - `user_hint`
@@ -125,7 +125,14 @@ cd examples/nodejs-ts
 npm run device-grant -- --username test --bash
 ```
 
-This prints `export ...` lines suitable for bash.
+What this script does now:
+- completes browser login (`authorization_code` + PKCE)
+- calls UserInfo
+- performs a second token request using the custom grant type `urn:ssegning:params:oauth:grant-type:device_key`
+- prints both token responses and bash exports
+
+Optional:
+- `--grant-username <value>` to force the username used in the custom grant request.
 
 ## WireMock stubs for the backend API
 

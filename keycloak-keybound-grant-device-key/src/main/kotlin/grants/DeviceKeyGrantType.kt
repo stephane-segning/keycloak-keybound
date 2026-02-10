@@ -35,9 +35,8 @@ class DeviceKeyGrantType(
     override fun getEventType(): EventType = EventType.LOGIN
 
     override fun process(context: OAuth2GrantType.Context): Response {
-        val session = context.session
-        val realm = context.realm
-        val client = context.client
+        setContext(context)
+
         val httpRequest = session.context.httpRequest
         val params = httpRequest.decodedFormParameters
 

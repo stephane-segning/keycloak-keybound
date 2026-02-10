@@ -14,9 +14,11 @@ import {
     env,
     issuerUrl,
     printBashExports,
+    toFormUrlEncoded,
     publicJwkStringForKeycloak,
     randomBase64Url,
     sha256Base64Url,
+    tokenEndpoint,
 } from './lib.js';
 
 const KEYCLOAK_BASE_URL = env('KEYCLOAK_BASE_URL', 'http://localhost:9026');
@@ -25,6 +27,7 @@ const CLIENT_ID = env('CLIENT_ID', 'node-cli');
 const REDIRECT_URI = env('REDIRECT_URI', 'http://localhost:3005/callback');
 
 type PublicJwk = { kty: 'EC'; crv: 'P-256'; x: string; y: string };
+const DEVICE_KEY_GRANT_TYPE = 'urn:ssegning:params:oauth:grant-type:device_key';
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
@@ -56,9 +59,7 @@ async function main() {
         ts,
         nonce,
     });
-    const derSignature = crypto.sign('sha256', Buffer.from(signaturePayload, 'utf8'), privateKey);
-    const rawSignature = derToRawEcdsaSignature(derSignature, 32);
-    const sig = base64url(rawSignature);
+    const sig = signPayload(signaturePayload, privateKey);
 
     const authUrl = buildAuthorizationUrl(config, {
         scope: 'openid profile email',
@@ -94,21 +95,51 @@ async function main() {
     }
 
     const userInfo = await fetchUserInfo(config, accessToken, skipSubjectCheck);
+    const grantUsername =
+        args.grantUsername ??
+        ((userInfo as any).preferred_username as string | undefined) ??
+        userHint;
 
-    process.stdout.write(`Token response:\n${JSON.stringify(tokenSet, null, 2)}\n\n`);
+    const grantTs = Math.floor(Date.now() / 1000).toString();
+    const grantNonce = randomBase64Url(16);
+    const grantSignaturePayload = JSON.stringify({
+        deviceId,
+        publicKey: publicKeyJwk,
+        ts: grantTs,
+        nonce: grantNonce,
+    });
+    const grantSig = signPayload(grantSignaturePayload, privateKey);
+    const customGrantToken = await callCustomGrant({
+        issuer,
+        clientId: CLIENT_ID,
+        username: grantUsername,
+        deviceId,
+        ts: grantTs,
+        nonce: grantNonce,
+        sig: grantSig,
+    });
+
+    process.stdout.write(`Auth Code token response:\n${JSON.stringify(tokenSet, null, 2)}\n\n`);
     process.stdout.write(`UserInfo:\n${JSON.stringify(userInfo, null, 2)}\n\n`);
+    process.stdout.write(`Custom grant token response:\n${JSON.stringify(customGrantToken, null, 2)}\n\n`);
 
     if (bash) {
         printBashExports('KC_DEVICE_', {
             issuer,
             user_hint: userHint,
+            username: grantUsername,
             device_id: deviceId,
             public_key: publicKeyJwk,
-            access_token: (tokenSet as any).access_token,
-            refresh_token: (tokenSet as any).refresh_token,
-            id_token: (tokenSet as any).id_token,
-            token_type: (tokenSet as any).token_type,
-            expires_in: (tokenSet as any).expires_in,
+            auth_code_access_token: (tokenSet as any).access_token,
+            auth_code_refresh_token: (tokenSet as any).refresh_token,
+            auth_code_id_token: (tokenSet as any).id_token,
+            auth_code_token_type: (tokenSet as any).token_type,
+            auth_code_expires_in: (tokenSet as any).expires_in,
+            custom_grant_access_token: (customGrantToken as any).access_token,
+            custom_grant_refresh_token: (customGrantToken as any).refresh_token,
+            custom_grant_id_token: (customGrantToken as any).id_token,
+            custom_grant_token_type: (customGrantToken as any).token_type,
+            custom_grant_expires_in: (customGrantToken as any).expires_in,
             sub: (userInfo as any).sub,
         });
     }
@@ -121,6 +152,7 @@ function parseArgs(argv: string[]): {
     deviceModel?: string;
     action?: string;
     aud?: string;
+    grantUsername?: string;
     bash?: boolean;
 } {
     const out: {
@@ -130,6 +162,7 @@ function parseArgs(argv: string[]): {
         deviceModel?: string;
         action?: string;
         aud?: string;
+        grantUsername?: string;
         bash?: boolean;
     } = {};
 
@@ -141,10 +174,61 @@ function parseArgs(argv: string[]): {
         else if (arg === '--device-model') out.deviceModel = argv[++i];
         else if (arg === '--action') out.action = argv[++i];
         else if (arg === '--aud') out.aud = argv[++i];
+        else if (arg === '--grant-username') out.grantUsername = argv[++i];
         else if (arg === '--bash') out.bash = true;
     }
 
     return out;
+}
+
+function signPayload(payload: string, privateKey: crypto.KeyObject): string {
+    const derSignature = crypto.sign('sha256', Buffer.from(payload, 'utf8'), privateKey);
+    const rawSignature = derToRawEcdsaSignature(derSignature, 32);
+    return base64url(rawSignature);
+}
+
+async function callCustomGrant(params: {
+    issuer: string;
+    clientId: string;
+    username: string;
+    deviceId: string;
+    ts: string;
+    nonce: string;
+    sig: string;
+}): Promise<Record<string, unknown>> {
+    const response = await fetch(tokenEndpoint(params.issuer), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: toFormUrlEncoded({
+            grant_type: DEVICE_KEY_GRANT_TYPE,
+            client_id: params.clientId,
+            username: params.username,
+            device_id: params.deviceId,
+            ts: params.ts,
+            nonce: params.nonce,
+            sig: params.sig,
+        }),
+    });
+
+    const responseText = await response.text();
+    let json: Record<string, unknown> | null = null;
+    try {
+        json = JSON.parse(responseText) as Record<string, unknown>;
+    } catch {
+        // Keep plain text for error surfacing below.
+    }
+
+    if (!response.ok) {
+        const message = typeof json?.error_description === 'string'
+            ? json.error_description
+            : responseText;
+        throw new Error(`Custom grant failed (${response.status}): ${message}`);
+    }
+
+    if (!json || typeof json.access_token !== 'string') {
+        throw new Error('Custom grant succeeded but response has no access_token');
+    }
+    return json;
 }
 
 function waitForCallback(redirectUri: URL, expectedState: string): Promise<string> {

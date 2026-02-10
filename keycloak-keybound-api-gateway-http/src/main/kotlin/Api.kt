@@ -223,6 +223,7 @@ open class Api(
                 jkt = jkt
             )
         )
+        log.warn("> $response")
         DeviceLookupResult(
             found = response.found,
             userId = response.userId,
