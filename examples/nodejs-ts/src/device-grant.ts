@@ -137,7 +137,6 @@ async function main() {
             auth_code_token_type: (tokenSet as any).token_type,
             auth_code_expires_in: (tokenSet as any).expires_in,
             custom_grant_access_token: (customGrantToken as any).access_token,
-            custom_grant_refresh_token: (customGrantToken as any).refresh_token,
             custom_grant_id_token: (customGrantToken as any).id_token,
             custom_grant_token_type: (customGrantToken as any).token_type,
             custom_grant_expires_in: (customGrantToken as any).expires_in,

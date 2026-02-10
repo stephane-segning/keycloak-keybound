@@ -14,12 +14,16 @@ import org.keycloak.events.EventType
 import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.models.UserSessionModel
+import org.keycloak.representations.AccessToken
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase
+import org.keycloak.models.Constants
 import org.keycloak.services.CorsErrorResponseException
+import org.keycloak.services.Urls
 import org.keycloak.services.util.DefaultClientSessionContext
 import org.keycloak.storage.StorageId
 import org.keycloak.util.JsonSerialization
+import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.math.abs
@@ -239,14 +243,30 @@ class DeviceKeyGrantType(
         event.detail(Details.AUTH_METHOD, "device_key")
         updateClientSession(clientSession)
         updateUserSessionFromClientAuth(userSession)
-
-        return createTokenResponse(
+        val scopeParam = params.getFirst("scope")
+        clientSessionCtx.setAttribute(Constants.GRANT_TYPE, context.grantType)
+        val accessToken = tokenManager.createClientAccessToken(
+            session,
+            realm,
+            client,
             user,
             userSession,
-            clientSessionCtx,
-            params.getFirst("scope"),
-            false,
-            null
+            clientSessionCtx
         )
+        accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
+        accessToken.setOtherClaims("device_id", deviceId)
+        accessToken.setConfirmation(
+            AccessToken.Confirmation().apply {
+                keyThumbprint = deviceRecord.jkt
+            }
+        )
+        val responseBuilder = tokenManager
+            .responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
+            .accessToken(accessToken)
+        if (TokenUtil.isOIDCRequest(scopeParam)) {
+            responseBuilder.generateIDToken().generateAccessTokenHash()
+        }
+
+        return createTokenResponse(responseBuilder, clientSessionCtx, false)
     }
 }

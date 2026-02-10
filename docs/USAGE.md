@@ -129,7 +129,7 @@ What this script does now:
 - completes browser login (`authorization_code` + PKCE)
 - calls UserInfo
 - performs a second token request using the custom grant type `urn:ssegning:params:oauth:grant-type:device_key`
-- prints both token responses and bash exports
+- prints both token responses and bash exports (the custom grant does not issue a refresh token)
 
 Optional:
 - `--grant-username <value>` to force the username used in the custom grant request.
