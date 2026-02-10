@@ -12,7 +12,8 @@ import com.ssegning.keycloak.keybound.core.models.DeviceRecord
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
-import java.time.OffsetDateTime
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 open class Api(
     val devicesApi: DevicesApi,
@@ -133,7 +134,12 @@ open class Api(
         userHint: String?,
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
     ): EnrollmentPrecheckResult? = try {
-        log.debug("Performing enrollment precheck realm={} user={} device={}", context.realm.name, userId, deviceData.deviceId)
+        log.debug(
+            "Performing enrollment precheck realm={} user={} device={}",
+            context.realm.name,
+            userId,
+            deviceData.deviceId
+        )
         val response = enrollmentApi.enrollmentPrecheck(
             EnrollmentPrecheckRequest(
                 realm = context.realm.name,
@@ -181,7 +187,7 @@ open class Api(
                 publicJwk = publicJwk,
                 attributes = attributes,
                 proof = proof,
-                createdAt = OffsetDateTime.now()
+                createdAt = LocalDateTime.now()
             )
         )
         response.boundUserId == userId
@@ -202,7 +208,7 @@ open class Api(
 
                     else -> DeviceStatus.DISABLED
                 },
-                createdAt = device.createdAt,
+                createdAt = device.createdAt.atOffset(ZoneOffset.UTC),
                 label = device.label
             )
         }
@@ -234,7 +240,7 @@ open class Api(
                         com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE -> DeviceStatus.ACTIVE
                         else -> DeviceStatus.DISABLED
                     },
-                    createdAt = it.createdAt,
+                    createdAt = it.createdAt.atOffset(ZoneOffset.UTC),
                     label = it.label
                 )
             },
@@ -365,7 +371,7 @@ open class Api(
         enabled = enabled,
         emailVerified = emailVerified,
         attributes = attributes.orEmpty(),
-        createdAt = createdAt
+        createdAt = createdAt?.atOffset(ZoneOffset.UTC)
     )
 
     override fun close() = noop()

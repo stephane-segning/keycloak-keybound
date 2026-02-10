@@ -8,6 +8,7 @@ import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
+import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 
 class PersistDeviceCredentialAuthenticator(
@@ -32,8 +33,9 @@ class PersistDeviceCredentialAuthenticator(
         val publicKey = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
         val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME) ?: "Unknown"
         val deviceModel = session.getAuthNote(DEVICE_MODEL_NOTE_NAME) ?: "Unknown"
+        val backendUserId = resolveBackendUserId(user)
 
-        log.debug("Persisting device credential for user={} device={}", user.id, deviceId)
+        log.debug("Persisting device credential for keycloak_user={} backend_user={} device={}", user.id, backendUserId, deviceId)
 
         if (deviceId == null || publicKey == null) {
             log.error("Missing device.id or device.public_key in authentication session notes")
@@ -54,7 +56,7 @@ class PersistDeviceCredentialAuthenticator(
 
             val precheck = apiGateway.enrollmentPrecheck(
                 context = context,
-                userId = user.id,
+                userId = backendUserId,
                 userHint = user.username,
                 deviceData = deviceDescriptor
             ) ?: run {
@@ -65,7 +67,7 @@ class PersistDeviceCredentialAuthenticator(
             if (precheck.decision != EnrollmentDecision.ALLOW) {
                 log.warn(
                     "Enrollment precheck denied for user={}, device={}, decision={}, reason={}",
-                    user.id,
+                    backendUserId,
                     deviceId,
                     precheck.decision,
                     precheck.reason
@@ -76,7 +78,7 @@ class PersistDeviceCredentialAuthenticator(
 
             val bound = apiGateway.enrollmentBind(
                 context = context,
-                userId = user.id,
+                userId = backendUserId,
                 userHint = user.username,
                 deviceData = deviceDescriptor,
                 attributes = mapOf(
@@ -94,7 +96,7 @@ class PersistDeviceCredentialAuthenticator(
                 return
             }
 
-            log.debug("Device credential {} persisted for user {}", deviceId, user.id)
+            log.debug("Device credential {} persisted for backend user {}", deviceId, backendUserId)
             context.success()
         } catch (e: Exception) {
             log.error("Failed to persist device credential in backend", e)
@@ -104,5 +106,13 @@ class PersistDeviceCredentialAuthenticator(
 
     override fun action(context: AuthenticationFlowContext) {
         // No action needed
+    }
+
+    private fun resolveBackendUserId(user: org.keycloak.models.UserModel): String {
+        val backendAttributeId = user.getFirstAttribute("backend_user_id")?.trim()
+        if (!backendAttributeId.isNullOrBlank()) {
+            return backendAttributeId
+        }
+        return StorageId.externalId(user.id) ?: user.id
     }
 }

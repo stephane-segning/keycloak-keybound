@@ -7,6 +7,7 @@ import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.component.ComponentModel
 import org.keycloak.models.GroupModel
 import org.keycloak.models.ModelDuplicateException
+import org.keycloak.models.ModelException
 import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.keycloak.models.utils.KeycloakModelUtils
@@ -89,7 +90,14 @@ class BackendUserStorageProvider(
         val createdUser = apiGateway.createUser(
             realmName = realm.name,
             username = normalizedUsername
-        ) ?: return null
+        ) ?: run {
+            log.error(
+                "Backend user creation failed for username={} realm={}; aborting local fallback",
+                normalizedUsername,
+                realm.name
+            )
+            throw ModelException("Backend user creation failed for username=$normalizedUsername in realm=${realm.name}")
+        }
         return toUserModel(realm, createdUser)
     }
 

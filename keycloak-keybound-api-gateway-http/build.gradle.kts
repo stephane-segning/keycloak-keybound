@@ -51,7 +51,7 @@ openApiGenerate {
 
     configOptions.set(
         mutableMapOf(
-            "dateLibrary" to "java8",
+            "dateLibrary" to "java8-localdatetime",
             "serializationLibrary" to "gson"
         )
     )

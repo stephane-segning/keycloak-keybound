@@ -4,10 +4,12 @@ import com.ssegning.keycloak.keybound.examples.backend.model.*
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
+import java.security.SecureRandom
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 @Service
 class BackendDataStore {
@@ -21,6 +23,8 @@ class BackendDataStore {
     private val approvals = ConcurrentHashMap<String, StoredApproval>()
 
     private val smsChallenges = ConcurrentHashMap<String, StoredSmsChallenge>()
+    private val userIdCounter = AtomicLong()
+    private val secureRandom = SecureRandom()
 
     fun createUser(request: UserUpsertRequest): UserRecord {
         val realm = request.realm
@@ -35,8 +39,8 @@ class BackendDataStore {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already exists")
         }
 
-        val userId = UUID.randomUUID().toString()
-        val attributes = request.attributes.orElse(null) ?: emptyMap()
+        val userId = nextUserId()
+        val attributes = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
         val stored = StoredUser(
             userId = userId,
             realm = realm,
@@ -83,7 +87,7 @@ class BackendDataStore {
             emailIndex[newEmailKey] = userId
         }
 
-        val attributes = request.attributes.orElse(null) ?: emptyMap()
+        val attributes = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
         val updated = existing.copy(
             realm = realm,
             username = username,
@@ -118,9 +122,11 @@ class BackendDataStore {
                     listOfNotNull(stored.username, stored.firstName, stored.lastName, stored.email).joinToString(" ")
                 if (!haystack.contains(search, ignoreCase = true)) return@filter false
             }
-            val attributeFilters = request.attributes.orElse(null) ?: emptyMap()
+            val attributeFilters = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
             attributeFilters.forEach { (k, v) ->
-                if (stored.attributes[k] != v) return@filter false
+                val storedValue = stored.attributes[k]
+                    ?: if (k == "phone_e164") stored.attributes["phone_number"] else null
+                if (storedValue != v) return@filter false
             }
             request.enabled?.let { if (stored.enabled != it) return@filter false }
             request.emailVerified?.let { if (stored.emailVerified != it) return@filter false }
@@ -287,6 +293,35 @@ class BackendDataStore {
     }
 
     private fun usernameKey(realm: String, key: String) = "$realm|${key.lowercase()}"
+
+    private fun canonicalizeAttributes(attributes: Map<String, String>): Map<String, String> {
+        if (attributes.isEmpty()) return emptyMap()
+        return attributes.entries.associate { (key, value) ->
+            canonicalAttributeKey(key) to value
+        }
+    }
+
+    private fun canonicalAttributeKey(attributeKey: String): String = when (attributeKey.trim()) {
+        "phone_number", "phone" -> "phone_e164"
+        else -> attributeKey
+    }
+
+    private fun nextUserId(): String = "usr_${nextCuidLikeId()}"
+
+    private fun nextCuidLikeId(): String {
+        val timestamp = java.lang.Long.toString(System.currentTimeMillis(), 36)
+        val counter = java.lang.Long.toString(userIdCounter.getAndIncrement() and 0xFFFFF, 36).padStart(4, '0')
+        val randomPart = buildString(12) {
+            repeat(12) {
+                append(BASE36[secureRandom.nextInt(BASE36.length)])
+            }
+        }
+        return "knd2$timestamp$counter$randomPart"
+    }
+
+    companion object {
+        private const val BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+    }
 
     private data class StoredUser(
         val userId: String,
