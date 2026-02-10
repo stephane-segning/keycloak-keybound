@@ -145,7 +145,7 @@ What this script does now:
 - prints both token responses and bash exports (the custom grant does not issue a refresh token)
 
 Optional:
-- `--grant-username <value>` to force the username used in the custom grant request.
+- `--grant-user-id <value>` to force the `user_id` used in the custom grant request.
 
 ## WireMock stubs for the backend API
 

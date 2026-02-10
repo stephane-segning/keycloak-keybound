@@ -95,10 +95,12 @@ async function main() {
     }
 
     const userInfo = await fetchUserInfo(config, accessToken, skipSubjectCheck);
-    const grantUsername =
-        args.grantUsername ??
-        ((userInfo as any).preferred_username as string | undefined) ??
-        userHint;
+    const grantUserId =
+        args.grantUserId ??
+        ((userInfo as any).sub as string | undefined);
+    if (!grantUserId) {
+        throw new Error('UserInfo did not include sub; cannot call custom grant without user_id');
+    }
 
     const grantTs = Math.floor(Date.now() / 1000).toString();
     const grantNonce = randomBase64Url(16);
@@ -112,7 +114,7 @@ async function main() {
     const customGrantToken = await callCustomGrant({
         issuer,
         clientId: CLIENT_ID,
-        username: grantUsername,
+        userId: grantUserId,
         deviceId,
         publicKey: publicKeyJwk,
         ts: grantTs,
@@ -128,7 +130,7 @@ async function main() {
         printBashExports('KC_DEVICE_', {
             issuer,
             user_hint: userHint,
-            username: grantUsername,
+            user_id: grantUserId,
             device_id: deviceId,
             public_key: publicKeyJwk,
             auth_code_access_token: (tokenSet as any).access_token,
@@ -152,7 +154,7 @@ function parseArgs(argv: string[]): {
     deviceModel?: string;
     action?: string;
     aud?: string;
-    grantUsername?: string;
+    grantUserId?: string;
     bash?: boolean;
 } {
     const out: {
@@ -162,7 +164,7 @@ function parseArgs(argv: string[]): {
         deviceModel?: string;
         action?: string;
         aud?: string;
-        grantUsername?: string;
+        grantUserId?: string;
         bash?: boolean;
     } = {};
 
@@ -174,7 +176,7 @@ function parseArgs(argv: string[]): {
         else if (arg === '--device-model') out.deviceModel = argv[++i];
         else if (arg === '--action') out.action = argv[++i];
         else if (arg === '--aud') out.aud = argv[++i];
-        else if (arg === '--grant-username') out.grantUsername = argv[++i];
+        else if (arg === '--grant-user-id') out.grantUserId = argv[++i];
         else if (arg === '--bash') out.bash = true;
     }
 
@@ -190,7 +192,7 @@ function signPayload(payload: string, privateKey: crypto.KeyObject): string {
 async function callCustomGrant(params: {
     issuer: string;
     clientId: string;
-    username: string;
+    userId: string;
     deviceId: string;
     publicKey: string;
     ts: string;
@@ -203,7 +205,7 @@ async function callCustomGrant(params: {
         body: toFormUrlEncoded({
             grant_type: DEVICE_KEY_GRANT_TYPE,
             client_id: params.clientId,
-            username: params.username,
+            user_id: params.userId,
             device_id: params.deviceId,
             public_key: params.publicKey,
             ts: params.ts,

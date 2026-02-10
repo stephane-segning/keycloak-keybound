@@ -29,10 +29,10 @@ participant Api as ApiGateway (HTTP)
 participant BE as Backend
 participant KC as Keycloak Session/Token Manager
 
-Device->>Token: POST /protocol/openid-connect/token\n(grant_type=device_key, username, device_id, ts, nonce, sig, ...)
+Device->>Token: POST /protocol/openid-connect/token\n(grant_type=device_key, user_id, device_id, ts, nonce, sig, ...)
 Token->>Grant: process(context)
 
-Grant->>KC: lookup user by username
+Grant->>KC: lookup user by user_id
 KC-->>Grant: UserModel
 
 Grant->>Api: lookupDevice(device_id)
