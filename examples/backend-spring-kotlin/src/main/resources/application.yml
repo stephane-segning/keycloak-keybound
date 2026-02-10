@@ -4,3 +4,12 @@ server:
 spring:
   application:
     name: backend-spring-kotlin-example
+  freemarker:
+    suffix: .ftl
+    template-loader-path: classpath:/templates/
+    check-template-location: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

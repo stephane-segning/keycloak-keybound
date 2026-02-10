@@ -3,7 +3,7 @@ package com.ssegning.keycloak.keybound.examples.backend.controller
 import com.ssegning.keycloak.keybound.examples.backend.api.EnrollmentApi
 import com.ssegning.keycloak.keybound.examples.backend.model.*
 import com.ssegning.keycloak.keybound.examples.backend.store.BackendDataStore
-import org.springframework.http.HttpStatus
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 
@@ -13,7 +13,13 @@ class EnrollmentController(private val store: BackendDataStore) : EnrollmentApi 
         enrollmentPrecheckRequest: EnrollmentPrecheckRequest,
         idempotencyKey: Any?
     ): ResponseEntity<EnrollmentPrecheckResponse> {
+        log.info(
+            "Enrollment precheck for device {} and hint {}",
+            enrollmentPrecheckRequest.deviceId,
+            enrollmentPrecheckRequest.userHint
+        )
         val response = store.precheck(enrollmentPrecheckRequest)
+        log.debug("Precheck result {} for device {}", response.decision, enrollmentPrecheckRequest.deviceId)
         return ResponseEntity.ok(response)
     }
 
@@ -21,17 +27,27 @@ class EnrollmentController(private val store: BackendDataStore) : EnrollmentApi 
         enrollmentBindRequest: EnrollmentBindRequest,
         idempotencyKey: Any?
     ): ResponseEntity<EnrollmentBindResponse> {
+        log.info("Binding device {} to user {}", enrollmentBindRequest.deviceId, enrollmentBindRequest.userId)
         val response = store.bindDevice(enrollmentBindRequest)
+        log.debug("Enrollment bind response status {}", response.status)
         return ResponseEntity.ok(response)
     }
 
     override fun confirmSms(smsConfirmRequest: SmsConfirmRequest): ResponseEntity<SmsConfirmResponse> {
+        log.info("Confirming SMS hash {}", smsConfirmRequest.hash)
         val response = store.confirmSms(smsConfirmRequest)
+        log.debug("SMS confirm result {}", response)
         return ResponseEntity.ok(response)
     }
 
     override fun sendSms(smsSendRequest: SmsSendRequest): ResponseEntity<SmsSendResponse> {
+        log.info("Sending SMS to phone {}", smsSendRequest.phoneNumber)
         val response = store.sendSms(smsSendRequest)
+        log.debug("SMS send response {}", response)
         return ResponseEntity.ok(response)
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(EnrollmentController::class.java)
     }
 }

@@ -1,14 +1,11 @@
 package com.ssegning.keycloak.keybound.examples.backend.store
 
-import com.ssegning.keycloak.keybound.examples.backend.api.*
 import com.ssegning.keycloak.keybound.examples.backend.model.*
-import org.openapitools.jackson.nullable.JsonNullable
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -117,7 +114,8 @@ class BackendDataStore {
             request.firstName?.let { if (stored.firstName != it) return@filter false }
             request.lastName?.let { if (stored.lastName != it) return@filter false }
             request.search?.let { search ->
-                val haystack = listOfNotNull(stored.username, stored.firstName, stored.lastName, stored.email).joinToString(" ")
+                val haystack =
+                    listOfNotNull(stored.username, stored.firstName, stored.lastName, stored.email).joinToString(" ")
                 if (!haystack.contains(search, ignoreCase = true)) return@filter false
             }
             val attributeFilters = request.attributes.orElse(null) ?: emptyMap()
@@ -208,6 +206,31 @@ class BackendDataStore {
         } else {
             DeviceLookupResponse().found(false)
         }
+    }
+
+    fun snapshot(): BackendStoreSnapshot {
+        return BackendStoreSnapshot(
+            users = users.values.map(StoredUser::toRecord),
+            usernameIndex = usernameIndex.entries.map { KeyValueSnapshot(it.key, it.value) },
+            emailIndex = emailIndex.entries.map { KeyValueSnapshot(it.key, it.value) },
+            devices = devicesById.values.map {
+                DeviceSnapshot(
+                    deviceId = it.deviceId,
+                    userId = it.userId,
+                    status = it.status.name,
+                    jkt = it.jkt
+                )
+            },
+            devicesByJkt = devicesByJkt.entries.map { DeviceJktSnapshot(it.key, it.value.deviceId, it.value.userId) },
+            approvals = approvals.values.map(StoredApproval::toSnapshot),
+            smsChallenges = smsChallenges.values.map {
+                SmsChallengeSnapshot(
+                    hash = it.hash,
+                    otp = it.otp,
+                    expiresAt = it.expiresAt.toString()
+                )
+            }
+        )
     }
 
     fun sendSms(request: SmsSendRequest): SmsSendResponse {
@@ -320,7 +343,14 @@ class BackendDataStore {
         val deviceId: String,
         var status: ApprovalStatus,
         val createdAt: OffsetDateTime = OffsetDateTime.now()
-    )
+    ) {
+        fun toSnapshot(): ApprovalSnapshot = ApprovalSnapshot(
+            requestId = requestId,
+            userId = userId,
+            deviceId = deviceId,
+            status = status.name
+        )
+    }
 
     private enum class ApprovalStatus {
         PENDING,
@@ -329,3 +359,44 @@ class BackendDataStore {
         EXPIRED
     }
 }
+
+data class BackendStoreSnapshot(
+    val users: List<UserRecord>,
+    val usernameIndex: List<KeyValueSnapshot>,
+    val emailIndex: List<KeyValueSnapshot>,
+    val devices: List<DeviceSnapshot>,
+    val devicesByJkt: List<DeviceJktSnapshot>,
+    val approvals: List<ApprovalSnapshot>,
+    val smsChallenges: List<SmsChallengeSnapshot>
+)
+
+data class KeyValueSnapshot(
+    val key: String,
+    val value: String
+)
+
+data class DeviceSnapshot(
+    val deviceId: String,
+    val userId: String,
+    val status: String,
+    val jkt: String
+)
+
+data class ApprovalSnapshot(
+    val requestId: String,
+    val userId: String,
+    val deviceId: String,
+    val status: String
+)
+
+data class DeviceJktSnapshot(
+    val jkt: String,
+    val deviceId: String,
+    val userId: String
+)
+
+data class SmsChallengeSnapshot(
+    val hash: String,
+    val otp: String,
+    val expiresAt: String
+)
