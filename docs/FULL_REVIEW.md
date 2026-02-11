@@ -130,7 +130,10 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 ### Open Findings
 
 - `DONE` ~~Approval polling token is not bound to user/session/client context.~~
-  Evidence: polling token now includes realm/client/session/user and is validated in `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt:44`.
+  Evidence:
+  - Polling token now includes realm/client/session/user/tab context in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/WaitForApprovalFormAuthenticator.kt:100`.
+  - Validation is bound to root authentication session + client/tab in `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt:84`.
+  - Browser maps polling `401` to `UNAUTHORIZED` instead of `EXPIRED` in `keycloak-keybound-theme/src/main/resources/theme/base/login/resources/js/approval-wait.js:48`.
 
 - `DONE` ~~Nonce replay keys are global string keys without realm scoping.~~
   Evidence: replay keys now include realm name in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt:51` and `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt:164`.

@@ -166,6 +166,7 @@ type ApprovalPollingTokenClaims = {
   aud: String
   sid: String
   sub: String?        // nullable subject
+  tab_id: String?     // nullable tab id for auth-session lookup
   request_id: String
   iat: Long
   nbf: Long
@@ -190,6 +191,7 @@ claims = ApprovalPollingTokenClaims(
   aud = "device-approval-status",
   sid = authSession.parentSession.id,
   sub = context.user?.id,
+  tab_id = authSession.tabId,
   request_id = requestId,
   iat = now,
   nbf = now,
@@ -214,9 +216,17 @@ assert claims.realm == currentRealm
 assert claims.aud == "device-approval-status"
 assert claims.iat <= now and claims.nbf <= now
 
-userSession = findUserSession(claims.sid)
-assert userSession exists and userSession.user.id == claims.sub
-assert userSession has authenticated client claims.client_id
+rootAuthSession = findRootAuthenticationSession(claims.sid)
+assert rootAuthSession exists
+
+authSession = findAuthenticationSession(
+  root = rootAuthSession,
+  clientId = claims.client_id,
+  tabId = claims.tab_id
+)
+assert authSession exists
+if claims.sub != null:
+  assert authSession.authenticatedUser.id == claims.sub
 
 status = backend.getApprovalStatus(claims.request_id)
 return status
@@ -226,6 +236,12 @@ return status
 
 - Signer: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/WaitForApprovalFormAuthenticator.kt`
 - Verifier: `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt`
+
+### Browser Polling Failure Mapping
+
+`approval-wait.js` treats polling `401` as terminal `UNAUTHORIZED` and submits that status back into the login flow. This avoids misclassifying token/session mismatches as expiration.
+
+- `keycloak-keybound-theme/src/main/resources/theme/base/login/resources/js/approval-wait.js`
 
 ## Contract Change Rules
 
