@@ -178,14 +178,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 
 ### Open Findings
 
-- `MEDIUM` F-1: Java 21 requirement is not consistently enforced across all plugin subprojects.
-  Evidence:
-  - Enforced in two modules only: `keycloak-keybound-api-gateway-http/build.gradle.kts:33`, `keycloak-keybound-grant-device-key/build.gradle.kts:32`
-  - Missing toolchain declarations in modules like:
-    - `keycloak-keybound-core/build.gradle.kts:4`
-    - `keycloak-keybound-authenticator-enrollment/build.gradle.kts:1`
-    - `keycloak-keybound-custom-endpoint/build.gradle.kts:1`
-    - `keycloak-keybound-credentials-device-key/build.gradle.kts:1`
+- `DONE` ~~Java 21 requirement is not consistently enforced across all plugin subprojects.~~
+  Evidence: `kotlin.jvmToolchain(21)` added across plugin modules (e.g. `keycloak-keybound-core/build.gradle.kts:27`).
 
 - `LOW` F-3: Minimal realm imports do not preconfigure the protocol mapper.
   Impact:
@@ -201,6 +195,6 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 2. ~~Remove/mask PII from auth and API logs (`S-4`).~~
 3. ~~Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.~~
 4. ~~Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.~~
-5. Enforce Java 21 toolchain in all plugin modules (`F-1`).
+5. ~~Enforce Java 21 toolchain in all plugin modules (`F-1`).~~
 6. ~~Restrict backend phone lookup matching to dedicated phone attributes (`C-6`).~~
 7. ~~Harden approval polling token context binding (`S-1`).~~

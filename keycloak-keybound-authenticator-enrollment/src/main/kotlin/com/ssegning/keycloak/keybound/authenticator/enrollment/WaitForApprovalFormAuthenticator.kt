@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.core.models.ApprovalPollingTokenClaims
 import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
@@ -21,19 +22,6 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
         private const val APPROVAL_STATUS_FORM_FIELD = "approval_status"
         private const val APPROVAL_AUDIENCE = "device-approval-status"
     }
-
-    private data class ApprovalPollingTokenClaims(
-        val realm: String,
-        val client_id: String,
-        val aud: String,
-        val sid: String,
-        val sub: String?,
-        val request_id: String,
-        val iat: Long,
-        val nbf: Long,
-        val jti: String,
-        val exp: Long
-    )
 
     override fun requiresUser() = true
 
