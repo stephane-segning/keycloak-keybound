@@ -1,3 +1,5 @@
+import {apiHttpClient} from "./http-client";
+
 export type JsonObject = Record<string, unknown>;
 
 export type ApprovalRecord = {
@@ -11,33 +13,30 @@ export type ApprovalRecord = {
     message?: string | null;
 };
 
-const authHeaders = (token?: string): Record<string, string> => (
-    token ? {Authorization: `Bearer ${token}`} : {}
-);
-
-const fetchJson = async (url: string, init?: RequestInit): Promise<JsonObject> => {
-    const response = await fetch(url, init);
-    if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-    }
-
-    return await response.json() as JsonObject;
-};
-
 export const fetchProtectedResource = async (resourceServer: string, token?: string): Promise<JsonObject> =>
-    fetchJson(`${resourceServer}/get`, {headers: authHeaders(token)});
+    (
+        await apiHttpClient.get<JsonObject>(
+            `${resourceServer}/get`,
+            token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
+        )
+    ).data;
 
 export const fetchApprovals = async (resourceServer: string, token?: string): Promise<JsonObject> =>
-    fetchJson(`${resourceServer}/approvals`, {headers: authHeaders(token)});
+    (
+        await apiHttpClient.get<JsonObject>(
+            `${resourceServer}/approvals`,
+            token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
+        )
+    ).data;
 
 export const approveRequest = async (resourceServer: string, requestId: string, token?: string): Promise<JsonObject> =>
-    fetchJson(
-        `${resourceServer}/approvals/${encodeURIComponent(requestId)}/approve`,
-        {
-            method: "POST",
-            headers: authHeaders(token),
-        }
-    );
+    (
+        await apiHttpClient.post<JsonObject>(
+            `${resourceServer}/approvals/${encodeURIComponent(requestId)}/approve`,
+            undefined,
+            token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
+        )
+    ).data;
 
 export const parseApprovalRecords = (payload: JsonObject): ApprovalRecord[] => {
     const backend = payload.backend;

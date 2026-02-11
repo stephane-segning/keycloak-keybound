@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {RESOURCE_SERVER} from '../config';
+import {RESOURCE_SERVER, RESOURCE_SERVER_SIGNED} from '../config';
 import {ensureAccessToken} from '../lib/auth';
 import {JsonDisplay} from "../components/json-display";
 import {
@@ -13,8 +13,12 @@ import {
 
 export const ResourcePage = () => {
     const [resourceOutput, setResourceOutput] = useState<Record<string, unknown>>({msg: 'No request yet'});
+    const [signedResourceOutput, setSignedResourceOutput] = useState<Record<string, unknown>>({msg: 'No request yet'});
+    const [combinedResourceOutput, setCombinedResourceOutput] = useState<Record<string, unknown>>({msg: 'No request yet'});
     const [approvalsOutput, setApprovalsOutput] = useState<Record<string, unknown>>({msg: 'No request yet'});
     const [loadingResource, setLoadingResource] = useState(false);
+    const [loadingSignedResource, setLoadingSignedResource] = useState(false);
+    const [loadingBothResources, setLoadingBothResources] = useState(false);
     const [loadingApprovals, setLoadingApprovals] = useState(false);
     const [approvingRequestId, setApprovingRequestId] = useState<string | null>(null);
     const [approvalsLiveState, setApprovalsLiveState] = useState<ApprovalStreamState>('idle');
@@ -23,9 +27,8 @@ export const ResourcePage = () => {
     const fetchResource = useCallback(async () => {
         setLoadingResource(true);
         try {
-            // Ensures missing/expired access token is renewed with custom grant before request.
-            const token = await ensureAccessToken();
-            const data = await fetchProtectedResource(RESOURCE_SERVER, token ?? undefined);
+            // Standard resource server call (bearer token only).
+            const data = await fetchProtectedResource(RESOURCE_SERVER);
             setResourceOutput(data as Record<string, unknown>);
         } catch (error) {
             setResourceOutput({
@@ -37,11 +40,56 @@ export const ResourcePage = () => {
         }
     }, []);
 
+    const fetchSignedResource = useCallback(async () => {
+        setLoadingSignedResource(true);
+        try {
+            // Signed resource server call (bearer token + PoP headers via axios interceptor).
+            const data = await fetchProtectedResource(RESOURCE_SERVER_SIGNED);
+            setSignedResourceOutput(data as Record<string, unknown>);
+        } catch (error) {
+            setSignedResourceOutput({
+                msg: `Signed request failed: ${(error as Error).message}`,
+                error,
+            });
+        } finally {
+            setLoadingSignedResource(false);
+        }
+    }, []);
+
+    const fetchBothResources = useCallback(async () => {
+        setLoadingBothResources(true);
+        try {
+            const [resource, signedResource] = await Promise.all([
+                fetchProtectedResource(RESOURCE_SERVER),
+                fetchProtectedResource(RESOURCE_SERVER_SIGNED),
+            ]);
+            setResourceOutput(resource as Record<string, unknown>);
+            setSignedResourceOutput(signedResource as Record<string, unknown>);
+            setCombinedResourceOutput({
+                queried_at: new Date().toISOString(),
+                resource_server: {
+                    url: RESOURCE_SERVER,
+                    response: resource,
+                },
+                resource_server_signed: {
+                    url: RESOURCE_SERVER_SIGNED,
+                    response: signedResource,
+                },
+            });
+        } catch (error) {
+            setCombinedResourceOutput({
+                msg: `Combined query failed: ${(error as Error).message}`,
+                error,
+            });
+        } finally {
+            setLoadingBothResources(false);
+        }
+    }, []);
+
     const fetchApprovals = useCallback(async () => {
         setLoadingApprovals(true);
         try {
-            const token = await ensureAccessToken();
-            const data = await fetchApprovalsFromResource(RESOURCE_SERVER, token ?? undefined);
+            const data = await fetchApprovalsFromResource(RESOURCE_SERVER);
             setApprovalsOutput(data as Record<string, unknown>);
         } catch (error) {
             setApprovalsOutput({
@@ -88,8 +136,7 @@ export const ResourcePage = () => {
     const approveRequest = useCallback(async (requestId: string) => {
         setApprovingRequestId(requestId);
         try {
-            const token = await ensureAccessToken();
-            await approveRequestById(RESOURCE_SERVER, requestId, token ?? undefined);
+            await approveRequestById(RESOURCE_SERVER, requestId);
             await fetchApprovals();
         } catch (error) {
             setApprovalsOutput((previous) => ({
@@ -103,9 +150,9 @@ export const ResourcePage = () => {
     }, [fetchApprovals]);
 
     useEffect(() => {
-        void fetchResource();
+        void fetchBothResources();
         void fetchApprovals();
-    }, [fetchApprovals, fetchResource]);
+    }, [fetchApprovals, fetchBothResources]);
 
     useEffect(() => () => stopLiveApprovals(), [stopLiveApprovals]);
 
@@ -116,9 +163,29 @@ export const ResourcePage = () => {
             <article className="border border-base-300 bg-base-100 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
+                        <h2 className="text-base font-semibold">both resource servers</h2>
+                        <p className="text-sm text-base-content/80">Runs both queries in one action: {RESOURCE_SERVER}/get and {RESOURCE_SERVER_SIGNED}/get.</p>
+                    </div>
+                    <button
+                        className="btn btn-sm rounded-none border border-base-content bg-base-content text-base-100"
+                        onClick={() => void fetchBothResources()}
+                        disabled={loadingBothResources}
+                    >
+                        {loadingBothResources ? 'loading' : 'query both'}
+                    </button>
+                </div>
+
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={combinedResourceOutput} collapsed={false}/>
+                </div>
+            </article>
+
+            <article className="border border-base-300 bg-base-100 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
                         <h2 className="text-base font-semibold">protected resource</h2>
-                        <p className="text-sm text-base-content/80">Fetches {RESOURCE_SERVER}/get with an active bearer
-                            token.</p>
+                        <p className="text-sm text-base-content/80">Fetches {RESOURCE_SERVER}/get (classic resource
+                            server, bearer token).</p>
                     </div>
                     <button
                         className="btn btn-sm rounded-none border border-base-content bg-base-content text-base-100"
@@ -131,6 +198,28 @@ export const ResourcePage = () => {
 
                 <div className="mt-4 overflow-auto p-2 text-xs">
                     <JsonDisplay src={resourceOutput} collapsed={false}/>
+                </div>
+            </article>
+
+            <article className="border border-base-300 bg-base-100 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-base font-semibold">protected resource (signed)</h2>
+                        <p className="text-sm text-base-content/80">Fetches {RESOURCE_SERVER_SIGNED}/get with axios
+                            middleware that adds bearer token plus PoP headers (`x-public-key`, `x-signature`,
+                            `x-signature-timestamp`).</p>
+                    </div>
+                    <button
+                        className="btn btn-sm rounded-none border border-base-content bg-base-content text-base-100"
+                        onClick={() => void fetchSignedResource()}
+                        disabled={loadingSignedResource}
+                    >
+                        {loadingSignedResource ? 'loading' : 'refresh'}
+                    </button>
+                </div>
+
+                <div className="mt-4 overflow-auto p-2 text-xs">
+                    <JsonDisplay src={signedResourceOutput} collapsed={false}/>
                 </div>
             </article>
 
