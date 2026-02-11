@@ -60,6 +60,6 @@ services:
     environment:
       LOGGING_LEVEL_ROOT: DEBUG
       LOGGING_LEVEL_COM_SSEGNING_KEYCLOAK_KEYBOUND_EXAMPLES: DEBUG
-    command: ["java", "-jar", "/app/backend-spring-kotlin-example-0.1.0.jar"]
+    command: ["java", "-jar", "/app/backend-spring-kotlin-example-0.1.1.jar"]
     volumes:
       - ./examples/backend-spring-kotlin/build/libs:/app:ro

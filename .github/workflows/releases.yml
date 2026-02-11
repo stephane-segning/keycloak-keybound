@@ -40,7 +40,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: target-jar
-          path: .
+          path: dist
           merge-multiple: true
       - name: Configure Git
         run: |
@@ -86,7 +86,7 @@ jobs:
         if: steps.release_check.outputs.release_exists == 'false'
         uses: ncipollo/release-action@v1.20.0
         with:
-          artifacts: '*.jar'
+          artifacts: 'dist/**/*.jar'
           draft: false
           prerelease: false
           allowUpdates: false
