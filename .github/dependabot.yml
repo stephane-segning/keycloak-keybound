@@ -14,3 +14,10 @@ updates:
       interval: "weekly"
     allow:
       - dependency-type: production
+  - package-ecosystem: "npm"
+    directory: "/"
+    open-pull-requests-limit: 5
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: production
