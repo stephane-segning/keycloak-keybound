@@ -1,23 +1,5 @@
 # Full Review (Merged)
 
-Date: 2026-02-11
-
-This file merges and replaces:
-- `docs/CODE_REVIEW.md`
-- `docs/SECURITY.md`
-- `docs/PLAN.md`
-- `docs/README.md`
-- `docs/STRUCTURE.md`
-- `docs/USAGE.md`
-- `docs/WORKFLOWS/README.md`
-- `docs/WORKFLOWS/current-api-gateway-http.md`
-- `docs/WORKFLOWS/current-approval-authenticators.md`
-- `docs/WORKFLOWS/current-credential-provider.md`
-- `docs/WORKFLOWS/current-device-key-grant.md`
-- `docs/WORKFLOWS/current-enrollment-authenticators.md`
-- `docs/WORKFLOWS/current-protocol-mapper.md`
-- `docs/WORKFLOWS/proposed-user-storage-spi.md`
-
 `docs/recommendations.md` is intentionally kept separate.
 
 Build verification performed:

@@ -9,6 +9,7 @@ import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.*
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
@@ -105,8 +106,8 @@ open class Api(
             userExists = response.userExists,
             hasDeviceCredentials = response.hasDeviceCredentials,
             enrollmentPath = when (response.enrollmentPath) {
-                EnrollmentPath.APPROVAL -> com.ssegning.keycloak.keybound.core.models.EnrollmentPath.APPROVAL
-                EnrollmentPath.OTP -> com.ssegning.keycloak.keybound.core.models.EnrollmentPath.OTP
+                EnrollmentPath.APPROVAL -> CoreEnrollmentPath.APPROVAL
+                EnrollmentPath.OTP -> CoreEnrollmentPath.OTP
             },
             userId = response.userId,
             username = response.username

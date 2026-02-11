@@ -450,8 +450,7 @@ class BackendDataStore {
             .filter { candidate ->
                 candidate.attributes["phone_e164"] == phoneE164 ||
                     candidate.attributes["phone_number"] == phoneE164 ||
-                    candidate.username.equals(phoneE164, ignoreCase = true) ||
-                    candidate.email?.equals(phoneE164, ignoreCase = true) == true
+                candidate.username.equals(phoneE164, ignoreCase = true)
             }
             .toList()
 

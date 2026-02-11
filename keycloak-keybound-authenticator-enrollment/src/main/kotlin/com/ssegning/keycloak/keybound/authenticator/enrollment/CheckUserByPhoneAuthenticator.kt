@@ -2,6 +2,7 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 
@@ -28,7 +29,7 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
 
         authSession.setAuthNote(
             KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME,
-            if (resolved.enrollmentPath == com.ssegning.keycloak.keybound.core.models.EnrollmentPath.APPROVAL) {
+            if (resolved.enrollmentPath == CoreEnrollmentPath.APPROVAL) {
                 KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL
             } else {
                 KeyboundFlowNotes.ENROLLMENT_PATH_OTP
