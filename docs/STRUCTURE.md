@@ -56,9 +56,6 @@ Implements an OIDC Protocol Mapper for device-binding claims.
 Implements a User Storage Provider backed by the backend API (via `ApiGateway`).
 - **Purpose**: Resolve users through the backend, enabling CRUD/search without Keycloak-local storage.
 
-### `keycloak-keybound-authenticator-approval`
-Legacy container module retained for compatibility. Approval authenticators are now implemented in `keycloak-keybound-authenticator-enrollment`.
-
 ### `keycloak-keybound-custom-endpoint`
 Implements a custom realm endpoint.
 - **Purpose**: Exposes REST endpoints used by the approval/auth flows (e.g. polling status).

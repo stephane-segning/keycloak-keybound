@@ -9,7 +9,6 @@ This document contains the findings from a comprehensive code review of the Keyc
 | keycloak-keybound-core | Reviewed | 0 | 0 | 5 |
 | keycloak-keybound-api-gateway-http | Reviewed | 1 | 2 | 1 |
 | keycloak-keybound-authenticator-enrollment | Reviewed | 0 | 0 | 3 |
-| keycloak-keybound-authenticator-approval | Reviewed | 0 | 2 | 2 |
 | keycloak-keybound-custom-endpoint | Reviewed | 1 | 1 | 1 |
 | keycloak-keybound-credentials-device-key | Reviewed | 1 | 0 | 0 |
 | keycloak-keybound-grant-device-key | Reviewed | 1 | 0 | 0 |
@@ -111,37 +110,6 @@ This document contains the findings from a comprehensive code review of the Keyc
 1.  **Fix Typo:** Rename `DEVICE_NONE_NOTE_NAME` to `DEVICE_NONCE_NOTE_NAME` in `AbstractKeyAuthenticator.kt` and update usages.
 2.  **Remove Unused Code:** Remove the unused `buildVerifierContext` method in `VerifySignedBlobAuthenticator.kt`.
 3.  **Use Constants:** Extract string literals in `CollectPhoneFormAuthenticator.kt` to constants.
-
-### keycloak-keybound-authenticator-approval
-
-**Status:** Reviewed
-
-**Findings:**
-
-*   **Code Quality and Consistency:**
-    *   **Package Typo:** Imports `com.ssegning.keycloak.keybound.authentcator` (inherited typo).
-    *   **Logic Issue:** In `StartApprovalRequestAuthenticator.kt`, `jkt` is assigned `deviceId` ("Using deviceId as JKT for now"). This might be a placeholder logic that needs verification against the spec.
-    *   **Null Handling:** `publicJwk` is explicitly set to `null` in `StartApprovalRequestAuthenticator.kt` because parsing logic is commented out/incomplete. This might cause issues if the backend expects this data.
-    *   **Compilation Error (Potential):** `WaitForApprovalFormAuthenticator.kt` uses `JWSBuilder().jsonContent(...)`. `jsonContent` usually expects a JSON string, but a Map is passed. Keycloak's `JWSBuilder` might have an overload or extension for this, but standard usage often involves `JsonSerialization.writeValueAsString`.
-    *   **Missing Import:** `WaitForApprovalFormAuthenticator.kt` uses `Algorithm.RS256` but the import might be ambiguous or missing if not careful (it imports `org.keycloak.crypto.Algorithm`).
-    *   **Polling Logic:** `WaitForApprovalFormAuthenticator.kt` creates a polling token but the `action` method doesn't seem to use it or validate it. The `action` method is triggered when the form is submitted (or auto-submitted by JS). The logic seems to rely on the session note `APPROVAL_REQUEST_ID_NOTE`, which is fine for server-side state, but the `pollingToken` sent to the client seems unused by the authenticator itself (maybe used by the custom endpoint?).
-
-*   **Security:**
-    *   **Token Signing:** `WaitForApprovalFormAuthenticator.kt` signs the polling token with the realm's active RSA key. This is good practice.
-    *   **Session Notes:** Reliance on `APPROVAL_REQUEST_ID_NOTE` is secure as it's server-side only.
-
-*   **Potential Bugs:**
-    *   **Infinite Loop (Potential):** In `WaitForApprovalFormAuthenticator.kt`, if `status` is not approved/denied/expired, it calls `authenticate(context)` again. This re-renders the form. If the client auto-submits too fast, this creates a loop. The client-side JS should handle the delay (`POLLING_INTERVAL_MS`).
-    *   **Missing Device Data:** `StartApprovalRequestAuthenticator.kt` logs error if `deviceId` or `publicKeyStr` is missing, which is correct.
-
-*   **Clarity and Maintainability:**
-    *   **Comments:** The comments in `StartApprovalRequestAuthenticator.kt` regarding JKT and JWK parsing indicate unfinished thought process or temporary workarounds. These should be resolved.
-
-**Recommendations:**
-
-1.  **Resolve JKT/JWK Logic:** Clarify the requirements for `jkt` and `publicJwk` in `StartApprovalRequestAuthenticator.kt`. If `jkt` should be the thumbprint of the key, calculate it. If `publicJwk` is needed, implement the parsing.
-2.  **Fix JWSBuilder Usage:** Verify `JWSBuilder.jsonContent` usage. If it requires a string, serialize the map first.
-3.  **Clarify Polling Token:** Ensure the `pollingToken` is actually used by the client (likely passed to the custom endpoint) and document its purpose.
 
 ### keycloak-keybound-custom-endpoint
 

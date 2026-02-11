@@ -14,7 +14,6 @@ Status legend:
 
 ### 1.1 Implemented
 
-- `DONE` ~~Add approval authenticators module (`keycloak-keybound-authenticator-approval`)~~
 - `DONE` ~~Implement `StartApprovalRequestAuthenticator`~~
 - `DONE` ~~Implement `WaitForApprovalFormAuthenticator`~~
 - `DONE` ~~Add custom endpoint module (`keycloak-keybound-custom-endpoint`)~~

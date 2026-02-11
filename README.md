@@ -23,7 +23,6 @@ and ready-to-run examples so teams can adopt frictionless, high-security device 
 | Module                                       | Role                                                                                                    |
 |----------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `keycloak-keybound-authenticator-enrollment` | Runs DK1-DK10: ingest/verify, phone capture, approval-or-OTP branching, user resolution, and bind.      |
-| `keycloak-keybound-authenticator-approval`   | Legacy module retained for compatibility; approval authenticators are now hosted in enrollment.          |
 | `keycloak-keybound-credentials-device-key`   | Stores, validates, and rotates device keys within Keycloak credential API.                              |
 | `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for token issuance without refresh tokens. |
 | `keycloak-keybound-protocol-mapper`          | Maps device metadata into access tokens so downstream services can make policy decisions.               |
