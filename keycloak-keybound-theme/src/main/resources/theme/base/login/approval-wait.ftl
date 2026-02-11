@@ -16,8 +16,8 @@
             class="${properties.kcFormClass!}"
             action="${url.loginAction}"
             method="post"
-            data-polling-url="${(pollingUrl!'')?html}"
-            data-polling-token="${(pollingToken!'')?html}"
+            data-polling-url="${pollingUrl!''}"
+            data-polling-token="${pollingToken!''}"
             data-polling-interval="${(pollingInterval!2000)?c}"
         >
             <input type="hidden" id="approval-status" name="approval_status" value="PENDING"/>
