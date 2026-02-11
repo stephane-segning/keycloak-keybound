@@ -9,7 +9,7 @@ class DeviceApprovalResourceProvider(
     private val session: KeycloakSession,
     private val apiGateway: ApiGateway
 ) : RealmResourceProvider {
-    override fun getResource(): Any = DeviceApprovalResource(apiGateway, session.tokens())
+    override fun getResource(): Any = DeviceApprovalResource(session, apiGateway, session.tokens())
 
     override fun close() = noop()
 }

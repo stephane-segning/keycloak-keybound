@@ -19,7 +19,21 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
         private val log = LoggerFactory.getLogger(WaitForApprovalFormAuthenticator::class.java)
         private const val POLLING_INTERVAL_MS = 2000
         private const val APPROVAL_STATUS_FORM_FIELD = "approval_status"
+        private const val APPROVAL_AUDIENCE = "device-approval-status"
     }
+
+    private data class ApprovalPollingTokenClaims(
+        val realm: String,
+        val client_id: String,
+        val aud: String,
+        val sid: String,
+        val sub: String?,
+        val request_id: String,
+        val iat: Long,
+        val nbf: Long,
+        val jti: String,
+        val exp: Long
+    )
 
     override fun requiresUser() = true
 
@@ -93,12 +107,24 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
     }
 
     private fun createPollingToken(context: AuthenticationFlowContext, requestId: String): String {
+        val authSession = context.authenticationSession
+        val nowSeconds = System.currentTimeMillis() / 1000
+        val claims = ApprovalPollingTokenClaims(
+            realm = context.realm.name,
+            client_id = authSession.client.clientId,
+            aud = APPROVAL_AUDIENCE,
+            sid = authSession.parentSession.id,
+            sub = context.user?.id,
+            request_id = requestId,
+            iat = nowSeconds,
+            nbf = nowSeconds,
+            jti = "${authSession.parentSession.id}:$requestId",
+            exp = nowSeconds + 300
+        )
+
         return JWSBuilder()
             .jsonContent(
-                mapOf(
-                    "request_id" to requestId,
-                    "exp" to (System.currentTimeMillis() / 1000) + 300
-                )
+                claims
             )
             .sign(
                 ServerAsymmetricSignatureSignerContext(

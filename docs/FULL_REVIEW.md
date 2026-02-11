@@ -133,14 +133,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 
 ### Open Findings
 
-- `MEDIUM` S-1: Approval polling token is not bound to user/session/client context.
-  Affected:
-  - Token content includes only `request_id` + `exp`: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/WaitForApprovalFormAuthenticator.kt:98`
-  - Endpoint validates signature/exp and uses `request_id`: `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt:35`
-  Impact:
-  - Any holder of a valid polling token can query approval status until expiry.
-  Recommendation:
-  - Add `sid`, `client_id`, and/or `sub` claims and enforce match in endpoint.
+- `DONE` ~~Approval polling token is not bound to user/session/client context.~~
+  Evidence: polling token now includes realm/client/session/user and is validated in `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt:44`.
 
 - `LOW` S-2: Nonce replay keys are global string keys without realm scoping.
   Affected:
@@ -209,4 +203,4 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 4. ~~Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.~~
 5. Enforce Java 21 toolchain in all plugin modules (`F-1`).
 6. ~~Restrict backend phone lookup matching to dedicated phone attributes (`C-6`).~~
-7. Harden approval polling token context binding (`S-1`).
+7. ~~Harden approval polling token context binding (`S-1`).~~
