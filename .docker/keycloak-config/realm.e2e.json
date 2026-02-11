@@ -139,12 +139,21 @@
     ]
   },
   "clients": [
-    {
-      "clientId": "web-vite",
-      "name": "Keybound Vite Web",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": true,
+  {
+    "clientId": "web-vite",
+    "name": "Keybound Vite Web",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "device-binding",
+        "protocol": "openid-connect",
+        "protocolMapper": "device-binding-mapper",
+        "consentRequired": false,
+        "config": {}
+      }
+    ],
+    "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
@@ -156,12 +165,21 @@
       ],
       "baseUrl": "http://localhost:5173"
     },
-    {
-      "clientId": "resource-server",
-      "name": "Keybound Resource Server",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
+  {
+    "clientId": "resource-server",
+    "name": "Keybound Resource Server",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "device-binding",
+        "protocol": "openid-connect",
+        "protocolMapper": "device-binding-mapper",
+        "consentRequired": false,
+        "config": {}
+      }
+    ],
+    "publicClient": false,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "clientAuthenticatorType": "client-secret",

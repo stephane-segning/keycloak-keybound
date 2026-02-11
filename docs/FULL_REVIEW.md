@@ -169,9 +169,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Java 21 requirement is not consistently enforced across all plugin subprojects.~~
   Evidence: `kotlin.jvmToolchain(21)` added across plugin modules (e.g. `keycloak-keybound-core/build.gradle.kts:27`).
 
-- `LOW` F-3: Minimal realm imports do not preconfigure the protocol mapper.
-  Impact:
-  - Device claims via mapper depend on manual admin setup.
+- `DONE` ~~Minimal realm imports do not preconfigure the protocol mapper.~~
+  Evidence: realm import JSONs now include `device-binding-mapper` on clients in `.docker/keycloak-config/realm.e2e.json` and `.docker/keycloak-config/realm.theme.vymalo-wh-01.json`.
 
 - `LOW` F-4: No meaningful automated test coverage in provider modules.
   Evidence:

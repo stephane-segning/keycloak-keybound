@@ -145,12 +145,21 @@
     ]
   },
   "clients": [
-    {
-      "clientId": "node-cli",
-      "name": "Node CLI Example",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": true,
+  {
+    "clientId": "node-cli",
+    "name": "Node CLI Example",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "device-binding",
+        "protocol": "openid-connect",
+        "protocolMapper": "device-binding-mapper",
+        "consentRequired": false,
+        "config": {}
+      }
+    ],
+    "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
