@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
+import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.keycloak.crypto.Algorithm
@@ -8,7 +9,6 @@ import org.keycloak.crypto.ECDSASignatureVerifierContext
 import org.keycloak.crypto.KeyWrapper
 import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.SingleUseObjectProvider
-import org.keycloak.util.JsonSerialization
 import org.slf4j.LoggerFactory
 import kotlin.math.abs
 import java.util.Base64
@@ -48,7 +48,7 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
 
         // 2. Nonce Replay Prevention (atomic)
         val suo = context.session.getProvider(SingleUseObjectProvider::class.java)
-        val nonceKey = "avoid-replay:$nonce"
+        val nonceKey = "avoid-replay:${context.realm.name}:$nonce"
 
         // returns true only the first time within TTL
         val firstSeen = suo.putIfAbsent(nonceKey, ttl)
@@ -63,13 +63,12 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
-            val canonicalData = mapOf(
-                "deviceId" to deviceId,
-                "publicKey" to publicKeyJwk,
-                "ts" to tsStr,
-                "nonce" to nonce
-            )
-            val canonicalString = JsonSerialization.writeValueAsString(canonicalData)
+            val canonicalString = DeviceSignaturePayload(
+                deviceId = deviceId,
+                publicKey = publicKeyJwk,
+                ts = tsStr,
+                nonce = nonce
+            ).toCanonicalJson()
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
             val signatureBytes = decodeBase64OrBase64Url(sig)

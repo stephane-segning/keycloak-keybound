@@ -16,9 +16,10 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 
 - `/` landing hero + device dashboard
 - `/login` popup login and code exchange
-- `/callback` auth callback payload relay
+- `/callback` auth callback payload relay (debug fallback)
 - `/session` backend user-id binding
-- `/resource` protected resource call
+- `/resource` protected resource call + approvals view proxied by resource server
+- `/resource` also includes a simple `start live` button that subscribes to resource-server WebSocket approvals stream (`/ws/approvals`)
 
 ## File Layout
 
@@ -32,13 +33,15 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 
 - Realm: `e2e-testing`
 - Client ID: `web-vite`
-- Redirect URI: `http://localhost:5173/callback`
+- Redirect URI: `http://localhost:5173/popup-callback.html` (recommended for instant popup close)
+- Optional debug Redirect URI: `http://localhost:5173/callback`
 - Web origin: `http://localhost:5173`
 
 ## Environment Overrides
 
 - `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_REDIRECT_URI`
 - `VITE_RESOURCE_SERVER`
+- `VITE_RESOURCE_SERVER_SIGNED` (defaults to `http://localhost:18082`)
 
 ## Run
 

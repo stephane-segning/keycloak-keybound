@@ -22,7 +22,7 @@ export const SessionPage = () => {
                 <p className="mt-2 text-sm text-base-content/80">Store the backend user identifier for custom grant
                     refresh.</p>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={device ?? {ready: false}}/>
                 </div>
             </article>

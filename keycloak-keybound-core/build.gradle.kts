@@ -31,6 +31,10 @@ tasks.test {
     useJUnitPlatform()
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 val shadowJarTask = tasks.named<ShadowJar>("shadowJar")
 
 shadow {

@@ -47,6 +47,32 @@ class EnrollmentController(private val store: BackendDataStore) : EnrollmentApi 
         return ResponseEntity.ok(response)
     }
 
+    override fun resolveUserByPhone(phoneResolveRequest: PhoneResolveRequest): ResponseEntity<PhoneResolveResponse> {
+        log.info("Resolving user by phone {}", phoneResolveRequest.phoneNumber)
+        val response = store.resolveUserByPhone(phoneResolveRequest)
+        log.debug(
+            "Resolved phone {} -> exists={} path={}",
+            phoneResolveRequest.phoneNumber,
+            response.userExists,
+            response.enrollmentPath
+        )
+        return ResponseEntity.ok(response)
+    }
+
+    override fun resolveOrCreateUserByPhone(
+        phoneResolveOrCreateRequest: PhoneResolveOrCreateRequest
+    ): ResponseEntity<PhoneResolveOrCreateResponse> {
+        log.info("Resolve or create user by phone {}", phoneResolveOrCreateRequest.phoneNumber)
+        val response = store.resolveOrCreateUserByPhone(phoneResolveOrCreateRequest)
+        log.debug(
+            "Resolve/create phone {} -> userId={} created={}",
+            phoneResolveOrCreateRequest.phoneNumber,
+            response.userId,
+            response.created
+        )
+        return ResponseEntity.ok(response)
+    }
+
     companion object {
         private val log = LoggerFactory.getLogger(EnrollmentController::class.java)
     }

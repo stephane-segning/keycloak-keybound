@@ -73,7 +73,7 @@ export const HomePage = () => {
 
             <article className="border border-base-300 bg-base-100 p-5">
                 <h2 className="text-base font-semibold">stored snapshot</h2>
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={device ?? {ready: false}} />
                 </div>
             </article>

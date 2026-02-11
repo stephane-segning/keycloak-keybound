@@ -12,9 +12,9 @@ open class FindOrCreateUserAuthenticatorFactory : AbstractAuthenticatorFactory()
 
     override fun getId() = ID
 
-    override fun getDisplayType() = "DK4- Find or Create User"
+    override fun getDisplayType() = "DK9- Find or Create User"
 
-    override fun getHelpText() = "Finds a user from user_hint (preferred) or verified phone data."
+    override fun getHelpText() = "Finds or creates a user using the verified phone number from the OTP step."
 
     override fun getRequirementChoices() = arrayOf(
         AuthenticationExecutionModel.Requirement.REQUIRED,

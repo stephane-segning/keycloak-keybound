@@ -316,6 +316,47 @@ class BackendDataStore {
         }
     }
 
+    fun resolveUserByPhone(request: PhoneResolveRequest): PhoneResolveResponse {
+        val normalizedPhone = request.phoneNumber.trim()
+        val matchedUser = findSingleUserByPhone(request.realm, normalizedPhone)
+        val hasActiveDevices = matchedUser?.let { hasActiveDeviceCredentials(it.userId) } == true
+        val enrollmentPath = if (matchedUser != null && hasActiveDevices) EnrollmentPath.APPROVAL else EnrollmentPath.OTP
+
+        return PhoneResolveResponse()
+            .phoneNumber(normalizedPhone)
+            .userExists(matchedUser != null)
+            .hasDeviceCredentials(hasActiveDevices)
+            .enrollmentPath(enrollmentPath)
+            .userId(matchedUser?.userId)
+            .username(matchedUser?.username)
+    }
+
+    fun resolveOrCreateUserByPhone(request: PhoneResolveOrCreateRequest): PhoneResolveOrCreateResponse {
+        val normalizedPhone = request.phoneNumber.trim()
+        val existingUser = findSingleUserByPhone(request.realm, normalizedPhone)
+        if (existingUser != null) {
+            return PhoneResolveOrCreateResponse()
+                .phoneNumber(normalizedPhone)
+                .userId(existingUser.userId)
+                .username(existingUser.username)
+                .created(false)
+        }
+
+        val createdUser = createUser(
+            UserUpsertRequest()
+                .realm(request.realm)
+                .username(normalizedPhone)
+                .enabled(true)
+                .attributes(mapOf("phone_e164" to normalizedPhone))
+        )
+
+        return PhoneResolveOrCreateResponse()
+            .phoneNumber(normalizedPhone)
+            .userId(createdUser.userId)
+            .username(createdUser.username)
+            .created(true)
+    }
+
     fun createApproval(request: ApprovalCreateRequest): ApprovalCreateResponse {
         val requestId = nextPrefixedId("apr")
         val created = StoredApproval(
@@ -332,14 +373,56 @@ class BackendDataStore {
 
     fun getApproval(requestId: String): ApprovalStatusResponse? {
         val stored = approvals[requestId] ?: return null
-        return ApprovalStatusResponse()
-            .requestId(stored.requestId)
-            .status(ApprovalStatusResponse.StatusEnum.valueOf(stored.status.name))
+        return stored.toApprovalStatusResponse()
+    }
+
+    fun listUserApprovals(
+        userId: String,
+        statuses: Collection<String>? = null
+    ): UserApprovalsResponse {
+        if (!users.containsKey(userId) && approvals.values.none { it.userId == userId }) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        }
+
+        val statusFilter = statuses
+            ?.mapNotNull { raw -> ApprovalStatus.entries.firstOrNull { it.name == raw } }
+            ?.toSet()
+            ?: emptySet()
+
+        val records = approvals.values.asSequence()
+            .filter { it.userId == userId }
+            .filter { statusFilter.isEmpty() || it.status in statusFilter }
+            .sortedByDescending { it.createdAt }
+            .map { it.toUserApprovalRecord() }
+            .toList()
+
+        return UserApprovalsResponse()
+            .userId(userId)
+            .approvals(records)
+    }
+
+    fun decideApproval(requestId: String, request: ApprovalDecisionRequest): ApprovalStatusResponse? {
+        val stored = approvals[requestId] ?: return null
+        if (stored.status != ApprovalStatus.PENDING) {
+            return stored.toApprovalStatusResponse()
+        }
+
+        stored.status = when (request.decision) {
+            ApprovalDecisionRequest.DecisionEnum.APPROVE -> ApprovalStatus.APPROVED
+            ApprovalDecisionRequest.DecisionEnum.DENY -> ApprovalStatus.DENIED
+        }
+        stored.decidedAt = OffsetDateTime.now()
+        stored.decidedByDeviceId = request.decidedByDeviceId
+        stored.message = request.message
+
+        return stored.toApprovalStatusResponse()
     }
 
     fun cancelApproval(requestId: String): Boolean {
         val stored = approvals[requestId] ?: return false
         stored.status = ApprovalStatus.EXPIRED
+        stored.decidedAt = OffsetDateTime.now()
+        stored.message = "cancelled"
         return true
     }
 
@@ -355,6 +438,27 @@ class BackendDataStore {
     private fun canonicalAttributeKey(attributeKey: String): String = when (attributeKey.trim()) {
         "phone_number", "phone" -> "phone_e164"
         else -> attributeKey
+    }
+
+    private fun hasActiveDeviceCredentials(userId: String): Boolean =
+        devicesById.values.any { it.userId == userId && it.status == DeviceRecord.StatusEnum.ACTIVE }
+
+    private fun findSingleUserByPhone(realm: String, phoneE164: String): StoredUser? {
+        val matches = users.values
+            .asSequence()
+            .filter { it.realm == realm }
+            .filter { candidate ->
+                candidate.attributes["phone_e164"] == phoneE164 ||
+                    candidate.attributes["phone_number"] == phoneE164 ||
+                candidate.username.equals(phoneE164, ignoreCase = true)
+            }
+            .toList()
+
+        if (matches.size > 1) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Multiple users matched phone number")
+        }
+
+        return matches.firstOrNull()
     }
 
     private fun nextUserId(): String = nextPrefixedId("usr")
@@ -433,7 +537,10 @@ class BackendDataStore {
         val userId: String,
         val deviceId: String,
         var status: ApprovalStatus,
-        val createdAt: OffsetDateTime = OffsetDateTime.now()
+        val createdAt: OffsetDateTime = OffsetDateTime.now(),
+        var decidedAt: OffsetDateTime? = null,
+        var decidedByDeviceId: String? = null,
+        var message: String? = null
     ) {
         fun toSnapshot(): ApprovalSnapshot = ApprovalSnapshot(
             requestId = requestId,
@@ -441,6 +548,23 @@ class BackendDataStore {
             deviceId = deviceId,
             status = status.name
         )
+
+        fun toUserApprovalRecord(): UserApprovalRecord = UserApprovalRecord()
+            .requestId(requestId)
+            .userId(userId)
+            .deviceId(deviceId)
+            .status(UserApprovalRecord.StatusEnum.valueOf(status.name))
+            .createdAt(createdAt.toLocalDateTime())
+            .decidedAt(decidedAt?.toLocalDateTime())
+            .decidedByDeviceId(decidedByDeviceId)
+            .message(message)
+
+        fun toApprovalStatusResponse(): ApprovalStatusResponse = ApprovalStatusResponse()
+            .requestId(requestId)
+            .status(ApprovalStatusResponse.StatusEnum.valueOf(status.name))
+            .decidedAt(decidedAt?.toLocalDateTime())
+            .decidedByDeviceId(decidedByDeviceId)
+            .message(message)
     }
 
     private enum class ApprovalStatus {

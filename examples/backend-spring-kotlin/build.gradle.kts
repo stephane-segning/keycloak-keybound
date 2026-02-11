@@ -22,6 +22,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-freemarker")
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.openapitools:jackson-databind-nullable:0.2.2")
     implementation("jakarta.validation:jakarta.validation-api:3.0.2")

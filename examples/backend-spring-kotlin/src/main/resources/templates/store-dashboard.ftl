@@ -81,6 +81,16 @@
             background: var(--surface);
         }
 
+        .pill.live-connected {
+            border-color: #15803d;
+            color: #15803d;
+        }
+
+        .pill.live-disconnected {
+            border-color: #b91c1c;
+            color: #b91c1c;
+        }
+
         main {
             padding: 20px 0 28px;
         }
@@ -192,10 +202,11 @@
         <h1 class="hero-title">Backend Store Dashboard</h1>
         <p class="hero-subtitle">Flat snapshot of live in-memory state for users, devices, approvals, indexes, and SMS challenges.</p>
         <div class="hero-meta">
-            <span class="pill">users ${users?size}</span>
-            <span class="pill">devices ${devices?size}</span>
-            <span class="pill">approvals ${approvals?size}</span>
-            <span class="pill">sms ${smsChallenges?size}</span>
+            <span class="pill" id="pill-users">users ${users?size}</span>
+            <span class="pill" id="pill-devices">devices ${devices?size}</span>
+            <span class="pill" id="pill-approvals">approvals ${approvals?size}</span>
+            <span class="pill" id="pill-sms">sms ${smsChallenges?size}</span>
+            <span class="pill live-disconnected" id="pill-live-status">live disconnected</span>
         </div>
     </div>
 </header>
@@ -206,7 +217,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Users</h2>
-                    <span class="count">${users?size}</span>
+                    <span class="count" id="count-users">${users?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -219,7 +230,7 @@
                             <th>Enabled</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-users">
                         <#if users?size == 0>
                             <tr>
                                 <td colspan="5" class="empty">No entries</td>
@@ -249,7 +260,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Devices</h2>
-                    <span class="count">${devices?size}</span>
+                    <span class="count" id="count-devices">${devices?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -264,7 +275,7 @@
                             <th>JKT</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-devices">
                         <#if devices?size == 0>
                             <tr>
                                 <td colspan="7" class="empty">No entries</td>
@@ -293,7 +304,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Devices By JKT Index</h2>
-                    <span class="count">${devicesByJkt?size}</span>
+                    <span class="count" id="count-devicesByJkt">${devicesByJkt?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -305,7 +316,7 @@
                             <th>User ID</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-devicesByJkt">
                         <#if devicesByJkt?size == 0>
                             <tr>
                                 <td colspan="4" class="empty">No entries</td>
@@ -331,7 +342,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Username Index</h2>
-                    <span class="count">${usernameIndex?size}</span>
+                    <span class="count" id="count-usernameIndex">${usernameIndex?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -341,7 +352,7 @@
                             <th>User ID</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-usernameIndex">
                         <#if usernameIndex?size == 0>
                             <tr>
                                 <td colspan="2" class="empty">No entries</td>
@@ -362,7 +373,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Email Index</h2>
-                    <span class="count">${emailIndex?size}</span>
+                    <span class="count" id="count-emailIndex">${emailIndex?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -372,7 +383,7 @@
                             <th>User ID</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-emailIndex">
                         <#if emailIndex?size == 0>
                             <tr>
                                 <td colspan="2" class="empty">No entries</td>
@@ -393,7 +404,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">Approvals</h2>
-                    <span class="count">${approvals?size}</span>
+                    <span class="count" id="count-approvals">${approvals?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -405,7 +416,7 @@
                             <th>Status</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-approvals">
                         <#if approvals?size == 0>
                             <tr>
                                 <td colspan="4" class="empty">No entries</td>
@@ -428,7 +439,7 @@
             <section class="panel">
                 <div class="panel-head">
                     <h2 class="panel-title">SMS Challenges</h2>
-                    <span class="count">${smsChallenges?size}</span>
+                    <span class="count" id="count-smsChallenges">${smsChallenges?size}</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -439,7 +450,7 @@
                             <th>Expires At</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-smsChallenges">
                         <#if smsChallenges?size == 0>
                             <tr>
                                 <td colspan="3" class="empty">No entries</td>
@@ -460,5 +471,215 @@
         </div>
     </div>
 </main>
+<script>
+    (function () {
+        var liveStatusPill = document.getElementById("pill-live-status");
+        var wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        var wsUrl = wsProtocol + "//" + window.location.host + "/ws/admin/stores";
+        var socket;
+
+        function setLiveStatus(statusText, isConnected) {
+            if (!liveStatusPill) return;
+            liveStatusPill.textContent = "live " + statusText;
+            liveStatusPill.classList.remove("live-connected", "live-disconnected");
+            liveStatusPill.classList.add(isConnected ? "live-connected" : "live-disconnected");
+        }
+
+        function text(value) {
+            if (value === null || value === undefined) return "";
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function yesNo(value) {
+            return value ? '<span class="status-yes">YES</span>' : '<span class="status-no">NO</span>';
+        }
+
+        function mono(value) {
+            return '<span class="mono">' + text(value) + '</span>';
+        }
+
+        function truncateJkt(value) {
+            var jkt = text(value);
+            if (jkt.length > 8) {
+                return jkt.substring(0, 8) + "...";
+            }
+            return jkt;
+        }
+
+        function setCount(id, value) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = text(value);
+        }
+
+        function setPill(id, label, value) {
+            var el = document.getElementById(id);
+            if (el) el.textContent = label + " " + text(value);
+        }
+
+        function renderBody(tbodyId, rows, emptyColspan) {
+            var tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            if (!rows || rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="' + emptyColspan + '" class="empty">No entries</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.join("");
+        }
+
+        function render(snapshot) {
+            var users = Array.isArray(snapshot.users) ? snapshot.users : [];
+            var devices = Array.isArray(snapshot.devices) ? snapshot.devices : [];
+            var devicesByJkt = Array.isArray(snapshot.devicesByJkt) ? snapshot.devicesByJkt : [];
+            var usernameIndex = Array.isArray(snapshot.usernameIndex) ? snapshot.usernameIndex : [];
+            var emailIndex = Array.isArray(snapshot.emailIndex) ? snapshot.emailIndex : [];
+            var approvals = Array.isArray(snapshot.approvals) ? snapshot.approvals : [];
+            var smsChallenges = Array.isArray(snapshot.smsChallenges) ? snapshot.smsChallenges : [];
+
+            setCount("count-users", users.length);
+            setCount("count-devices", devices.length);
+            setCount("count-devicesByJkt", devicesByJkt.length);
+            setCount("count-usernameIndex", usernameIndex.length);
+            setCount("count-emailIndex", emailIndex.length);
+            setCount("count-approvals", approvals.length);
+            setCount("count-smsChallenges", smsChallenges.length);
+
+            setPill("pill-users", "users", users.length);
+            setPill("pill-devices", "devices", devices.length);
+            setPill("pill-approvals", "approvals", approvals.length);
+            setPill("pill-sms", "sms", smsChallenges.length);
+
+            renderBody(
+                "tbody-users",
+                users.map(function (user) {
+                    return "<tr>" +
+                        "<td>" + mono(user.userId) + "</td>" +
+                        "<td>" + text(user.username) + "</td>" +
+                        "<td>" + text(user.email) + "</td>" +
+                        "<td>" + text(user.realm) + "</td>" +
+                        "<td>" + yesNo(!!user.enabled) + "</td>" +
+                        "</tr>";
+                }),
+                5
+            );
+
+            renderBody(
+                "tbody-devices",
+                devices.map(function (device) {
+                    var jkt = text(device.jkt);
+                    return "<tr>" +
+                        "<td>" + mono(device.recordId) + "</td>" +
+                        "<td>" + mono(device.deviceId) + "</td>" +
+                        "<td>" + mono(device.userId) + "</td>" +
+                        "<td>" + text(device.deviceOs) + "</td>" +
+                        "<td>" + text(device.deviceModel) + "</td>" +
+                        "<td>" + text(device.status) + "</td>" +
+                        "<td class=\"mono\" title=\"" + jkt + "\">" + truncateJkt(jkt) + "</td>" +
+                        "</tr>";
+                }),
+                7
+            );
+
+            renderBody(
+                "tbody-devicesByJkt",
+                devicesByJkt.map(function (entry) {
+                    var jkt = text(entry.jkt);
+                    return "<tr>" +
+                        "<td class=\"mono\" title=\"" + jkt + "\">" + truncateJkt(jkt) + "</td>" +
+                        "<td>" + mono(entry.recordId) + "</td>" +
+                        "<td>" + mono(entry.deviceId) + "</td>" +
+                        "<td>" + mono(entry.userId) + "</td>" +
+                        "</tr>";
+                }),
+                4
+            );
+
+            renderBody(
+                "tbody-usernameIndex",
+                usernameIndex.map(function (entry) {
+                    return "<tr>" +
+                        "<td>" + text(entry.key) + "</td>" +
+                        "<td>" + mono(entry.value) + "</td>" +
+                        "</tr>";
+                }),
+                2
+            );
+
+            renderBody(
+                "tbody-emailIndex",
+                emailIndex.map(function (entry) {
+                    return "<tr>" +
+                        "<td>" + text(entry.key) + "</td>" +
+                        "<td>" + mono(entry.value) + "</td>" +
+                        "</tr>";
+                }),
+                2
+            );
+
+            renderBody(
+                "tbody-approvals",
+                approvals.map(function (approval) {
+                    return "<tr>" +
+                        "<td>" + mono(approval.requestId) + "</td>" +
+                        "<td>" + mono(approval.userId) + "</td>" +
+                        "<td>" + mono(approval.deviceId) + "</td>" +
+                        "<td>" + text(approval.status) + "</td>" +
+                        "</tr>";
+                }),
+                4
+            );
+
+            renderBody(
+                "tbody-smsChallenges",
+                smsChallenges.map(function (challenge) {
+                    return "<tr>" +
+                        "<td>" + mono(challenge.hash) + "</td>" +
+                        "<td>" + mono(challenge.otp) + "</td>" +
+                        "<td>" + text(challenge.expiresAt) + "</td>" +
+                        "</tr>";
+                }),
+                3
+            );
+        }
+
+        function connect() {
+            setLiveStatus("connecting", false);
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = function () {
+                setLiveStatus("connected", true);
+            };
+
+            socket.onmessage = function (event) {
+                var payload;
+                try {
+                    payload = JSON.parse(event.data || "{}");
+                } catch (error) {
+                    return;
+                }
+
+                if (!payload || !payload.snapshot) {
+                    return;
+                }
+                render(payload.snapshot);
+            };
+
+            socket.onerror = function () {
+                setLiveStatus("error", false);
+            };
+
+            socket.onclose = function () {
+                setLiveStatus("disconnected", false);
+                window.setTimeout(connect, 1500);
+            };
+        }
+
+        connect();
+    })();
+</script>
 </body>
 </html>

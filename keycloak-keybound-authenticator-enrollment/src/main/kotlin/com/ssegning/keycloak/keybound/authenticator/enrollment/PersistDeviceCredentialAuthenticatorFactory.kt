@@ -13,7 +13,7 @@ open class PersistDeviceCredentialAuthenticatorFactory : AbstractAuthenticatorFa
 
     override fun getId() = ID
 
-    override fun getDisplayType() = "DK5- Persist Device Credential"
+    override fun getDisplayType() = "DK10- Persist Device Credential"
 
     override fun getHelpText() = "Persists the device credential (ID and Public Key) in the backend."
 

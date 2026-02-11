@@ -22,6 +22,7 @@ import org.keycloak.services.CorsErrorResponseException
 import org.keycloak.services.Urls
 import org.keycloak.services.util.DefaultClientSessionContext
 import org.keycloak.storage.StorageId
+import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
@@ -161,7 +162,7 @@ class DeviceKeyGrantType(
 
         // Nonce Verification
         val suo = session.getProvider(SingleUseObjectProvider::class.java)
-        val nonceKey = "device-grant-replay:$nonce"
+        val nonceKey = "device-grant-replay:${realm.name}:$nonce"
         log.debug("Checking nonce replay for key {}", nonceKey)
         if (!suo.putIfAbsent(nonceKey, TTL)) {
             event.error(Errors.INVALID_USER_CREDENTIALS)
@@ -188,13 +189,12 @@ class DeviceKeyGrantType(
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
-            val canonicalData = mapOf(
-                "deviceId" to deviceId,
-                "publicKey" to publicKeyJwk,
-                "ts" to tsStr,
-                "nonce" to nonce
-            )
-            val canonicalString = JsonSerialization.writeValueAsString(canonicalData)
+            val canonicalString = DeviceSignaturePayload(
+                deviceId = deviceId,
+                publicKey = publicKeyJwk,
+                ts = tsStr,
+                nonce = nonce
+            ).toCanonicalJson()
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
             val signatureBytes = try {
@@ -232,6 +232,7 @@ class DeviceKeyGrantType(
 
         log.debug("Signature verified for device {} bound to user {}", deviceId, user.id)
         // Create Session
+        // TODO Do we really wanna create a session if the same device_id + public_key is used?
         val userSession = session
             .sessions()
             .createUserSession(

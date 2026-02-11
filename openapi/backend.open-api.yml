@@ -159,6 +159,72 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /v1/approvals/{request_id}/decision:
+    post:
+      tags: [approvals]
+      summary: Decide an approval request
+      description: |
+        Used by an approved device (or delegated UI) to approve or deny a pending approval request.
+      operationId: decideApproval
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Updated status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/users/{user_id}/approvals:
+    get:
+      tags: [approvals]
+      summary: List approval requests for a user
+      description: |
+        Returns approval requests that belong to the specified user.
+      operationId: listUserApprovals
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [PENDING, APPROVED, DENIED, EXPIRED]
+      responses:
+        '200':
+          description: Approval list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApprovalsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/users:
     post:
       tags: [users]
@@ -430,6 +496,57 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /v1/enrollments/phone/resolve:
+    post:
+      tags: [enrollment]
+      summary: Resolve user by phone and recommended enrollment path
+      description: |
+        Backend resolves whether the phone belongs to an existing user and whether the user has active devices.
+        This lets Keycloak keep routing logic minimal.
+      operationId: resolveUserByPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneResolveRequest'
+      responses:
+        '200':
+          description: Phone resolution and routing recommendation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneResolveResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/enrollments/phone/resolve-or-create:
+    post:
+      tags: [enrollment]
+      summary: Resolve existing user by phone or create one
+      description: |
+        Used after OTP verification to offload user find/create behavior to backend.
+      operationId: resolveOrCreateUserByPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneResolveOrCreateRequest'
+      responses:
+        '200':
+          description: User resolved or created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneResolveOrCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   parameters:
     IdempotencyKey:
@@ -620,6 +737,58 @@ components:
         message:
           type: string
           nullable: true
+
+    ApprovalDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVE, DENY]
+        decided_by_device_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    UserApprovalRecord:
+      type: object
+      required: [request_id, user_id, device_id, status, created_at]
+      properties:
+        request_id:
+          type: string
+        user_id:
+          type: string
+        device_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, DENIED, EXPIRED]
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        decided_by_device_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    UserApprovalsResponse:
+      type: object
+      required: [user_id, approvals]
+      properties:
+        user_id:
+          type: string
+        approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserApprovalRecord'
 
     DeviceDescriptor:
       type: object
@@ -877,6 +1046,67 @@ components:
         reason:
           type: string
           nullable: true
+
+    EnrollmentPath:
+      type: string
+      enum: [APPROVAL, OTP]
+
+    PhoneResolveRequest:
+      type: object
+      required: [realm, client_id, phone_number]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        phone_number:
+          type: string
+        user_hint:
+          type: string
+          nullable: true
+
+    PhoneResolveResponse:
+      type: object
+      required: [phone_number, user_exists, has_device_credentials, enrollment_path]
+      properties:
+        phone_number:
+          type: string
+        user_exists:
+          type: boolean
+        has_device_credentials:
+          type: boolean
+        enrollment_path:
+          $ref: '#/components/schemas/EnrollmentPath'
+        user_id:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+
+    PhoneResolveOrCreateRequest:
+      type: object
+      required: [realm, client_id, phone_number]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        phone_number:
+          type: string
+
+    PhoneResolveOrCreateResponse:
+      type: object
+      required: [phone_number, user_id, username, created]
+      properties:
+        phone_number:
+          type: string
+        user_id:
+          type: string
+        username:
+          type: string
+        created:
+          type: boolean
 
     Error:
       type: object

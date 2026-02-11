@@ -43,14 +43,84 @@
           "priority": 30
         },
         {
-          "authenticator": "find-or-create-user",
+          "authenticator": "check-user-by-phone",
           "requirement": "REQUIRED",
           "priority": 40
         },
         {
-          "authenticator": "persist-device-credential",
+          "authenticator": "route-enrollment-path",
           "requirement": "REQUIRED",
           "priority": 50
+        },
+        {
+          "authenticatorFlow": true,
+          "flowAlias": "keybound-publickey-approval-subflow",
+          "requirement": "CONDITIONAL",
+          "priority": 60
+        },
+        {
+          "authenticatorFlow": true,
+          "flowAlias": "keybound-publickey-otp-subflow",
+          "requirement": "CONDITIONAL",
+          "priority": 70
+        }
+      ]
+    },
+    {
+      "alias": "keybound-publickey-approval-subflow",
+      "description": "Approval path for known users that already have device credentials",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "condition-approval-path",
+          "requirement": "REQUIRED",
+          "priority": 10
+        },
+        {
+          "authenticator": "keybound-start-approval-request",
+          "requirement": "REQUIRED",
+          "priority": 20
+        },
+        {
+          "authenticator": "keybound-wait-approval",
+          "requirement": "REQUIRED",
+          "priority": 30
+        },
+        {
+          "authenticator": "persist-device-credential",
+          "requirement": "REQUIRED",
+          "priority": 40
+        }
+      ]
+    },
+    {
+      "alias": "keybound-publickey-otp-subflow",
+      "description": "OTP path for new users or users without active device credentials",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "condition-otp-path",
+          "requirement": "REQUIRED",
+          "priority": 10
+        },
+        {
+          "authenticator": "send-validate-otp-sms",
+          "requirement": "REQUIRED",
+          "priority": 20
+        },
+        {
+          "authenticator": "find-or-create-user",
+          "requirement": "REQUIRED",
+          "priority": 30
+        },
+        {
+          "authenticator": "persist-device-credential",
+          "requirement": "REQUIRED",
+          "priority": 40
         }
       ]
     }
@@ -69,15 +139,25 @@
     ]
   },
   "clients": [
-    {
-      "clientId": "web-vite",
-      "name": "Keybound Vite Web",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": true,
+  {
+    "clientId": "web-vite",
+    "name": "Keybound Vite Web",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "device-binding",
+        "protocol": "openid-connect",
+        "protocolMapper": "device-binding-mapper",
+        "consentRequired": false,
+        "config": {}
+      }
+    ],
+    "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
+        "http://localhost:5173/popup-callback.html",
         "http://localhost:5173/callback"
       ],
       "webOrigins": [
@@ -85,12 +165,21 @@
       ],
       "baseUrl": "http://localhost:5173"
     },
-    {
-      "clientId": "resource-server",
-      "name": "Keybound Resource Server",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
+  {
+    "clientId": "resource-server",
+    "name": "Keybound Resource Server",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "device-binding",
+        "protocol": "openid-connect",
+        "protocolMapper": "device-binding-mapper",
+        "consentRequired": false,
+        "config": {}
+      }
+    ],
+    "publicClient": false,
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "clientAuthenticatorType": "client-secret",

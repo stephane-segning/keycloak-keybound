@@ -10,6 +10,7 @@ import org.keycloak.credential.*
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
+import org.keycloak.storage.StorageId
 import org.keycloak.util.JsonSerialization
 
 class DeviceKeyCredential(
@@ -62,8 +63,8 @@ class DeviceKeyCredential(
 
     override fun isConfiguredFor(realm: RealmModel?, user: UserModel?, credentialType: String?): Boolean {
         if (!supportsCredentialType(credentialType)) return false
-        val userId = user?.id ?: return false
-        val devices = apiGateway.listUserDevices(userId, includeDisabled = false) ?: return false
+        val backendUserId = user?.let { resolveBackendUserId(it) } ?: return false
+        val devices = apiGateway.listUserDevices(backendUserId, includeDisabled = false) ?: return false
         return devices.any { it.status == DeviceStatus.ACTIVE }
     }
 
@@ -73,7 +74,8 @@ class DeviceKeyCredential(
 
     fun getByDeviceId(user: UserModel, deviceId: String): DeviceKeyCredentialModel? {
         val lookup = apiGateway.lookupDevice(deviceId = deviceId) ?: return null
-        if (!lookup.found || lookup.userId != user.id) return null
+        val backendUserId = resolveBackendUserId(user)
+        if (!lookup.found || lookup.userId != backendUserId) return null
         val device = lookup.device ?: return null
         val publicJwk = lookup.publicJwk ?: return null
 
@@ -110,6 +112,14 @@ class DeviceKeyCredential(
     }
 
     fun disableDevice(user: UserModel, deviceId: String): Boolean {
-        return apiGateway.disableDevice(user.id, deviceId)
+        return apiGateway.disableDevice(resolveBackendUserId(user), deviceId)
+    }
+
+    private fun resolveBackendUserId(user: UserModel): String {
+        val backendAttributeId = user.getFirstAttribute("backend_user_id")?.trim()
+        if (!backendAttributeId.isNullOrBlank()) {
+            return backendAttributeId
+        }
+        return StorageId.externalId(user.id) ?: user.id
     }
 }

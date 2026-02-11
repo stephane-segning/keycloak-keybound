@@ -1,8 +1,8 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
-    kotlin("plugin.spring") version "2.0.21"
-    id("org.springframework.boot") version "3.3.5"
-    id("io.spring.dependency-management") version "1.1.6"
+    kotlin("jvm") version "2.3.10"
+    kotlin("plugin.spring") version "2.3.10"
+    id("org.springframework.boot") version "3.3.8"
+    id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "com.ssegning.keycloak.keybound.examples"
@@ -20,6 +20,7 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

@@ -8,7 +8,6 @@ import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
-import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 
 class PersistDeviceCredentialAuthenticator(
@@ -33,7 +32,8 @@ class PersistDeviceCredentialAuthenticator(
         val publicKey = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
         val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME)?.trim()
         val deviceModel = session.getAuthNote(DEVICE_MODEL_NOTE_NAME) ?: "Unknown"
-        val backendUserId = resolveBackendUserId(user)
+        val backendUserId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
+            ?: KeyboundUserResolver.resolveBackendUserId(user)
 
         log.debug("Persisting device credential for keycloak_user={} backend_user={} device={}", user.id, backendUserId, deviceId)
 
@@ -59,26 +59,40 @@ class PersistDeviceCredentialAuthenticator(
                 userId = backendUserId,
                 userHint = user.username,
                 deviceData = deviceDescriptor
-            ) ?: run {
+            )
+
+            if (precheck == null) {
+                log.error("Enrollment precheck failed for user {}", backendUserId)
                 context.failure(AuthenticationFlowError.INTERNAL_ERROR)
                 return
             }
 
-            if (precheck.decision != EnrollmentDecision.ALLOW) {
-                log.warn(
-                    "Enrollment precheck denied for user={}, device={}, decision={}, reason={}",
-                    backendUserId,
-                    deviceId,
-                    precheck.decision,
-                    precheck.reason
-                )
-                context.failure(AuthenticationFlowError.ACCESS_DENIED)
-                return
+            precheck.boundUserId?.takeIf { it.isNotBlank() }?.let {
+                session.setAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME, it)
+            }
+
+            when (precheck.decision) {
+                EnrollmentDecision.REJECT -> {
+                    log.warn("Enrollment precheck rejected for user {}", backendUserId)
+                    context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                    return
+                }
+
+                EnrollmentDecision.REQUIRE_APPROVAL -> {
+                    val path = session.getAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
+                    if (path != KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL) {
+                        log.warn("Enrollment precheck requires approval for user {}", backendUserId)
+                        context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                        return
+                    }
+                }
+
+                EnrollmentDecision.ALLOW -> {}
             }
 
             val bound = apiGateway.enrollmentBind(
                 context = context,
-                userId = backendUserId,
+                userId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME) ?: backendUserId,
                 userHint = user.username,
                 deviceData = deviceDescriptor,
                 attributes = mapOf(
@@ -106,13 +120,5 @@ class PersistDeviceCredentialAuthenticator(
 
     override fun action(context: AuthenticationFlowContext) {
         // No action needed
-    }
-
-    private fun resolveBackendUserId(user: org.keycloak.models.UserModel): String {
-        val backendAttributeId = user.getFirstAttribute("backend_user_id")?.trim()
-        if (!backendAttributeId.isNullOrBlank()) {
-            return backendAttributeId
-        }
-        return StorageId.externalId(user.id) ?: user.id
     }
 }

@@ -1,11 +1,17 @@
 import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
+import axios, {AxiosError} from "axios";
+import {DeviceSignaturePayload} from './canonical-payloads';
 import {signPayload, stringifyPublicJwk} from './crypto';
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
 
 export const TOKEN_STORAGE_KEY = 'keybound.tokens';
 export const GRANT_USER_ID_STORAGE_KEY = 'keybound.grant_user_id';
+const CODE_VERIFIER_STORAGE_KEY = "code_verifier";
+const LAST_LOGIN_NONCE_STORAGE_KEY = "last_login_nonce";
+const LAST_LOGIN_TS_STORAGE_KEY = "last_login_ts";
 const DEVICE_KEY_GRANT_TYPE = 'urn:ssegning:params:oauth:grant-type:device_key';
+const authHttpClient = axios.create();
 
 export type TokenResponse = {
     access_token: string;
@@ -65,13 +71,8 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
     // Signature payload must match the server-side canonical verification payload.
-    const signaturePayload = JSON.stringify({
-        deviceId: device.deviceId,
-        publicKey,
-        ts,
-        nonce,
-    });
-    const sig = await signPayload(device.privateJwk, signaturePayload);
+    const signaturePayload = new DeviceSignaturePayload(device.deviceId, publicKey, ts, nonce);
+    const sig = await signPayload(device.privateJwk, signaturePayload.toCanonicalJson());
 
     const body = new URLSearchParams({
         grant_type: DEVICE_KEY_GRANT_TYPE,
@@ -85,21 +86,29 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     });
 
     const endpoint = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: body.toString(),
-    });
-
-    const payload = (await response.json()) as TokenResponse & { error?: string; error_description?: string };
-    if (!response.ok || !payload.access_token) {
-        throw new Error(payload.error_description ?? payload.error ?? `Custom grant failed with ${response.status}`);
+    try {
+        const response = await authHttpClient.post<TokenResponse>(
+            endpoint,
+            body.toString(),
+            {
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            }
+        );
+        if (!response.data.access_token) {
+            throw new Error("Custom grant did not return an access token");
+        }
+        return response.data;
+    } catch (error) {
+        const axiosError = error as AxiosError<{ error?: string; error_description?: string }>;
+        const message = axiosError.response?.data?.error_description
+            ?? axiosError.response?.data?.error
+            ?? axiosError.message;
+        throw new Error(message ?? 'Custom grant failed');
     }
-    return payload;
 }
 
 export async function exchangeAuthorizationCode(code: string): Promise<TokenResponse> {
-    const codeVerifier = sessionStorage.getItem('code_verifier');
+    const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
     if (!codeVerifier) {
         throw new Error('Missing code_verifier in sessionStorage');
     }
@@ -114,34 +123,54 @@ export async function exchangeAuthorizationCode(code: string): Promise<TokenResp
     });
 
     const endpoint = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: body.toString(),
-    });
-
-    const payload = (await response.json()) as TokenResponse & { error?: string; error_description?: string };
-    if (!response.ok || !payload.access_token) {
-        throw new Error(payload.error_description ?? payload.error ?? `Token endpoint failed with ${response.status}`);
+    try {
+        const response = await authHttpClient.post<TokenResponse>(
+            endpoint,
+            body.toString(),
+            {
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            }
+        );
+        if (!response.data.access_token) {
+            throw new Error('Token endpoint did not return an access token');
+        }
+        return response.data;
+    } catch (error) {
+        const axiosError = error as AxiosError<{ error?: string; error_description?: string }>;
+        const message = axiosError.response?.data?.error_description
+            ?? axiosError.response?.data?.error
+            ?? axiosError.message;
+        throw new Error(message ?? 'Token endpoint failed');
     }
+}
 
-    return payload;
+export function saveLoginChallengeContext(codeVerifier: string, nonce: string, ts: string): void {
+    sessionStorage.setItem(CODE_VERIFIER_STORAGE_KEY, codeVerifier);
+    sessionStorage.setItem(LAST_LOGIN_NONCE_STORAGE_KEY, nonce);
+    sessionStorage.setItem(LAST_LOGIN_TS_STORAGE_KEY, ts);
 }
 
 export async function fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {
     const endpoint = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`;
-    const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
-
-    const payload = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) {
-        throw new Error((payload.error_description as string) ?? `UserInfo failed with ${response.status}`);
+    try {
+        const response = await authHttpClient.get<Record<string, unknown>>(
+            endpoint,
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        const axiosError = error as AxiosError<Record<string, unknown>>;
+        const payload = axiosError.response?.data;
+        const message =
+            (payload?.error_description as string | undefined) ??
+            (payload?.error as string | undefined) ??
+            axiosError.message;
+        throw new Error(message ?? 'UserInfo failed');
     }
-    return payload;
 }
 
 export function extractUserId(tokens: TokenResponse, userInfo?: Record<string, unknown>): string | null {

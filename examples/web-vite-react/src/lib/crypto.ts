@@ -62,6 +62,7 @@ export const generateKeyPair = async () => {
 
 export const signPayload = async (privateJwk: JsonWebKey, payload: string) => {
     const privateBytes = parsePrivateKeyBytes(privateJwk);
+    // Keycloak verifier expects JOSE compact ECDSA signatures (r||s).
     const signature = p256.sign(utf8ToBytes(payload), privateBytes, {format: 'compact', lowS: true});
     return toBase64Url(signature);
 };

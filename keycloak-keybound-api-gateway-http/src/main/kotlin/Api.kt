@@ -6,9 +6,11 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.*
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
+import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.*
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
@@ -59,7 +61,7 @@ open class Api(
             "Sending SMS hash realm={} client={} phone={}",
             smsSendRequest.realm,
             smsSendRequest.clientId,
-            phoneNumber
+            maskPhone(phoneNumber)
         )
 
         return enrollmentApi.sendSms(smsSendRequest).hash
@@ -81,9 +83,62 @@ open class Api(
     ): String {
         val smsConfirmRequest = SmsConfirmRequest(hash = hash, otp = code)
 
-        log.debug("Confirming SMS hash={} phone={}", hash, phoneNumber)
+        log.debug("Confirming SMS hash={} phone={}", hash, maskPhone(phoneNumber))
 
         return enrollmentApi.confirmSms(smsConfirmRequest).confirmed.toString()
+    }
+
+    override fun resolveUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String,
+        userHint: String?
+    ): PhoneResolveResult? = try {
+        val response = enrollmentApi.resolveUserByPhone(
+            PhoneResolveRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                phoneNumber = phoneNumber,
+                userHint = userHint
+            )
+        )
+
+        PhoneResolveResult(
+            phoneNumber = response.phoneNumber,
+            userExists = response.userExists,
+            hasDeviceCredentials = response.hasDeviceCredentials,
+            enrollmentPath = when (response.enrollmentPath) {
+                EnrollmentPath.APPROVAL -> CoreEnrollmentPath.APPROVAL
+                EnrollmentPath.OTP -> CoreEnrollmentPath.OTP
+            },
+            userId = response.userId,
+            username = response.username
+        )
+    } catch (e: Exception) {
+        log.error("Failed to resolve user by phone {}", maskPhone(phoneNumber), e)
+        null
+    }
+
+    override fun resolveOrCreateUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String
+    ): PhoneResolveOrCreateResult? = try {
+        val response = enrollmentApi.resolveOrCreateUserByPhone(
+            PhoneResolveOrCreateRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                phoneNumber = phoneNumber
+            )
+        )
+
+        PhoneResolveOrCreateResult(
+            phoneNumber = response.phoneNumber,
+            userId = response.userId,
+            username = response.username,
+            created = response.created
+        )
+    } catch (e: Exception) {
+        log.error("Failed to resolve or create user by phone {}", maskPhone(phoneNumber), e)
+        null
     }
 
     override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {
@@ -270,7 +325,7 @@ open class Api(
         emailVerified: Boolean?,
         attributes: Map<String, String>?
     ): BackendUser? = try {
-        log.debug("Creating backend user {} realm={}", username, realmName)
+        log.debug("Creating backend user realm={}", realmName)
         usersApi.createUser(
             UserUpsertRequest(
                 realm = realmName,
@@ -284,7 +339,7 @@ open class Api(
             )
         ).toBackendUser()
     } catch (e: Exception) {
-        log.error("Failed to create user username={} in realm={}", username, realmName, e)
+        log.error("Failed to create user in realm={}", realmName, e)
         null
     }
 
@@ -307,7 +362,7 @@ open class Api(
         emailVerified: Boolean?,
         attributes: Map<String, String>?
     ): BackendUser? = try {
-        log.debug("Updating backend user {} realm={}", userId, realmName)
+        log.debug("Updating backend user realm={}", realmName)
         usersApi.updateUser(
             userId = userId,
             userUpsertRequest = UserUpsertRequest(

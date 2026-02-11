@@ -8,17 +8,21 @@ import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
+import com.ssegning.keycloak.keybound.core.models.ApprovalPollingTokenClaims
+import org.keycloak.models.KeycloakSession
 import org.keycloak.models.TokenManager
 import org.keycloak.representations.JsonWebToken
 import org.slf4j.LoggerFactory
 
 class DeviceApprovalResource(
+    private val session: KeycloakSession,
     apiGateway: ApiGateway,
     private val tokenManager: TokenManager
 ) : AbstractResource(apiGateway) {
 
     companion object {
         private val log = LoggerFactory.getLogger(DeviceApprovalResource::class.java)
+        private const val APPROVAL_AUDIENCE = "device-approval-status"
     }
 
     @GET
@@ -46,20 +50,104 @@ class DeviceApprovalResource(
                 .build()
         }
 
-        val requestId = jwt.otherClaims["request_id"] as? String
-
-        if (requestId.isNullOrBlank()) {
-            log.debug("Approval token missing request_id claim")
-            return Response.status(Response.Status.BAD_REQUEST)
-                .entity(mapOf("error" to "Token missing request_id"))
+        val claims = parseClaims(jwt)
+        if (claims == null) {
+            log.debug("Approval token missing required claims")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Token missing context"))
                 .build()
         }
 
-        val status = apiGateway.checkApprovalStatus(requestId) ?: return Response.status(Response.Status.NOT_FOUND)
+        if (claims.realm != session.context.realm.name) {
+            log.debug("Approval polling token realm mismatch")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid token realm"))
+                .build()
+        }
+
+        if (claims.aud != APPROVAL_AUDIENCE) {
+            log.debug("Approval token audience mismatch")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid token audience"))
+                .build()
+        }
+
+        val nowSeconds = System.currentTimeMillis() / 1000
+        if (claims.iat > nowSeconds || claims.nbf > nowSeconds) {
+            log.debug("Approval token not yet valid")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Token not yet valid"))
+                .build()
+        }
+
+        val realm = session.context.realm
+        val rootAuthSession = session.authenticationSessions().getRootAuthenticationSession(realm, claims.sid)
+        if (rootAuthSession == null) {
+            log.debug("Approval token session or user mismatch")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid session"))
+                .build()
+        }
+
+        val client = session.clients().getClientByClientId(realm, claims.client_id)
+        if (client == null) {
+            log.debug("Approval token references unknown client")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid client"))
+                .build()
+        }
+
+        val authSession = if (!claims.tab_id.isNullOrBlank()) {
+            rootAuthSession.getAuthenticationSession(client, claims.tab_id)
+        } else {
+            rootAuthSession.getAuthenticationSessions().values.firstOrNull { it.client?.id == client.id }
+        }
+
+        if (authSession == null) {
+            log.debug("Approval token client not bound to session")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid client"))
+                .build()
+        }
+        if (claims.sub != null && authSession.authenticatedUser?.id != claims.sub) {
+            log.debug("Approval token subject mismatch")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid subject"))
+                .build()
+        }
+
+        val status = apiGateway.checkApprovalStatus(claims.request_id) ?: return Response.status(Response.Status.NOT_FOUND)
             .entity(mapOf("error" to "Approval request not found"))
             .build()
 
-        log.debug("Approval status for request {} -> {}", requestId, status)
-        return Response.ok(mapOf("status" to status.name.lowercase())).build()
+        log.debug("Approval status for request {} -> {}", claims.request_id, status)
+        return Response.ok(mapOf("status" to status.name)).build()
+    }
+
+    private fun parseClaims(jwt: JsonWebToken): ApprovalPollingTokenClaims? {
+        val realm = jwt.otherClaims["realm"] as? String ?: return null
+        val clientId = jwt.otherClaims["client_id"] as? String ?: return null
+        val audience = jwt.otherClaims["aud"] as? String ?: jwt.audience?.firstOrNull() ?: return null
+        val sessionId = jwt.otherClaims["sid"] as? String ?: return null
+        val subject = jwt.subject ?: jwt.otherClaims["sub"] as? String
+        val tabId = jwt.otherClaims["tab_id"] as? String
+        val issuedAt = jwt.iat ?: return null
+        val notBefore = jwt.nbf ?: return null
+        val requestId = jwt.otherClaims["request_id"] as? String ?: return null
+        val tokenId = jwt.id ?: jwt.otherClaims["jti"] as? String ?: return null
+        val exp = jwt.exp ?: return null
+        return ApprovalPollingTokenClaims(
+            realm = realm,
+            client_id = clientId,
+            aud = audience,
+            sid = sessionId,
+            sub = subject,
+            tab_id = tabId,
+            request_id = requestId,
+            iat = issuedAt,
+            nbf = notBefore,
+            jti = tokenId,
+            exp = exp
+        )
     }
 }

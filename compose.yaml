@@ -1,11 +1,13 @@
 x-keycloak-common-env: &keycloak-common-env
   BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://api-mock:8080"
   BACKEND_HTTP_BASE_PATH_e2e-testing: "http://api-backend-example:18080"
+  # Dev-only credentials. Do not reuse in production; wire secrets via a vault or env injection.
   BACKEND_HTTP_AUTH_USERNAME: "admin"
   BACKEND_HTTP_AUTH_PASSWORD: "password"
 
   NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
 
+  # Dev-only Keycloak bootstrap credentials. Replace for production.
   KC_BOOTSTRAP_ADMIN_USERNAME: admin
   KC_BOOTSTRAP_ADMIN_PASSWORD: password
 
@@ -22,7 +24,6 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-api-gateway-http
-    - ./keycloak-keybound-authenticator-approval/build/libs:/tmp/libs-authenticator-approval
     - ./keycloak-keybound-authenticator-enrollment/build/libs:/tmp/libs-authenticator-enrollment
     - ./keycloak-keybound-core/build/libs:/tmp/libs-core
     - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-credentials-device-key

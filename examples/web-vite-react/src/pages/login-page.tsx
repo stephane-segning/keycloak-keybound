@@ -1,10 +1,15 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
 import {useDeviceStorage} from '../hooks/use-device-storage';
-import {exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveGrantUserId, saveTokens,} from '../lib/auth';
-import {signPayload, stringifyPublicJwk} from '../lib/crypto';
-import {createPrefixedId} from '../lib/id';
-import {createCodeChallenge, createCodeVerifier} from '../lib/pkce';
+import {
+    closePopup,
+    registerWindowMessageListener
+} from '../lib/browser-runtime';
+import {
+    buildAuthorizationUrl,
+    completeAuthByCode,
+    openLoginPopup,
+    readAuthCallbackPayload,
+} from "../lib/login-flow";
 import {JsonDisplay} from "../components/json-display";
 
 export const LoginPage = () => {
@@ -25,21 +30,13 @@ export const LoginPage = () => {
             setStatus('exchanging');
 
             try {
-                // Complete OIDC code flow, then cache tokens/user identity for renewal.
-                const tokens = await exchangeAuthorizationCode(code);
-                const userInfo = await fetchUserInfo(tokens.access_token);
-                saveTokens(tokens);
-
-                const userId = extractUserId(tokens, userInfo);
-                saveGrantUserId(userId);
+                const {tokens, userInfo, userId} = await completeAuthByCode(code);
                 if (userId) {
                     await ensureDevice();
                     await setUserId(userId);
                 }
 
-                if (popupRef.current && !popupRef.current.closed) {
-                    popupRef.current.close();
-                }
+                closePopup(popupRef.current);
 
                 setResult({
                     userId,
@@ -60,14 +57,8 @@ export const LoginPage = () => {
     useEffect(() => {
         // Receives callback payload from /callback popup and finishes code exchange in this window.
         const handler = (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
-            const payload = event.data as {
-                type?: string;
-                code?: string;
-                error?: string;
-                error_description?: string;
-            };
-            if (payload?.type !== 'keybound-auth-callback') return;
+            const payload = readAuthCallbackPayload(event);
+            if (!payload) return;
 
             if (payload.error) {
                 setStatus(`error: ${payload.error_description ?? payload.error}`);
@@ -80,26 +71,18 @@ export const LoginPage = () => {
             void completeCodeFlow(payload.code);
         };
 
-        window.addEventListener('message', handler);
-        return () => window.removeEventListener('message', handler);
+        return registerWindowMessageListener(handler);
     }, [completeCodeFlow]);
 
     useEffect(
         () => () => {
-            if (popupRef.current && !popupRef.current.closed) {
-                popupRef.current.close();
-            }
+            closePopup(popupRef.current);
         },
         []
     );
 
     const openPopup = useCallback((url: string) => {
-        const width = 480;
-        const height = 760;
-        const left = Math.max(0, Math.floor((window.screen.width - width) / 2));
-        const top = Math.max(0, Math.floor((window.screen.height - height) / 2));
-        const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
-        const popup = window.open(url, 'keybound-login', features);
+        const popup = openLoginPopup(url);
         if (!popup) {
             setStatus('error: popup blocked by browser');
             return;
@@ -108,54 +91,11 @@ export const LoginPage = () => {
         setStatus('awaiting-login');
     }, []);
 
-    const resolveDeviceOs = useCallback(() => {
-        const nav = window.navigator as Navigator & { userAgentData?: { platform?: string } };
-        return nav.userAgentData?.platform || nav.platform || 'web';
-    }, []);
-
     const handleStart = async () => {
         setStatus('preparing');
         // Ensure a persisted device identity exists before starting auth.
         const current = await ensureDevice();
-        const ts = Math.floor(Date.now() / 1000).toString();
-        const nonce = createPrefixedId('nce');
-        // Canonical payload signed by the device key and verified server-side.
-        const canonical = JSON.stringify({
-            deviceId: current.deviceId,
-            publicKey: stringifyPublicJwk(current.publicJwk),
-            ts,
-            nonce,
-        });
-        const signature = await signPayload(current.privateJwk, canonical);
-        // PKCE verifier/challenge pair for authorization code flow.
-        const codeVerifier = createCodeVerifier();
-        const codeChallenge = await createCodeChallenge(codeVerifier);
-        sessionStorage.setItem('code_verifier', codeVerifier);
-        sessionStorage.setItem('last_login_nonce', nonce);
-        sessionStorage.setItem('last_login_ts', ts);
-
-        // Custom auth params (device key, signature, metadata) are attached to /auth request.
-        const params = new URLSearchParams({
-            scope: 'openid profile email',
-            response_type: 'code',
-            client_id: CLIENT_ID,
-            redirect_uri: REDIRECT_URI,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256',
-            state: createPrefixedId('stt'),
-            device_id: current.deviceId,
-            public_key: stringifyPublicJwk(current.publicJwk),
-            ts,
-            nonce,
-            sig: signature,
-            action: 'login',
-            aud: CLIENT_ID,
-            device_os: resolveDeviceOs(),
-            device_model: 'vite-react',
-            user_hint: current.userId ?? '',
-        });
-
-        const url = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth?${params.toString()}`;
+        const url = await buildAuthorizationUrl(current);
         setAuthUrl(url);
         setResult(null);
         openPopup(url);

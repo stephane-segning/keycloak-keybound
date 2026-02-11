@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {JsonDisplay} from "../components/json-display";
+import {postAuthCallbackToParent} from "../lib/browser-runtime";
 
 export const CallbackPage = () => {
     const [params] = useSearchParams();
@@ -17,19 +18,10 @@ export const CallbackPage = () => {
         const message = {
             type: 'keybound-auth-callback',
             ...payloadObject,
-        };
+        } as const;
 
-        // Popup mode: send payload back to opener, then close quickly.
-        if (window.opener && !window.opener.closed) {
-            window.opener.postMessage(message, window.location.origin);
-            setTimeout(() => window.close(), 50);
-            return;
-        }
-
-        // Iframe mode fallback.
-        if (window.parent !== window) {
-            window.parent.postMessage(message, window.location.origin);
-        }
+        // Popup mode posts to opener and closes; iframe mode posts to parent.
+        postAuthCallbackToParent(message);
     }, [params]);
 
     return (
@@ -45,7 +37,7 @@ export const CallbackPage = () => {
             <article className="border border-base-300 bg-base-100 p-4">
                 <h2 className="text-base font-semibold">callback payload</h2>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={info}/>
                 </div>
             </article>
