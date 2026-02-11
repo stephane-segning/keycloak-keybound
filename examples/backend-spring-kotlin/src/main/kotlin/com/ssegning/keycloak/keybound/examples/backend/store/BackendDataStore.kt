@@ -378,6 +378,31 @@ class BackendDataStore {
             .status(ApprovalStatusResponse.StatusEnum.valueOf(stored.status.name))
     }
 
+    fun listUserApprovals(
+        userId: String,
+        statuses: Collection<String>? = null
+    ): UserApprovalsResponse {
+        if (!users.containsKey(userId) && approvals.values.none { it.userId == userId }) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        }
+
+        val statusFilter = statuses
+            ?.mapNotNull { raw -> ApprovalStatus.entries.firstOrNull { it.name == raw } }
+            ?.toSet()
+            ?: emptySet()
+
+        val records = approvals.values.asSequence()
+            .filter { it.userId == userId }
+            .filter { statusFilter.isEmpty() || it.status in statusFilter }
+            .sortedByDescending { it.createdAt }
+            .map { it.toUserApprovalRecord() }
+            .toList()
+
+        return UserApprovalsResponse()
+            .userId(userId)
+            .approvals(records)
+    }
+
     fun cancelApproval(requestId: String): Boolean {
         val stored = approvals[requestId] ?: return false
         stored.status = ApprovalStatus.EXPIRED
@@ -504,6 +529,16 @@ class BackendDataStore {
             deviceId = deviceId,
             status = status.name
         )
+
+        fun toUserApprovalRecord(): UserApprovalRecord = UserApprovalRecord()
+            .requestId(requestId)
+            .userId(userId)
+            .deviceId(deviceId)
+            .status(UserApprovalRecord.StatusEnum.valueOf(status.name))
+            .createdAt(createdAt.toLocalDateTime())
+            .decidedAt(null)
+            .decidedByDeviceId(null)
+            .message(null)
     }
 
     private enum class ApprovalStatus {

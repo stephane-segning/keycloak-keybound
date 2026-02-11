@@ -4,6 +4,7 @@ import com.ssegning.keycloak.keybound.examples.backend.api.ApprovalsApi
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalCreateResponse
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalStatusResponse
+import com.ssegning.keycloak.keybound.examples.backend.model.UserApprovalsResponse
 import com.ssegning.keycloak.keybound.examples.backend.store.BackendDataStore
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -44,6 +45,15 @@ class ApprovalsController(private val store: BackendDataStore) : ApprovalsApi {
         }
         log.debug("Approval {} cancelled", requestId)
         return ResponseEntity.noContent().build()
+    }
+
+    override fun listUserApprovals(
+        userId: String,
+        status: MutableList<String>?
+    ): ResponseEntity<UserApprovalsResponse> {
+        log.info("Listing approvals for user {} status_filter={}", userId, status)
+        val response = store.listUserApprovals(userId, status)
+        return ResponseEntity.ok(response)
     }
 
     companion object {

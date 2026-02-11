@@ -159,6 +159,39 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /v1/users/{user_id}/approvals:
+    get:
+      tags: [approvals]
+      summary: List approval requests for a user
+      description: |
+        Returns approval requests that belong to the specified user.
+      operationId: listUserApprovals
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [PENDING, APPROVED, DENIED, EXPIRED]
+      responses:
+        '200':
+          description: Approval list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApprovalsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/users:
     post:
       tags: [users]
@@ -671,6 +704,44 @@ components:
         message:
           type: string
           nullable: true
+
+    UserApprovalRecord:
+      type: object
+      required: [request_id, user_id, device_id, status, created_at]
+      properties:
+        request_id:
+          type: string
+        user_id:
+          type: string
+        device_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, DENIED, EXPIRED]
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        decided_by_device_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    UserApprovalsResponse:
+      type: object
+      required: [user_id, approvals]
+      properties:
+        user_id:
+          type: string
+        approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserApprovalRecord'
 
     DeviceDescriptor:
       type: object

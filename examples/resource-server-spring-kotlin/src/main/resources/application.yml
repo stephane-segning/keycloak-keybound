@@ -9,3 +9,6 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9026/realms/e2e-testing}
+
+backend:
+  base-url: ${BACKEND_BASE_URL:http://localhost:18080}

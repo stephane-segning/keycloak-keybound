@@ -18,7 +18,7 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 - `/login` popup login and code exchange
 - `/callback` auth callback payload relay
 - `/session` backend user-id binding
-- `/resource` protected resource call
+- `/resource` protected resource call + approvals view proxied by resource server
 
 ## File Layout
 

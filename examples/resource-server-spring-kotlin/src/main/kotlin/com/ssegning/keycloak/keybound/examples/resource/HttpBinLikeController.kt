@@ -2,16 +2,20 @@ package com.ssegning.keycloak.keybound.examples.resource
 
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping
-class HttpBinLikeController {
+class HttpBinLikeController(
+    private val backendApprovalsClient: BackendApprovalsClient
+) {
     companion object {
         private val log = LoggerFactory.getLogger(HttpBinLikeController::class.java)
     }
@@ -59,5 +63,55 @@ class HttpBinLikeController {
                 )
             )
         )
+    }
+
+    @GetMapping("/approvals")
+    fun approvals(authentication: Authentication): ResponseEntity<Map<String, Any?>> {
+        val jwt = authentication.principal as? Jwt
+        val backendUserId = extractBackendUserId(jwt)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to resolve backend user id from token")
+
+        val backendResponse = try {
+            backendApprovalsClient.listUserApprovals(backendUserId)
+        } catch (exception: Exception) {
+            log.error("Failed to fetch approvals for backend user {}", backendUserId, exception)
+            throw ResponseStatusException(HttpStatus.BAD_GATEWAY, "Backend approvals request failed")
+        }
+
+        log.info("Fetched approvals for backend user {} through resource server", backendUserId)
+        return ResponseEntity.ok(
+            mapOf(
+                "keycloak_subject" to jwt?.subject,
+                "backend_user_id" to backendUserId,
+                "backend" to backendResponse
+            )
+        )
+    }
+
+    private fun extractBackendUserId(jwt: Jwt?): String? {
+        if (jwt == null) {
+            return null
+        }
+
+        val explicit = listOf("backend_user_id", "user_id")
+            .mapNotNull { claim -> jwt.claims[claim] as? String }
+            .firstOrNull { it.isNotBlank() }
+        if (!explicit.isNullOrBlank()) {
+            return explicit
+        }
+
+        val subject = jwt.subject?.trim().orEmpty()
+        if (subject.isBlank()) {
+            return null
+        }
+
+        if (subject.startsWith("f:")) {
+            val parts = subject.split(":")
+            if (parts.size >= 3 && parts.last().isNotBlank()) {
+                return parts.last()
+            }
+        }
+
+        return subject
     }
 }
