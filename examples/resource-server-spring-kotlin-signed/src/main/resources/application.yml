@@ -12,3 +12,11 @@ spring:
 
 signature:
   max-clock-skew-seconds: ${SIGNATURE_MAX_CLOCK_SKEW_SECONDS:60}
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.web.DefaultSecurityFilterChain: DEBUG
+    com.ssegning.keycloak.keybound.examples.resource.signed: DEBUG

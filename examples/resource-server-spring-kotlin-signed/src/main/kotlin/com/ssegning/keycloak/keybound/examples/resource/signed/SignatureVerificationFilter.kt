@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.MediaType
 import org.springframework.security.core.context.SecurityContextHolder
@@ -31,6 +32,7 @@ class SignatureVerificationFilter(
     private val maxClockSkewSeconds: Long
 ) : OncePerRequestFilter() {
     companion object {
+        private val log = LoggerFactory.getLogger(SignatureVerificationFilter::class.java)
         private const val HEADER_SIGNATURE = "x-signature"
         private const val HEADER_SIGNATURE_TS = "x-signature-timestamp"
         private const val HEADER_PUBLIC_KEY = "x-public-key"
@@ -47,13 +49,15 @@ class SignatureVerificationFilter(
     ) {
         val jwt = resolveJwtPrincipal()
         if (jwt == null) {
+            log.debug("Signature filter skipped for {} {} because no Jwt principal is available", request.method, request.requestURI)
             filterChain.doFilter(request, response)
             return
         }
 
+        val subject = jwt.subject ?: "unknown"
         val jkt = extractJkt(jwt)
         if (jkt.isNullOrBlank()) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing cnf.jkt claim")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Missing cnf.jkt claim", subject, null, null)
             return
         }
 
@@ -62,52 +66,80 @@ class SignatureVerificationFilter(
         val publicKeyHeader = request.getHeader(HEADER_PUBLIC_KEY)?.trim().orEmpty()
 
         if (signatureHeader.isBlank() || signatureTsHeader.isBlank() || publicKeyHeader.isBlank()) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing signature headers")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Missing signature headers", subject, jkt, null)
             return
         }
 
         val signatureTs = signatureTsHeader.toLongOrNull()
         if (signatureTs == null) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-signature-timestamp")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-signature-timestamp", subject, jkt, null)
             return
         }
 
         val now = System.currentTimeMillis() / 1000
         if (abs(now - signatureTs) > maxClockSkewSeconds) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Signature timestamp out of allowed skew")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Signature timestamp out of allowed skew", subject, jkt, null)
             return
         }
 
         val publicJwk = parsePublicJwk(publicKeyHeader)
         if (publicJwk == null) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-public-key JWK")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-public-key JWK", subject, jkt, null)
             return
         }
 
         val computedThumbprint = computeEcJwkThumbprint(publicJwk)
         if (computedThumbprint == null || computedThumbprint != jkt) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "x-public-key does not match cnf.jkt")
+            reject(
+                request,
+                response,
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "x-public-key does not match cnf.jkt",
+                subject,
+                jkt,
+                computedThumbprint
+            )
             return
         }
 
         val publicKey = createEcPublicKey(publicJwk)
         if (publicKey == null) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Unable to parse EC public key")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Unable to parse EC public key", subject, jkt, computedThumbprint)
             return
         }
 
         val signatureBytes = decodeBase64Url(signatureHeader)
         if (signatureBytes == null) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-signature encoding")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid x-signature encoding", subject, jkt, computedThumbprint)
+            return
+        }
+        if (signatureBytes.size != 64) {
+            reject(
+                request,
+                response,
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "Invalid x-signature format: expected compact ECDSA (64 bytes)",
+                subject,
+                jkt,
+                computedThumbprint
+            )
             return
         }
 
         val canonicalPayload = buildCanonicalPayload(request, signatureTsHeader)
         if (!verifySignature(publicKey, canonicalPayload, signatureBytes)) {
-            reject(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid signature")
+            reject(request, response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid signature", subject, jkt, computedThumbprint)
             return
         }
 
+        log.debug(
+            "Signature verification passed for {} {} sub={} jkt={} canonicalPayload={}",
+            request.method,
+            request.requestURI,
+            subject,
+            jkt,
+            canonicalPayload.replace("\n", "\\n")
+        )
         filterChain.doFilter(request, response)
     }
 
@@ -166,12 +198,47 @@ class SignatureVerificationFilter(
 
     private fun verifySignature(publicKey: ECPublicKey, canonicalPayload: String, signatureBytes: ByteArray): Boolean {
         return try {
+            val derSignature = compactEcdsaToDer(signatureBytes)
             val verifier = Signature.getInstance("SHA256withECDSA")
             verifier.initVerify(publicKey)
             verifier.update(canonicalPayload.toByteArray(StandardCharsets.UTF_8))
-            verifier.verify(signatureBytes)
+            verifier.verify(derSignature)
         } catch (_: Exception) {
             false
+        }
+    }
+
+    private fun compactEcdsaToDer(signature: ByteArray): ByteArray {
+        require(signature.size == 64) { "Expected 64-byte compact ECDSA signature" }
+        val r = normalizeDerInteger(signature.copyOfRange(0, 32))
+        val s = normalizeDerInteger(signature.copyOfRange(32, 64))
+        val body = ByteArray(2 + r.size + 2 + s.size)
+        var cursor = 0
+        body[cursor++] = 0x02
+        body[cursor++] = r.size.toByte()
+        System.arraycopy(r, 0, body, cursor, r.size)
+        cursor += r.size
+        body[cursor++] = 0x02
+        body[cursor++] = s.size.toByte()
+        System.arraycopy(s, 0, body, cursor, s.size)
+
+        val der = ByteArray(2 + body.size)
+        der[0] = 0x30
+        der[1] = body.size.toByte()
+        System.arraycopy(body, 0, der, 2, body.size)
+        return der
+    }
+
+    private fun normalizeDerInteger(raw: ByteArray): ByteArray {
+        var index = 0
+        while (index < raw.lastIndex && raw[index] == 0.toByte()) {
+            index++
+        }
+        val trimmed = raw.copyOfRange(index, raw.size)
+        return if (trimmed[0].toInt() and 0x80 != 0) {
+            byteArrayOf(0) + trimmed
+        } else {
+            trimmed
         }
     }
 
@@ -183,7 +250,30 @@ class SignatureVerificationFilter(
         }
     }
 
-    private fun reject(response: HttpServletResponse, status: Int, message: String) {
+    private fun reject(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        status: Int,
+        message: String,
+        subject: String?,
+        expectedJkt: String?,
+        providedJkt: String?
+    ) {
+        response.setHeader("x-debug-signature-filter", "rejected")
+        response.setHeader("x-debug-signature-reason", message)
+        log.warn(
+            "Signature verification rejected {} {} status={} reason='{}' sub={} expectedJkt={} providedJkt={} hasSignature={} hasPublicKey={} hasTimestamp={}",
+            request.method,
+            request.requestURI,
+            status,
+            message,
+            subject ?: "unknown",
+            expectedJkt ?: "n/a",
+            providedJkt ?: "n/a",
+            !request.getHeader(HEADER_SIGNATURE).isNullOrBlank(),
+            !request.getHeader(HEADER_PUBLIC_KEY).isNullOrBlank(),
+            !request.getHeader(HEADER_SIGNATURE_TS).isNullOrBlank()
+        )
         response.status = status
         response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.characterEncoding = StandardCharsets.UTF_8.name()
