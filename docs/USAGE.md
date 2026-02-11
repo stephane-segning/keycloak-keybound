@@ -76,8 +76,11 @@ For the local `docker compose` stack, `node-cli` is imported by default via `./.
 The same realm import also binds `node-cli` to a custom browser flow:
 - `ingest-signed-device-blob`
 - `verify-signed-blob`
-- `find-or-create-user`
-- `persist-device-credential`
+- `collect-phone-form`
+- `check-user-by-phone`
+- `route-enrollment-path`
+- approval subflow: `condition-approval-path` -> `keybound-start-approval-request` -> `keybound-wait-approval` -> `persist-device-credential`
+- otp subflow: `condition-otp-path` -> `send-validate-otp-sms` -> `find-or-create-user` -> `persist-device-credential`
 
 ## Node.js + TypeScript example
 

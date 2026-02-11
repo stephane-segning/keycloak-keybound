@@ -1,4 +1,4 @@
-package com.ssegning.keycloak.keybound.approval
+package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
@@ -32,16 +32,15 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
-        val session = context.authenticationSession
-        val requestId = session.getAuthNote(StartApprovalRequestAuthenticator.APPROVAL_REQUEST_ID_NOTE)
+        val authSession = context.authenticationSession
+        val requestId = authSession.getAuthNote(StartApprovalRequestAuthenticator.APPROVAL_REQUEST_ID_NOTE)
 
-        if (requestId == null) {
-            log.error("Approval request ID not found in session")
+        if (requestId.isNullOrBlank()) {
+            log.error("Approval request ID missing in authentication session")
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
 
-        log.debug("Rendering approval wait page for request {}", requestId)
         val pollingToken = createPollingToken(context, requestId)
         val pollingUrl = "/realms/${context.realm.name}/device-approval/status"
 
@@ -54,37 +53,31 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
     }
 
     override fun action(context: AuthenticationFlowContext) {
-        val session = context.authenticationSession
-        val requestId = session.getAuthNote(StartApprovalRequestAuthenticator.APPROVAL_REQUEST_ID_NOTE)
-
-        if (requestId == null) {
+        val authSession = context.authenticationSession
+        val requestId = authSession.getAuthNote(StartApprovalRequestAuthenticator.APPROVAL_REQUEST_ID_NOTE)
+        if (requestId.isNullOrBlank()) {
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
 
-        val apiGateway = context.session.getProvider(ApiGateway::class.java)
-        log.debug("Polling approval status for request {}", requestId)
         val status = apiGateway.checkApprovalStatus(requestId)
-
         when (status) {
             ApprovalStatus.APPROVED -> context.success()
             ApprovalStatus.DENIED -> context.failure(AuthenticationFlowError.ACCESS_DENIED)
             ApprovalStatus.EXPIRED -> context.failure(AuthenticationFlowError.EXPIRED_CODE)
             else -> {
-                log.debug("Approval request {} still pending or error ({})", requestId, status)
-                // Still pending or error, show form again
+                log.debug("Approval request {} still pending or unavailable status={}", requestId, status)
                 authenticate(context)
             }
         }
     }
 
     private fun createPollingToken(context: AuthenticationFlowContext, requestId: String): String {
-        // Create a short-lived signed JWT for polling
         return JWSBuilder()
             .jsonContent(
                 mapOf(
                     "request_id" to requestId,
-                    "exp" to (System.currentTimeMillis() / 1000) + 300 // 5 minutes expiration
+                    "exp" to (System.currentTimeMillis() / 1000) + 300
                 )
             )
             .sign(

@@ -11,7 +11,7 @@ open class CollectPhoneFormAuthenticatorFactory : AbstractAuthenticatorFactory()
 
     override fun getDisplayType() = "DK3- Collect Phone Form"
 
-    override fun getHelpText() = "Displays a form to collect the user's phone number."
+    override fun getHelpText() = "Collects a phone number only; OTP is handled by a later authenticator."
 
     companion object {
         const val ID = "collect-phone-form"

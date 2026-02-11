@@ -1,6 +1,6 @@
 # Current: Approval Authenticators (New Device Approval)
 
-This represents the approval flow implemented by `keycloak-keybound-authenticator-approval` plus the custom endpoint in `keycloak-keybound-custom-endpoint`.
+This represents the approval branch implemented by `keycloak-keybound-authenticator-enrollment` plus the custom endpoint in `keycloak-keybound-custom-endpoint`.
 
 ## Directed Graph
 

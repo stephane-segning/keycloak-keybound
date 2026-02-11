@@ -1,6 +1,5 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
-import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
@@ -8,9 +7,8 @@ import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
 /**
- * Authenticator that finds an existing user through one of:
- * 1) explicit user hint in signed redirect parameters
- * 2) verified phone number collected by the OTP step
+ * Authenticator that finds an existing user by verified phone.
+ * If no user exists for the verified phone, a new user is created.
  */
 class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
     companion object {
@@ -18,23 +16,23 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
-        val realm = context.realm
-        val session = context.session
         val authSession = context.authenticationSession
-        val userHint = authSession.getAuthNote(AbstractKeyAuthenticator.USER_HINT_NOTE_NAME)?.trim()
-        val phoneVerified = authSession.getAuthNote("phone_verified") == "true"
-        val phoneE164 = authSession.getAuthNote("phone_e164")?.trim()
+        val phoneVerified = authSession.getAuthNote(KeyboundFlowNotes.PHONE_VERIFIED_NOTE_NAME) == "true"
+        val phoneE164 = authSession.getAuthNote(KeyboundFlowNotes.PHONE_E164_NOTE_NAME)?.trim()
+        if (!phoneVerified || phoneE164.isNullOrBlank()) {
+            log.warn("Cannot resolve user without verified phone")
+            context.failure(AuthenticationFlowError.INVALID_CREDENTIALS)
+            return
+        }
 
-        log.debug("Resolving user with hint='{}' phone_verified={} phone='{}'", userHint, phoneVerified, phoneE164)
-        var user = resolveByHint(context, userHint)
-            ?: resolveByVerifiedPhone(context, phoneVerified, phoneE164)
-
-        if (user == null && phoneVerified && !phoneE164.isNullOrBlank()) {
+        log.debug("Resolving or creating user from verified phone '{}'", phoneE164)
+        var user = resolveByVerifiedPhone(context, phoneE164)
+        if (user == null) {
             user = createUserFromPhone(context, phoneE164)
         }
 
         if (user == null) {
-            log.warn("Unable to resolve user from user_hint or verified phone")
+            log.warn("Unable to resolve or create user from verified phone")
             context.failure(AuthenticationFlowError.UNKNOWN_USER)
             return
         }
@@ -48,28 +46,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
         // No action needed for this authenticator
     }
 
-    private fun resolveByHint(context: AuthenticationFlowContext, userHint: String?): UserModel? {
-        if (userHint.isNullOrBlank()) {
-            return null
-        }
-
-        val session = context.session
-        val realm = context.realm
-        return session.users().getUserByUsername(realm, userHint)
-            ?: session.users().getUserByEmail(realm, userHint)
-            ?: findSingleUserByAttribute(context, "user_id", userHint)
-            ?: findSingleUserByAttribute(context, "backend_user_id", userHint)
-    }
-
-    private fun resolveByVerifiedPhone(
-        context: AuthenticationFlowContext,
-        phoneVerified: Boolean,
-        phoneE164: String?
-    ): UserModel? {
-        if (!phoneVerified || phoneE164.isNullOrBlank()) {
-            return null
-        }
-
+    private fun resolveByVerifiedPhone(context: AuthenticationFlowContext, phoneE164: String): UserModel? {
         val session = context.session
         val realm = context.realm
         return findSingleUserByAttribute(context, "phone_e164", phoneE164)

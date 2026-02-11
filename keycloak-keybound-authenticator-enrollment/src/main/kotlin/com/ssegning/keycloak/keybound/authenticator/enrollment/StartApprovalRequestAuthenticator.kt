@@ -1,6 +1,5 @@
-package com.ssegning.keycloak.keybound.approval
+package com.ssegning.keycloak.keybound.authenticator.enrollment
 
-import com.ssegning.keycloak.keybound.authenticator.enrollment.PersistDeviceCredentialAuthenticator
 import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.computeJkt
@@ -34,20 +33,15 @@ class StartApprovalRequestAuthenticator(
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
-        val session = context.authenticationSession
-        val userId = session.authenticatedUser.id
+        val authSession = context.authenticationSession
+        val userId = authSession.authenticatedUser.id
+        val deviceId = authSession.getAuthNote(AbstractKeyAuthenticator.DEVICE_ID_NOTE_NAME)
+        val publicKeyStr = authSession.getAuthNote(AbstractKeyAuthenticator.DEVICE_PUBLIC_KEY_NOTE_NAME)
+        val deviceOs = authSession.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME)
+        val deviceModel = authSession.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME)
 
-        val deviceId = session.getAuthNote(AbstractKeyAuthenticator.DEVICE_ID_NOTE_NAME)
-        val publicKeyStr = session.getAuthNote(AbstractKeyAuthenticator.DEVICE_PUBLIC_KEY_NOTE_NAME)
-        val deviceOs = session.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME)
-        val deviceModel = session.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME)
-
-        log.debug("Starting approval request for user={} device={}", userId, deviceId)
         if (deviceId.isNullOrBlank() || publicKeyStr.isNullOrBlank()) {
-            log.error(
-                "Missing device details (deviceId={} publicKey={}) in session",
-                deviceId,
-                publicKeyStr?.let { "[REDACTED]" })
+            log.error("Missing device details for approval request (deviceId={}, publicKeyPresent={})", deviceId, !publicKeyStr.isNullOrBlank())
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
@@ -63,20 +57,21 @@ class StartApprovalRequestAuthenticator(
             )
             apiGateway.createApprovalRequest(context, userId, deviceDescriptor)
         } catch (e: Exception) {
-            log.error("Failed to build approval request payload", e)
+            log.error("Failed to create approval request payload for user {}", userId, e)
             null
         }
 
-        if (requestId != null) {
-            session.setAuthNote(APPROVAL_REQUEST_ID_NOTE, requestId)
-            log.debug("Recorded approval request {} for user {}", requestId, userId)
-            context.success()
-        } else {
+        if (requestId.isNullOrBlank()) {
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+            return
         }
+
+        authSession.setAuthNote(APPROVAL_REQUEST_ID_NOTE, requestId)
+        log.debug("Created approval request {} for user {}", requestId, userId)
+        context.success()
     }
 
     override fun action(context: AuthenticationFlowContext) {
-        // No action needed
+        // No action needed for this authenticator
     }
 }

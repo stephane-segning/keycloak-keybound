@@ -1,4 +1,4 @@
-# Current: Enrollment Authenticators (Device Enrollment)
+# Current: Enrollment Authenticators (Device Enrollment + Approval Branching)
 
 This represents the enrollment authentication flow implemented by `keycloak-keybound-authenticator-enrollment`.
 
@@ -16,7 +16,7 @@ flowchart LR
   JS -->|generates keypair + signs blob| JS
   JS -->|sends enrollment request| KC[Keycloak]
   KC -->|runs authenticators| KCP[Keycloak Plugin]
-  KCP -->|OTP + bind device| BE[Backend]
+  KCP -->|route to approval or OTP then bind device| BE[Backend]
   BE -->|policy + bind result| KCP
   KCP -->|flow success/fail| KC
   KC -->|UI response| JS
@@ -34,7 +34,12 @@ participant KC as Keycloak (Auth Flow)
 participant Ingest as IngestSignedDeviceBlobAuthenticator
 participant Verify as VerifySignedBlobAuthenticator
 participant Phone as CollectPhoneFormAuthenticator
-participant User as FindOrCreateUserAuthenticator
+participant CheckUser as CheckUserByPhoneAuthenticator
+participant Route as RouteEnrollmentPathAuthenticator
+participant StartApproval as StartApprovalRequestAuthenticator
+participant WaitApproval as WaitForApprovalFormAuthenticator
+participant Otp as SendValidateOtpAuthenticator
+participant FindOrCreate as FindOrCreateUserAuthenticator
 participant Persist as PersistDeviceCredentialAuthenticator
 participant Api as ApiGateway (HTTP)
 participant BE as Backend
@@ -51,24 +56,59 @@ note over Verify: Check ts window\nPrevent nonce replay\nVerify signature over c
 Verify-->>KC: success / failure
 
 KC->>Phone: authenticate()
-note over Phone: Render phone form\nSend OTP via backend\nConfirm OTP
-Phone->>Api: sendSmsAndGetHash(...)
-Api->>BE: POST /v1/sms/send
-BE-->>Api: {hash}
-Api-->>Phone: hash
+note over Phone: Render phone form\nCollect phone only
 Phone-->>KC: challenge(form)
 
-Browser->>KC: POST phone + otp
+Browser->>KC: POST phone
 KC->>Phone: action()
-Phone->>Api: confirmSmsCode(...)
-Api->>BE: POST /v1/sms/confirm
-BE-->>Api: {confirmed}
-Api-->>Phone: confirmed
-Phone-->>KC: success / failure
+Phone-->>KC: success
 
-KC->>User: authenticate()
-note over User: Find or create user\n(currently Keycloak-local user model)
-User-->>KC: set context.user
+KC->>CheckUser: authenticate()
+note over CheckUser: Resolve existing user by collected phone
+CheckUser-->>KC: success (context.user may be set)
+
+KC->>Route: authenticate()
+note over Route: if existing user has device credentials -> approval path\nelse -> otp path
+Route-->>KC: success
+
+alt approval path
+  KC->>StartApproval: authenticate()
+  StartApproval->>Api: createApprovalRequest(user, device)
+  Api->>BE: POST /v1/approvals
+  BE-->>Api: {request_id}
+  Api-->>StartApproval: request_id
+  StartApproval-->>KC: success
+
+  KC->>WaitApproval: authenticate()
+  WaitApproval-->>Browser: approval-wait.ftl
+
+  loop until approved/denied/expired
+    Browser->>KC: poll approval status endpoint
+    KC->>Api: checkApprovalStatus(request_id)
+    Api->>BE: GET /v1/approvals/{request_id}
+    BE-->>Api: status
+    Api-->>KC: status
+  end
+else otp path
+  KC->>Otp: authenticate()
+  Otp->>Api: sendSmsAndGetHash(...)
+  Api->>BE: POST /v1/sms/send
+  BE-->>Api: {hash}
+  Api-->>Otp: hash
+  Otp-->>KC: challenge(enroll-verify-phone.ftl)
+
+  Browser->>KC: POST otp
+  KC->>Otp: action()
+  Otp->>Api: confirmSmsCode(...)
+  Api->>BE: POST /v1/sms/confirm
+  BE-->>Api: {confirmed}
+  Api-->>Otp: confirmed
+  Otp-->>KC: success / failure
+
+  KC->>FindOrCreate: authenticate()
+  note over FindOrCreate: Find or create user from verified phone
+  FindOrCreate-->>KC: set context.user
+end
 
 KC->>Persist: authenticate()
 note over Persist: Compute JKT thumbprint from public JWK\nPrecheck policy then bind device to user in backend
@@ -90,4 +130,5 @@ KC-->>Browser: Enrollment complete / error
 ```
 
 Notes:
-- Once the user-storage SPI is implemented, `FindOrCreateUserAuthenticator` can delegate to backend-backed users.
+- Flow sequence is now DK1 -> DK2 -> DK3 -> DK4 -> DK5, then either:
+  DK6 -> DK7 -> DK10 (approval path) or DK8 -> DK9 -> DK10 (OTP path).

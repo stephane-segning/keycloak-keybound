@@ -24,11 +24,16 @@ This module provides the implementation for the `ApiGateway` SPI defined in the 
 - **Key Components**: `ApiGatewayProviderFactory` implementation.
 
 ### `keycloak-keybound-authenticator-enrollment`
-Contains the custom Authenticators required for the device enrollment authentication flow.
+Contains the custom Authenticators required for the end-to-end device enrollment and approval authentication flow.
 - **Purpose**: Manages the steps to register a device and bind it to a user.
 - **Key Authenticators**:
-    - `CollectPhoneFormAuthenticator`: Displays a form to collect the user's phone number.
-    - `FindOrCreateUserAuthenticator`: Locates an existing user or creates a new one based on input.
+    - `CollectPhoneFormAuthenticator`: Collects phone number only (no OTP send in this step).
+    - `CheckUserByPhoneAuthenticator`: Resolves an existing user by phone number.
+    - `RouteEnrollmentPathAuthenticator`: Routes flow into approval or OTP subflow.
+    - `StartApprovalRequestAuthenticator`: Starts backend approval for users with existing device credentials.
+    - `WaitForApprovalFormAuthenticator`: Polling wait form for approval outcome.
+    - `SendValidateOtpAuthenticator`: Sends and validates OTP for users on OTP path.
+    - `FindOrCreateUserAuthenticator`: Locates or creates user after OTP validation.
     - `IngestSignedDeviceBlobAuthenticator`: Processes signed data blobs from the device.
     - `VerifySignedBlobAuthenticator`: Verifies the integrity and validity of signed blobs.
     - `PersistDeviceCredentialAuthenticator`: Saves the validated device key as a user credential.
@@ -52,8 +57,7 @@ Implements a User Storage Provider backed by the backend API (via `ApiGateway`).
 - **Purpose**: Resolve users through the backend, enabling CRUD/search without Keycloak-local storage.
 
 ### `keycloak-keybound-authenticator-approval`
-Contains authenticators used for “new device approval” flows.
-- **Purpose**: Create/poll approval requests against the backend while a Keycloak authentication flow is paused.
+Legacy container module retained for compatibility. Approval authenticators are now implemented in `keycloak-keybound-authenticator-enrollment`.
 
 ### `keycloak-keybound-custom-endpoint`
 Implements a custom realm endpoint.

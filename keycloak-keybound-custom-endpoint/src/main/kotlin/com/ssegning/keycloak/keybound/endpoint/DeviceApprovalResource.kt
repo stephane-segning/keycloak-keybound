@@ -60,6 +60,6 @@ class DeviceApprovalResource(
             .build()
 
         log.debug("Approval status for request {} -> {}", requestId, status)
-        return Response.ok(mapOf("status" to status.name.lowercase())).build()
+        return Response.ok(mapOf("status" to status.name)).build()
     }
 }
