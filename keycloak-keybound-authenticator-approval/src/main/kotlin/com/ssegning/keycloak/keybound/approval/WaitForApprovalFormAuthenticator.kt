@@ -1,7 +1,6 @@
 package com.ssegning.keycloak.keybound.approval
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
-import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticatorFactory
 import com.ssegning.keycloak.keybound.core.models.ApprovalStatus
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
@@ -11,12 +10,25 @@ import org.keycloak.crypto.KeyUse
 import org.keycloak.crypto.ServerAsymmetricSignatureSignerContext
 import org.keycloak.jose.jws.JWSBuilder
 import org.keycloak.models.KeycloakSession
+import org.keycloak.models.RealmModel
+import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
-class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
+class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : AbstractAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(WaitForApprovalFormAuthenticator::class.java)
         private const val POLLING_INTERVAL_MS = 2000
+    }
+
+    override fun requiresUser() = true
+
+    override fun configuredFor(session: KeycloakSession, realm: RealmModel, user: UserModel?): Boolean {
+        if (user == null) {
+            return false
+        }
+
+        val deviceCount = apiGateway.listUserDevices(user.id, false)?.size
+        return deviceCount != null && deviceCount > 0
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
@@ -81,15 +93,4 @@ class WaitForApprovalFormAuthenticator : AbstractAuthenticator() {
                 )
             )
     }
-}
-
-class WaitForApprovalFormAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun getId(): String = "keybound-wait-approval"
-
-    override fun getDisplayType(): String = "Keybound: Wait For Approval"
-
-    override fun getHelpText(): String = "Displays a waiting page and polls for approval status."
-
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway): WaitForApprovalFormAuthenticator =
-        WaitForApprovalFormAuthenticator()
 }

@@ -3,7 +3,6 @@ package com.ssegning.keycloak.keybound.approval
 import com.ssegning.keycloak.keybound.authenticator.enrollment.PersistDeviceCredentialAuthenticator
 import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.AbstractKeyAuthenticator
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
-import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticatorFactory
 import com.ssegning.keycloak.keybound.core.helper.computeJkt
 import com.ssegning.keycloak.keybound.core.helper.parsePublicJwk
 import com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
@@ -11,6 +10,8 @@ import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.keycloak.models.KeycloakSession
+import org.keycloak.models.RealmModel
+import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
 class StartApprovalRequestAuthenticator(
@@ -19,6 +20,17 @@ class StartApprovalRequestAuthenticator(
     companion object {
         private val log = LoggerFactory.getLogger(StartApprovalRequestAuthenticator::class.java)
         const val APPROVAL_REQUEST_ID_NOTE = "approval.request_id"
+    }
+
+    override fun requiresUser() = true
+
+    override fun configuredFor(session: KeycloakSession, realm: RealmModel, user: UserModel?): Boolean {
+        if (user == null) {
+            return false
+        }
+
+        val deviceCount = apiGateway.listUserDevices(user.id, false)?.size
+        return deviceCount != null && deviceCount > 0
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
@@ -32,7 +44,10 @@ class StartApprovalRequestAuthenticator(
 
         log.debug("Starting approval request for user={} device={}", userId, deviceId)
         if (deviceId.isNullOrBlank() || publicKeyStr.isNullOrBlank()) {
-            log.error("Missing device details (deviceId={} publicKey={}) in session", deviceId, publicKeyStr?.let { "[REDACTED]" })
+            log.error(
+                "Missing device details (deviceId={} publicKey={}) in session",
+                deviceId,
+                publicKeyStr?.let { "[REDACTED]" })
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
@@ -64,15 +79,4 @@ class StartApprovalRequestAuthenticator(
     override fun action(context: AuthenticationFlowContext) {
         // No action needed
     }
-}
-
-class StartApprovalRequestAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun getId(): String = "keybound-start-approval-request"
-
-    override fun getDisplayType(): String = "Keybound: Start Approval Request"
-
-    override fun getHelpText(): String = "Initiates a device approval request with the backend."
-
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway): StartApprovalRequestAuthenticator =
-        StartApprovalRequestAuthenticator(apiGateway)
 }
