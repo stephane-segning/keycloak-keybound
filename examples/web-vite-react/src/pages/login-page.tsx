@@ -1,24 +1,15 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
 import {useDeviceStorage} from '../hooks/use-device-storage';
 import {
-    exchangeAuthorizationCode,
-    extractUserId,
-    fetchUserInfo,
-    saveGrantUserId,
-    saveLoginChallengeContext,
-    saveTokens,
-} from '../lib/auth';
-import {
     closePopup,
-    getCurrentOrigin,
-    openCenteredPopup,
-    registerWindowMessageListener,
-    resolveDevicePlatform
+    registerWindowMessageListener
 } from '../lib/browser-runtime';
-import {signPayload, stringifyPublicJwk} from '../lib/crypto';
-import {createPrefixedId} from '../lib/id';
-import {createCodeChallenge, createCodeVerifier} from '../lib/pkce';
+import {
+    buildAuthorizationUrl,
+    completeAuthByCode,
+    openLoginPopup,
+    readAuthCallbackPayload,
+} from "../lib/login-flow";
 import {JsonDisplay} from "../components/json-display";
 
 export const LoginPage = () => {
@@ -39,13 +30,7 @@ export const LoginPage = () => {
             setStatus('exchanging');
 
             try {
-                // Complete OIDC code flow, then cache tokens/user identity for renewal.
-                const tokens = await exchangeAuthorizationCode(code);
-                const userInfo = await fetchUserInfo(tokens.access_token);
-                saveTokens(tokens);
-
-                const userId = extractUserId(tokens, userInfo);
-                saveGrantUserId(userId);
+                const {tokens, userInfo, userId} = await completeAuthByCode(code);
                 if (userId) {
                     await ensureDevice();
                     await setUserId(userId);
@@ -72,14 +57,8 @@ export const LoginPage = () => {
     useEffect(() => {
         // Receives callback payload from /callback popup and finishes code exchange in this window.
         const handler = (event: MessageEvent) => {
-            if (event.origin !== getCurrentOrigin()) return;
-            const payload = event.data as {
-                type?: string;
-                code?: string;
-                error?: string;
-                error_description?: string;
-            };
-            if (payload?.type !== 'keybound-auth-callback') return;
+            const payload = readAuthCallbackPayload(event);
+            if (!payload) return;
 
             if (payload.error) {
                 setStatus(`error: ${payload.error_description ?? payload.error}`);
@@ -103,7 +82,7 @@ export const LoginPage = () => {
     );
 
     const openPopup = useCallback((url: string) => {
-        const popup = openCenteredPopup(url, 'keybound-login', 480, 760);
+        const popup = openLoginPopup(url);
         if (!popup) {
             setStatus('error: popup blocked by browser');
             return;
@@ -116,43 +95,7 @@ export const LoginPage = () => {
         setStatus('preparing');
         // Ensure a persisted device identity exists before starting auth.
         const current = await ensureDevice();
-        const ts = Math.floor(Date.now() / 1000).toString();
-        const nonce = createPrefixedId('nce');
-        // Canonical payload signed by the device key and verified server-side.
-        const canonical = JSON.stringify({
-            deviceId: current.deviceId,
-            publicKey: stringifyPublicJwk(current.publicJwk),
-            ts,
-            nonce,
-        });
-        const signature = await signPayload(current.privateJwk, canonical);
-        // PKCE verifier/challenge pair for authorization code flow.
-        const codeVerifier = createCodeVerifier();
-        const codeChallenge = await createCodeChallenge(codeVerifier);
-        saveLoginChallengeContext(codeVerifier, nonce, ts);
-
-        // Custom auth params (device key, signature, metadata) are attached to /auth request.
-        const params = new URLSearchParams({
-            scope: 'openid profile email',
-            response_type: 'code',
-            client_id: CLIENT_ID,
-            redirect_uri: REDIRECT_URI,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256',
-            state: createPrefixedId('stt'),
-            device_id: current.deviceId,
-            public_key: stringifyPublicJwk(current.publicJwk),
-            ts,
-            nonce,
-            sig: signature,
-            action: 'login',
-            aud: CLIENT_ID,
-            device_os: resolveDevicePlatform(),
-            device_model: 'vite-react',
-            user_hint: current.userId ?? '',
-        });
-
-        const url = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth?${params.toString()}`;
+        const url = await buildAuthorizationUrl(current);
         setAuthUrl(url);
         setResult(null);
         openPopup(url);
