@@ -10,7 +10,7 @@ class ApprovalStreamSchedulerConfig {
     fun approvalStreamScheduler(): ThreadPoolTaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = 2
-        scheduler.threadNamePrefix = "approval-stream-"
+        scheduler.setThreadNamePrefix("approval-stream-")
         scheduler.initialize()
         return scheduler
     }
