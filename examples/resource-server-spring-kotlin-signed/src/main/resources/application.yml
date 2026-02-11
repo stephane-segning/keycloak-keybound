@@ -1,0 +1,14 @@
+server:
+  port: 18082
+
+spring:
+  application:
+    name: resource-server-spring-kotlin-signed-example
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9026/realms/e2e-testing}
+
+signature:
+  max-clock-skew-seconds: ${SIGNATURE_MAX_CLOCK_SKEW_SECONDS:60}
