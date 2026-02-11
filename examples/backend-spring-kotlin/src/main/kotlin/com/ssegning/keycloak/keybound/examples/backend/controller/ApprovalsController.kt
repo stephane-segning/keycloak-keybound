@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.examples.backend.controller
 
 import com.ssegning.keycloak.keybound.examples.backend.api.ApprovalsApi
+import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalDecisionRequest
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalCreateRequest
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalCreateResponse
 import com.ssegning.keycloak.keybound.examples.backend.model.ApprovalStatusResponse
@@ -33,6 +34,17 @@ class ApprovalsController(private val store: BackendDataStore) : ApprovalsApi {
         val response = store.getApproval(requestId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Approval request not found")
         log.debug("Approval {} status {}", requestId, response.status)
+        return ResponseEntity.ok(response)
+    }
+
+    override fun decideApproval(
+        requestId: String,
+        approvalDecisionRequest: ApprovalDecisionRequest
+    ): ResponseEntity<ApprovalStatusResponse> {
+        log.info("Applying decision {} on approval {}", approvalDecisionRequest.decision, requestId)
+        val response = store.decideApproval(requestId, approvalDecisionRequest)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Approval request not found")
+        log.debug("Approval {} new status {}", requestId, response.status)
         return ResponseEntity.ok(response)
     }
 

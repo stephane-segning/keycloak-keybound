@@ -373,9 +373,7 @@ class BackendDataStore {
 
     fun getApproval(requestId: String): ApprovalStatusResponse? {
         val stored = approvals[requestId] ?: return null
-        return ApprovalStatusResponse()
-            .requestId(stored.requestId)
-            .status(ApprovalStatusResponse.StatusEnum.valueOf(stored.status.name))
+        return stored.toApprovalStatusResponse()
     }
 
     fun listUserApprovals(
@@ -403,9 +401,28 @@ class BackendDataStore {
             .approvals(records)
     }
 
+    fun decideApproval(requestId: String, request: ApprovalDecisionRequest): ApprovalStatusResponse? {
+        val stored = approvals[requestId] ?: return null
+        if (stored.status != ApprovalStatus.PENDING) {
+            return stored.toApprovalStatusResponse()
+        }
+
+        stored.status = when (request.decision) {
+            ApprovalDecisionRequest.DecisionEnum.APPROVE -> ApprovalStatus.APPROVED
+            ApprovalDecisionRequest.DecisionEnum.DENY -> ApprovalStatus.DENIED
+        }
+        stored.decidedAt = OffsetDateTime.now()
+        stored.decidedByDeviceId = request.decidedByDeviceId
+        stored.message = request.message
+
+        return stored.toApprovalStatusResponse()
+    }
+
     fun cancelApproval(requestId: String): Boolean {
         val stored = approvals[requestId] ?: return false
         stored.status = ApprovalStatus.EXPIRED
+        stored.decidedAt = OffsetDateTime.now()
+        stored.message = "cancelled"
         return true
     }
 
@@ -521,7 +538,10 @@ class BackendDataStore {
         val userId: String,
         val deviceId: String,
         var status: ApprovalStatus,
-        val createdAt: OffsetDateTime = OffsetDateTime.now()
+        val createdAt: OffsetDateTime = OffsetDateTime.now(),
+        var decidedAt: OffsetDateTime? = null,
+        var decidedByDeviceId: String? = null,
+        var message: String? = null
     ) {
         fun toSnapshot(): ApprovalSnapshot = ApprovalSnapshot(
             requestId = requestId,
@@ -536,9 +556,16 @@ class BackendDataStore {
             .deviceId(deviceId)
             .status(UserApprovalRecord.StatusEnum.valueOf(status.name))
             .createdAt(createdAt.toLocalDateTime())
-            .decidedAt(null)
-            .decidedByDeviceId(null)
-            .message(null)
+            .decidedAt(decidedAt?.toLocalDateTime())
+            .decidedByDeviceId(decidedByDeviceId)
+            .message(message)
+
+        fun toApprovalStatusResponse(): ApprovalStatusResponse = ApprovalStatusResponse()
+            .requestId(requestId)
+            .status(ApprovalStatusResponse.StatusEnum.valueOf(status.name))
+            .decidedAt(decidedAt?.toLocalDateTime())
+            .decidedByDeviceId(decidedByDeviceId)
+            .message(message)
     }
 
     private enum class ApprovalStatus {

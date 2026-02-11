@@ -159,6 +159,39 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /v1/approvals/{request_id}/decision:
+    post:
+      tags: [approvals]
+      summary: Decide an approval request
+      description: |
+        Used by an approved device (or delegated UI) to approve or deny a pending approval request.
+      operationId: decideApproval
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Updated status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/users/{user_id}/approvals:
     get:
       tags: [approvals]
@@ -698,6 +731,20 @@ components:
           type: string
           format: date-time
           nullable: true
+        decided_by_device_id:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    ApprovalDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVE, DENY]
         decided_by_device_id:
           type: string
           nullable: true

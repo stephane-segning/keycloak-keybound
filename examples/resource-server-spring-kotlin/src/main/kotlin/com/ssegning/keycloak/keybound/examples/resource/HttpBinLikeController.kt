@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
@@ -87,5 +89,50 @@ class HttpBinLikeController(
                 "backend" to backendResponse
             )
         )
+    }
+
+    @PostMapping("/approvals/{requestId}/approve")
+    fun approveApproval(
+        @PathVariable requestId: String,
+        authentication: Authentication
+    ): ResponseEntity<Map<String, Any?>> {
+        val jwt = authentication.principal as? Jwt
+        val backendUserId = backendUserIdResolver.resolve(jwt)
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to resolve backend user id from token")
+
+        val userApprovals = try {
+            backendApprovalsClient.listUserApprovals(backendUserId)
+        } catch (exception: Exception) {
+            log.error("Failed to load approvals for backend user {} before approving {}", backendUserId, requestId, exception)
+            throw ResponseStatusException(HttpStatus.BAD_GATEWAY, "Backend approvals request failed")
+        }
+        if (!hasPendingApproval(userApprovals, requestId)) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Pending approval request not found for user")
+        }
+
+        val backendResponse = try {
+            backendApprovalsClient.approveApproval(requestId)
+        } catch (exception: Exception) {
+            log.error("Failed to approve request {} for backend user {}", requestId, backendUserId, exception)
+            throw ResponseStatusException(HttpStatus.BAD_GATEWAY, "Backend approval decision request failed")
+        }
+
+        log.info("Approved request {} for backend user {}", requestId, backendUserId)
+        return ResponseEntity.ok(
+            mapOf(
+                "keycloak_subject" to jwt?.subject,
+                "backend_user_id" to backendUserId,
+                "backend" to backendResponse
+            )
+        )
+    }
+
+    private fun hasPendingApproval(response: Map<String, Any?>, requestId: String): Boolean {
+        val approvals = response["approvals"] as? List<*> ?: return false
+        return approvals.asSequence()
+            .mapNotNull { it as? Map<*, *> }
+            .any { item ->
+                (item["request_id"] as? String) == requestId && (item["status"] as? String) == "PENDING"
+            }
     }
 }
