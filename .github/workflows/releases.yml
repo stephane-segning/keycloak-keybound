@@ -48,7 +48,7 @@ jobs:
       - name: Determine project version
         id: version
         run: |
-          version_line=$(awk -F'\"' '/^version\\s*=/ {print $2; exit}' build.gradle.kts)
+          version_line=$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' build.gradle.kts | head -n 1)
           if [ -z "$version_line" ]; then
             echo "Unable to read version from build.gradle.kts"
             exit 1
@@ -57,7 +57,7 @@ jobs:
       - name: Push version tag
         run: |
           TAG="v${{ steps.version.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists"
           else
             git tag "$TAG"
