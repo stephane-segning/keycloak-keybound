@@ -20,15 +20,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4.2.2
       - name: Build with Gradle
         run: ./gradlew shadow
-      - name: Collect artifacts
-        run: |
-          mkdir -p dist
-          cp */build/libs/*.jar dist/
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: target-jar
-          path: dist/*.jar
+          path: '*/build/libs/*.jar'
 
   publish:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -44,7 +40,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: target-jar
-          path: dist
+          path: .
           merge-multiple: true
       - name: Configure Git
         run: |
@@ -90,7 +86,7 @@ jobs:
         if: steps.release_check.outputs.release_exists == 'false'
         uses: ncipollo/release-action@v1.20.0
         with:
-          artifacts: 'dist/*.jar'
+          artifacts: '*.jar'
           draft: false
           prerelease: false
           allowUpdates: false
