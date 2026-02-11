@@ -175,7 +175,7 @@ export const ResourcePage = () => {
                     </button>
                 </div>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={combinedResourceOutput} collapsed={false}/>
                 </div>
             </article>
@@ -196,7 +196,7 @@ export const ResourcePage = () => {
                     </button>
                 </div>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={resourceOutput} collapsed={false}/>
                 </div>
             </article>
@@ -218,7 +218,7 @@ export const ResourcePage = () => {
                     </button>
                 </div>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={signedResourceOutput} collapsed={false}/>
                 </div>
             </article>
@@ -292,7 +292,7 @@ export const ResourcePage = () => {
                         </tbody>
                     </table>
                 </div>
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={approvalsOutput} collapsed={false}/>
                 </div>
             </article>

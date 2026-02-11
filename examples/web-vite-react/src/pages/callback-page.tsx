@@ -37,7 +37,7 @@ export const CallbackPage = () => {
             <article className="border border-base-300 bg-base-100 p-4">
                 <h2 className="text-base font-semibold">callback payload</h2>
 
-                <div className="mt-4 overflow-auto p-2 text-xs">
+                <div className="mt-4 overflow-auto py-2 text-xs">
                     <JsonDisplay src={info}/>
                 </div>
             </article>
