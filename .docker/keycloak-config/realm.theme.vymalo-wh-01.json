@@ -4,10 +4,19 @@
   "displayName": "SSegning Keybound WH 01",
   "displayNameHtml": "<b>SSegning Keybound</b> WH 01",
   "registrationAllowed": false,
-  "registrationEmailAsUsername": false,
   "rememberMe": false,
-  "loginWithEmailAllowed": false,
+  "loginWithEmailAllowed": true,
   "resetPasswordAllowed": false,
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 10
+    }
+  ],
   "browserFlow": "keybound-publickey-browser-flow",
   "enabled": true,
   "authenticationFlows": [
@@ -20,31 +29,28 @@
       "authenticationExecutions": [
         {
           "authenticator": "ingest-signed-device-blob",
-          "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 10,
-          "userSetupAllowed": false
+          "priority": 10
         },
         {
           "authenticator": "verify-signed-blob",
-          "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 20,
-          "userSetupAllowed": false
+          "priority": 20
+        },
+        {
+          "authenticator": "collect-phone-form",
+          "requirement": "REQUIRED",
+          "priority": 30
         },
         {
           "authenticator": "find-or-create-user",
-          "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 30,
-          "userSetupAllowed": false
+          "priority": 40
         },
         {
           "authenticator": "persist-device-credential",
-          "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 40,
-          "userSetupAllowed": false
+          "priority": 50
         }
       ]
     }

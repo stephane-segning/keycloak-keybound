@@ -12,7 +12,7 @@
         "device_id": "{{jsonPath request.body '$.device_id'}}",
         "jkt": "jkt_mock_001",
         "status": "ACTIVE",
-        "created_at": "2026-02-10T00:00:00Z",
+        "created_at": "2026-02-10T00:00:20",
         "label": "iOS Simulator"
       },
       "public_jwk": null
