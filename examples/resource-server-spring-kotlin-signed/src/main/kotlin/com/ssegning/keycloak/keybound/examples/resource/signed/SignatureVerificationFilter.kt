@@ -193,7 +193,7 @@ class SignatureVerificationFilter(
         val method = request.method
         val path = request.requestURI
         val query = request.queryString ?: ""
-        return listOf(method, path, query, signatureTs).joinToString("\n")
+        return RequestSignaturePayload(method, path, query, signatureTs).toCanonicalString()
     }
 
     private fun verifySignature(publicKey: ECPublicKey, canonicalPayload: String, signatureBytes: ByteArray): Boolean {

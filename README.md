@@ -89,6 +89,7 @@ or keep them in a shared layer for custom container images.
 
 - `docs/FULL_REVIEW.md` – merged implementation, code, security, and future-proofing review.
 - `docs/recommendations.md` – practical deployment suggestions.
+- `docs/SIGNING_AND_VERIFICATION.md` – canonical ADTs and pseudocode for signing and verification flows.
 
 ## Contributing
 

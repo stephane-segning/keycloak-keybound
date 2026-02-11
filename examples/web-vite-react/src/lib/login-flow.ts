@@ -9,6 +9,7 @@ import {
     TokenResponse
 } from "./auth";
 import {getCurrentOrigin, openCenteredPopup, resolveDevicePlatform} from "./browser-runtime";
+import {DeviceSignaturePayload} from "./canonical-payloads";
 import {signPayload, stringifyPublicJwk} from "./crypto";
 import {DeviceRecord} from "./device-db";
 import {createPrefixedId} from "./id";
@@ -46,13 +47,13 @@ export const openLoginPopup = (url: string): Window | null =>
 export const buildAuthorizationUrl = async (device: DeviceRecord): Promise<string> => {
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = createPrefixedId("nce");
-    const canonicalPayload = JSON.stringify({
-        deviceId: device.deviceId,
-        publicKey: stringifyPublicJwk(device.publicJwk),
+    const signaturePayload = new DeviceSignaturePayload(
+        device.deviceId,
+        stringifyPublicJwk(device.publicJwk),
         ts,
-        nonce,
-    });
-    const signature = await signPayload(device.privateJwk, canonicalPayload);
+        nonce
+    );
+    const signature = await signPayload(device.privateJwk, signaturePayload.toCanonicalJson());
 
     const codeVerifier = createCodeVerifier();
     const codeChallenge = await createCodeChallenge(codeVerifier);

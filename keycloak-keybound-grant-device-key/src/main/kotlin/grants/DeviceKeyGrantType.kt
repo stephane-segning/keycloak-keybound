@@ -22,6 +22,7 @@ import org.keycloak.services.CorsErrorResponseException
 import org.keycloak.services.Urls
 import org.keycloak.services.util.DefaultClientSessionContext
 import org.keycloak.storage.StorageId
+import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
@@ -188,13 +189,12 @@ class DeviceKeyGrantType(
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
-            val canonicalData = mapOf(
-                "deviceId" to deviceId,
-                "publicKey" to publicKeyJwk,
-                "ts" to tsStr,
-                "nonce" to nonce
-            )
-            val canonicalString = JsonSerialization.writeValueAsString(canonicalData)
+            val canonicalString = DeviceSignaturePayload(
+                deviceId = deviceId,
+                publicKey = publicKeyJwk,
+                ts = tsStr,
+                nonce = nonce
+            ).toCanonicalJson()
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
             val signatureBytes = try {

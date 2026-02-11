@@ -1,3 +1,4 @@
+import {RequestSignaturePayload} from "./canonical-payloads";
 import {signPayload, stringifyPublicJwk} from "./crypto";
 
 export type RequestSignatureInput = {
@@ -10,7 +11,7 @@ export type RequestSignatureInput = {
 };
 
 export const buildCanonicalPayload = (method: string, path: string, query: string, timestamp: string): string =>
-    [method.toUpperCase(), path, query, timestamp].join("\n");
+    new RequestSignaturePayload(method, path, query, timestamp).toCanonicalString();
 
 export const buildSignedHeaders = async (input: RequestSignatureInput): Promise<Record<string, string>> => {
     const canonical = buildCanonicalPayload(input.method, input.path, input.query, input.timestamp);

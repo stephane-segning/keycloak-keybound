@@ -1,5 +1,6 @@
 import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
 import axios, {AxiosError} from "axios";
+import {DeviceSignaturePayload} from './canonical-payloads';
 import {signPayload, stringifyPublicJwk} from './crypto';
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
@@ -70,13 +71,8 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
     // Signature payload must match the server-side canonical verification payload.
-    const signaturePayload = JSON.stringify({
-        deviceId: device.deviceId,
-        publicKey,
-        ts,
-        nonce,
-    });
-    const sig = await signPayload(device.privateJwk, signaturePayload);
+    const signaturePayload = new DeviceSignaturePayload(device.deviceId, publicKey, ts, nonce);
+    const sig = await signPayload(device.privateJwk, signaturePayload.toCanonicalJson());
 
     const body = new URLSearchParams({
         grant_type: DEVICE_KEY_GRANT_TYPE,
