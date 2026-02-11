@@ -12,6 +12,14 @@ repositories {
     mavenCentral()
 }
 
+tasks.named("jar") {
+    enabled = false
+}
+
+tasks.named("shadowJar") {
+    enabled = false
+}
+
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
