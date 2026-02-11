@@ -81,8 +81,8 @@ class DeviceApprovalResource(
         }
 
         val realm = session.context.realm
-        val userSession = session.sessions().getUserSession(realm, claims.sid)
-        if (userSession == null || userSession.user?.id != claims.sub) {
+        val rootAuthSession = session.authenticationSessions().getRootAuthenticationSession(realm, claims.sid)
+        if (rootAuthSession == null) {
             log.debug("Approval token session or user mismatch")
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(mapOf("error" to "Invalid session"))
@@ -90,11 +90,29 @@ class DeviceApprovalResource(
         }
 
         val client = session.clients().getClientByClientId(realm, claims.client_id)
-        val clientSession = client?.let { userSession.getAuthenticatedClientSessionByClient(it.clientId) }
-        if (clientSession == null) {
+        if (client == null) {
+            log.debug("Approval token references unknown client")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid client"))
+                .build()
+        }
+
+        val authSession = if (!claims.tab_id.isNullOrBlank()) {
+            rootAuthSession.getAuthenticationSession(client, claims.tab_id)
+        } else {
+            rootAuthSession.getAuthenticationSessions().values.firstOrNull { it.client?.id == client.id }
+        }
+
+        if (authSession == null) {
             log.debug("Approval token client not bound to session")
             return Response.status(Response.Status.UNAUTHORIZED)
                 .entity(mapOf("error" to "Invalid client"))
+                .build()
+        }
+        if (claims.sub != null && authSession.authenticatedUser?.id != claims.sub) {
+            log.debug("Approval token subject mismatch")
+            return Response.status(Response.Status.UNAUTHORIZED)
+                .entity(mapOf("error" to "Invalid subject"))
                 .build()
         }
 
@@ -109,13 +127,14 @@ class DeviceApprovalResource(
     private fun parseClaims(jwt: JsonWebToken): ApprovalPollingTokenClaims? {
         val realm = jwt.otherClaims["realm"] as? String ?: return null
         val clientId = jwt.otherClaims["client_id"] as? String ?: return null
-        val audience = jwt.otherClaims["aud"] as? String ?: return null
+        val audience = jwt.otherClaims["aud"] as? String ?: jwt.audience?.firstOrNull() ?: return null
         val sessionId = jwt.otherClaims["sid"] as? String ?: return null
-        val subject = jwt.otherClaims["sub"] as? String ?: return null
+        val subject = jwt.subject ?: jwt.otherClaims["sub"] as? String
+        val tabId = jwt.otherClaims["tab_id"] as? String
         val issuedAt = jwt.iat ?: return null
         val notBefore = jwt.nbf ?: return null
         val requestId = jwt.otherClaims["request_id"] as? String ?: return null
-        val tokenId = jwt.otherClaims["jti"] as? String ?: return null
+        val tokenId = jwt.id ?: jwt.otherClaims["jti"] as? String ?: return null
         val exp = jwt.exp ?: return null
         return ApprovalPollingTokenClaims(
             realm = realm,
@@ -123,6 +142,7 @@ class DeviceApprovalResource(
             aud = audience,
             sid = sessionId,
             sub = subject,
+            tab_id = tabId,
             request_id = requestId,
             iat = issuedAt,
             nbf = notBefore,

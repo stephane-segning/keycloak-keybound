@@ -46,7 +46,7 @@
         })
             .then(function (response) {
                 if (response.status === 401) {
-                    submitWithStatus("EXPIRED");
+                    submitWithStatus("UNAUTHORIZED");
                     return null;
                 }
 

@@ -103,6 +103,7 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
             aud = APPROVAL_AUDIENCE,
             sid = authSession.parentSession.id,
             sub = context.user?.id,
+            tab_id = authSession.tabId,
             request_id = requestId,
             iat = nowSeconds,
             nbf = nowSeconds,
