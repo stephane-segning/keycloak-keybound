@@ -2,6 +2,11 @@
 
 This document provides a high-level overview of the `keycloak-keybound` project structure, detailing the purpose of each Gradle module and the core components involved.
 
+Related:
+- `docs/README.md`
+- `docs/USAGE.md`
+- `docs/WORKFLOWS/README.md`
+
 ## Modules
 
 The project is organized into several Gradle modules, each serving a specific role in the Keycloak extension:

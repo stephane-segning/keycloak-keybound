@@ -2,6 +2,12 @@
 
 This repository contains Keycloak extensions for "device-bound" authentication and a backend API gateway.
 
+Documentation map:
+- `docs/README.md`
+- `docs/STRUCTURE.md`
+- `docs/WORKFLOWS/README.md`
+- `docs/PLAN.md`
+
 This guide covers:
 1. A Node.js + TypeScript example that:
    - generates an EC P-256 keypair

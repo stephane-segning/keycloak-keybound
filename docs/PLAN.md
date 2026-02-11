@@ -1,135 +1,112 @@
-# Implementation Plan: New Device Approval Subflow & Custom REST Endpoint
+# Unified Plan and Status
 
-This document outlines the plan for implementing the "New device requires approval" subflow and the accompanying custom REST endpoint for Keycloak.
+This file is the merged source of truth for:
+- `docs/PLAN.md` (approval or device binding/grant plan)
+- `EXAMPLES.md` (examples architecture plan)
 
-## 1. Research & Analysis
+Status legend:
+- `DONE`: implemented and considered complete
+- `PARTIAL`: implemented differently or still open
+- `TODO`: not implemented yet
+- `OUT`: intentionally out of scope for now
 
-### 1.1 Custom JAX-RS Endpoints (RealmResourceProvider)
-*   **Goal**: Expose a REST endpoint to check the status of a device approval request.
-*   **Keycloak 26 / Kotlin 2.3.0 Context**:
-    *   Keycloak allows custom REST endpoints via `RealmResourceProvider` and `RealmResourceProviderFactory`.
-    *   The factory must be registered in `META-INF/services/org.keycloak.services.resource.RealmResourceProviderFactory`.
-    *   The resource class must be annotated with `@jakarta.ws.rs.ext.Provider` (or just be returned by the factory).
-    *   **Important**: Keycloak 26 uses Jakarta EE 10 (jakarta.* packages).
+## 1) Approval Subflow and Endpoint
 
-### 1.2 Authentication Subflows
-*   **Goal**: Create a subflow that pauses authentication until approval is granted.
-*   **Mechanism**:
-    *   We will use two authenticators:
-        1.  `StartApprovalRequestAuthenticator`: Initiates the request with the backend.
-        2.  `WaitForApprovalFormAuthenticator`: Displays a waiting page and handles the polling result.
-    *   The subflow will be configured in the authentication flow as "Required".
+### 1.1 Implemented
 
-### 1.3 Polling Mechanisms
-*   **Goal**: Securely poll the status endpoint from the frontend.
-*   **Strategy**:
-    *   The `WaitForApprovalFormAuthenticator` will generate a short-lived, signed JWT (Polling Token) containing the `request_id` and `auth_session_id`.
-    *   The frontend (FreeMarker template + JS) will use this token to poll the custom REST endpoint.
-    *   This prevents unauthorized parties from querying the status of arbitrary requests.
+- `DONE` ~~Add approval authenticators module (`keycloak-keybound-authenticator-approval`)~~
+- `DONE` ~~Implement `StartApprovalRequestAuthenticator`~~
+- `DONE` ~~Implement `WaitForApprovalFormAuthenticator`~~
+- `DONE` ~~Add custom endpoint module (`keycloak-keybound-custom-endpoint`)~~
+- `DONE` ~~Expose approval provider/factory with ID `device-approval`~~
+- `DONE` ~~Add approval methods to `ApiGateway` and HTTP implementation~~
+- `DONE` ~~Add wait template for approval flow (`approval-wait.ftl`)~~
 
-### 1.4 API Gateway SPI Integration
-*   **Goal**: Use the existing SPI to communicate with the backend.
-*   **Current Implementation**:
-    *   The `ApiGateway` interface exists in `keycloak-keybound-core`.
-    *   The `Api` class in `keycloak-keybound-api-gateway-http` implements it.
-    *   We need to extend `ApiGateway` to support the `/v1/approvals` endpoints defined in `openapi/backend.open-api.yml`.
+### 1.2 Remaining
 
-## 2. Implementation Plan
+- `PARTIAL` Theme polling split:
+  - ~~Inline polling JS in the wait template~~ is implemented
+  - `TODO` externalize to `resources/js/device-approval.js` if we still want theme JS modularization
+- `TODO` Add explicit endpoint-side rate-limiting policy docs/implementation (if required by production profile)
 
-### 2.1 Project Structure
+## 2) Device Binding, Credential Provider, Protocol Mapper, Grant
 
-We will organize the new components as follows:
+### 2.1 Implemented
 
-*   **`keycloak-keybound-core`**:
-    *   Update `ApiGateway` interface to include approval methods.
-*   **`keycloak-keybound-api-gateway-http`**:
-    *   Implement the new methods in `Api` class using the generated `ApprovalsApi`.
-*   **`keycloak-keybound-custom-endpoint` (New Module)**:
-    *   Contains the `RealmResourceProvider` implementation for the polling endpoint.
-    *   This keeps the REST layer separate from the authenticators.
-*   **`keycloak-keybound-authenticator-approval` (New Module)**:
-    *   Contains `StartApprovalRequestAuthenticator` and `WaitForApprovalFormAuthenticator`.
-*   **`keycloak-keybound-theme`**:
-    *   Add `device-approval-wait.ftl` and `device-approval.js`.
+- `DONE` ~~Define and use structured device credential/secret models~~
+- `DONE` ~~Implement protocol mapper module (`keycloak-keybound-protocol-mapper`)~~
+- `DONE` ~~Implement device-key custom grant module (`keycloak-keybound-grant-device-key`)~~
+- `DONE` ~~Grant enforces signature checks (`ts`, `nonce`, signature verification, device status/ownership checks)~~
+- `DONE` ~~Grant does not issue refresh token~~
+- `DONE` ~~Grant contract moved to `user_id` (instead of username)~~
 
-### 2.2 API Gateway Updates
+### 2.2 Remaining
 
-**File**: `keycloak-keybound-core/src/main/kotlin/spi/ApiGateway.kt`
-*   Add method: `createApprovalRequest(context: AuthenticationFlowContext, userId: String, deviceData: DeviceDescriptor): ApprovalCreateResponse`
-*   Add method: `checkApprovalStatus(context: AuthenticationFlowContext, requestId: String): ApprovalStatusResponse`
+- `PARTIAL` Credential provider lifecycle in Keycloak local store:
+  - `OUT` ~~Persist device credentials primarily in local Keycloak credential store~~ (superseded by backend-authoritative persistence)
+  - `TODO` decide if `createCredential`/`isValid` should remain intentionally backend-only or be completed for hybrid mode
+- `PARTIAL` Mapper rollout:
+  - ~~Mapper implementation~~ is complete
+  - `TODO` ensure mapper is consistently configured in all realm imports/clients where claims are required
 
-**File**: `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt`
-*   Implement the above methods calling `approvalsApi.createApproval(...)` and `approvalsApi.getApproval(...)`.
+## 3) Example Applications (Merged from EXAMPLES)
 
-### 2.3 REST Endpoint Implementation (`DeviceApprovalResourceProvider`)
+### 3.1 Implemented
 
-**Module**: `keycloak-keybound-custom-endpoint`
+- `DONE` ~~Web example (`examples/web-vite-react`) with device keypair persistence and auth flow~~
+- `DONE` ~~Web example custom-grant fallback when token is missing/expired~~
+- `DONE` ~~Backend Spring example implementing OpenAPI contract (dev-focused, in-memory)~~
+- `DONE` ~~Resource server Spring example with OAuth2 JWT validation~~
+- `DONE` ~~Node TS example for auth-code + custom grant flow~~
 
-1.  **`DeviceApprovalResourceProvider`**:
-    *   **Path**: `/realms/{realm}/device-approval`
-    *   **Method**: `GET /status`
-    *   **Query Param**: `token` (The signed Polling Token)
-    *   **Logic**:
-        *   Verify the token signature and expiration.
-        *   Extract `request_id`.
-        *   Call `ApiGateway.checkApprovalStatus`.
-        *   Return JSON: `{ "status": "PENDING" | "APPROVED" | "DENIED" }`
+### 3.2 Remaining
 
-2.  **`DeviceApprovalResourceProviderFactory`**:
-    *   Registers the provider with ID `device-approval`.
+- `TODO` Keep example docs and scripts continuously aligned with runtime contract changes (especially grant parameters and claims expectations)
+- `TODO` Add explicit E2E smoke scripts across examples (web -> keycloak -> backend -> resource) if we want one-command validation
 
-### 2.4 Authenticator Implementation
+## 4) Superseded Decisions (Struck Through)
 
-**Module**: `keycloak-keybound-authenticator-approval`
+- `OUT` ~~Custom grant should resolve user by `username`~~
+- `OUT` ~~Custom grant should resolve user by `device_id` only~~
+- `DONE` ~~Custom grant uses `user_id` and backend ownership verification~~
+- `OUT` ~~Resource server example has no security enforcement~~
+- `DONE` ~~Resource server validates JWT as OAuth2 resource server~~
+- `OUT` ~~`EXAMPLES.md` as a separate planning authority~~ (merged here; now treated as compatibility entrypoint)
 
-1.  **`StartApprovalRequestAuthenticator`**:
-    *   **Context**: Runs after the user is identified and the device is known (but not yet bound/approved).
-    *   **Logic**:
-        *   Extract `user_id` and device details from the authentication session.
-        *   Call `ApiGateway.createApprovalRequest`.
-        *   Store the returned `request_id` in `authSession.setAuthNote("APPROVAL_REQUEST_ID", requestId)`.
-        *   Call `context.success()`.
+## 5) Now Out of Scope
 
-2.  **`WaitForApprovalFormAuthenticator`**:
-    *   **Context**: Runs immediately after the start authenticator.
-    *   **Logic (`authenticate`)**:
-        *   Retrieve `request_id` from auth note.
-        *   Generate a JWS (Signed JWT) containing `request_id` and `exp` (e.g., 5 minutes). Sign it with the realm's active key.
-        *   Create a FreeMarker form `device-approval-wait.ftl`.
-        *   Pass attributes: `pollingUrl`, `pollingToken`.
-        *   Call `context.challenge(form)`.
-    *   **Logic (`action`)**:
-        *   This is triggered when the frontend submits the form (automatically upon "APPROVED" status).
-        *   Retrieve `request_id`.
-        *   Call `ApiGateway.checkApprovalStatus` one last time to confirm.
-        *   If `APPROVED`: `context.success()`.
-        *   If `DENIED`: `context.failure(AuthenticationFlowError.ACCESS_DENIED)`.
-        *   If `PENDING`: Show the form again.
+- `OUT` ~~Full production-grade anti-abuse stack in examples (rate limits, abuse detection, fraud controls)~~
+- `OUT` ~~Production database schema and migrations for example backend stores~~
+- `OUT` ~~Maintaining two parallel identity contracts for custom grant (`username` and `user_id`)~~
 
-### 2.5 Frontend (Theme) Implementation
+## 6) Next Actionable Backlog
 
-**Module**: `keycloak-keybound-theme`
+- `TODO` Decide and document final strategy for `DeviceKeyCredential` local-store methods (`createCredential`, `isValid`) in backend-authoritative mode.
+- `TODO` Optional: move approval polling JS out of inline FTL into static theme asset.
+- `TODO` Optional: add end-to-end smoke test script(s) that validate:
+  - auth-code success
+  - custom grant renewal path
+  - resource server protected endpoint with device-bound claims.
 
-1.  **`device-approval-wait.ftl`**:
-    *   Display a spinner and instructions: "Please approve this login on your other device."
-    *   Include hidden input fields for the form submission.
-    *   Include `<script src="${url.resourcesPath}/js/device-approval.js"></script>`.
-    *   Initialize the script with `new DeviceApprovalPoller('${pollingUrl}', '${pollingToken}').start();`.
+## 7) Execution Checklist
 
-2.  **`resources/js/device-approval.js`**:
-    *   Class `DeviceApprovalPoller`.
-    *   `start()`: Sets up `setInterval` (e.g., every 2 seconds).
-    *   `poll()`: `fetch(pollingUrl + '?token=' + pollingToken)`.
-    *   Handle response:
-        *   `APPROVED`: Submit the main Keycloak form (simulating user action).
-        *   `DENIED`: Display error message or submit form with "cancel" action.
-        *   `PENDING`: Continue polling.
-        *   `EXPIRED`/Error: Stop polling, show error.
+Use this as the working implementation tracker.
 
-### 2.6 Security Considerations
-
-*   **Token Integrity**: The Polling Token must be signed by the realm to prevent tampering. The REST endpoint must verify this signature.
-*   **Rate Limiting**: The REST endpoint should ideally implement rate limiting to prevent abuse, though the backend `ApiGateway` might also handle this.
-*   **Session Binding**: The Polling Token should ideally be bound to the current authentication session ID to prevent replay in a different context.
-*   **Information Leakage**: The REST endpoint should only return status, not sensitive user or device data.
-*   **CORS**: Ensure the REST endpoint handles CORS if the theme is served from a different origin (unlikely in standard Keycloak, but good practice).
+- [ ] Decide credential-provider strategy:
+  - [ ] Keep backend-authoritative mode and explicitly document `createCredential` / `isValid` behavior
+  - [ ] Or implement hybrid/local-store behavior and align grant/mapper expectations
+- [ ] Align mapper rollout:
+  - [ ] Verify mapper present in all required realm imports
+  - [ ] Verify client/client-scope mapping where `cnf.jkt` and `device_id` are required
+- [ ] Approval flow frontend decision:
+  - [ ] Keep inline polling JS in FTL and mark as intentional
+  - [ ] Or extract polling JS to theme static asset (`resources/js/device-approval.js`)
+- [ ] Add smoke validation path:
+  - [ ] Auth-code login succeeds
+  - [ ] Custom grant renewal succeeds with `user_id`
+  - [ ] Resource server `/get` returns expected token/device claims
+- [ ] Keep docs and examples in sync after each contract change:
+  - [ ] `docs/USAGE.md`
+  - [ ] `docs/WORKFLOWS/current-device-key-grant.md`
+  - [ ] `examples/nodejs-ts`
+  - [ ] `examples/web-vite-react`

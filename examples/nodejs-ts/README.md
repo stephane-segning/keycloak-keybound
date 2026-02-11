@@ -7,6 +7,10 @@ This example demonstrates:
 - then calling the custom grant type `urn:ssegning:params:oauth:grant-type:device_key`
 - printing both token responses to bash exports
 
+Current custom grant contract:
+- required fields include `user_id`, `device_id`, `ts`, `nonce`, `sig`
+- `user_id` defaults to OIDC `sub` from UserInfo
+
 ## Environment variables
 
 Defaults match `compose.yaml`.
@@ -35,4 +39,4 @@ npm run device-grant -- --username test --bash
 ```
 
 Optional:
-- `--grant-username test` to force the username sent to the custom grant request.
+- `--grant-user-id <value>` to force the `user_id` sent to the custom grant request.
