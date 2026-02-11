@@ -30,7 +30,7 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 
 ## Keycloak Config
 
-- Realm: `e2e-realm`
+- Realm: `e2e-testing`
 - Client ID: `web-vite`
 - Redirect URI: `http://localhost:5173/callback`
 - Web origin: `http://localhost:5173`

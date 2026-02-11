@@ -8,4 +8,4 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9026/realms/e2e-realm}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9026/realms/e2e-testing}

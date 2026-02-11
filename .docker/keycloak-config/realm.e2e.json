@@ -1,8 +1,8 @@
 {
-  "id": "e2e-realm",
-  "realm": "e2e-realm",
-  "displayName": "Keybound E2E Realm",
-  "displayNameHtml": "<b>Keybound</b> E2E Realm",
+  "id": "e2e-testing",
+  "realm": "e2e-testing",
+  "displayName": "Keybound E2E",
+  "displayNameHtml": "<b>Keybound</b> E2E",
   "registrationAllowed": false,
   "rememberMe": false,
   "loginWithEmailAllowed": true,
