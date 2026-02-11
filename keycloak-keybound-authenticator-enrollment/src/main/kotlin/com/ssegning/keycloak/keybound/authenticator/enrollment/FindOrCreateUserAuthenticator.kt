@@ -2,6 +2,7 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
+import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
@@ -27,7 +28,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
 
         val resolved = context.session.getApi().resolveOrCreateUserByPhone(context, phoneE164)
         if (resolved == null) {
-            log.error("Backend failed to resolve or create user from phone '{}'", phoneE164)
+            log.error("Backend failed to resolve or create user from phone {}", maskPhone(phoneE164))
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
@@ -35,7 +36,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
         authSession.setAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME, resolved.userId)
         authSession.setAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME, resolved.username)
 
-        log.debug("Resolving Keycloak user for backend userId={} username={}", resolved.userId, resolved.username)
+        log.debug("Resolving Keycloak user for backend userId={}", resolved.userId)
         val user = KeyboundUserResolver.resolveUser(
             context = context,
             backendUserId = resolved.userId,
@@ -49,7 +50,7 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
             return
         }
 
-        log.debug("Resolved user {} for enrollment", user.username)
+        log.debug("Resolved user for enrollment")
         context.user = user
         context.success()
     }

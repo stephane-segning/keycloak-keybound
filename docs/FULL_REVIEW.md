@@ -40,7 +40,8 @@ High-level review threads:
 - `INFO` Codex review wrapper thread: `3784130396` (non-actionable wrapper text only).
 
 Inline review comments (`pulls/3/comments`) mapped to this file:
-- `OPEN` PII logging concerns (all still reproducible in current code): `2792650646`, `2792650651`, `2792650654`, `2792650660`, `2792650663`, `2792650666`, `2792650670`, `2792650674`, `2792650678`, `2792650680`, `2792650683`, `2792650689`, `2792650694`, `2792650697`.
+- `DONE` ~~PII logging concerns (all still reproducible in current code)~~: `2792650646`, `2792650651`, `2792650654`, `2792650660`, `2792650663`, `2792650666`, `2792650670`, `2792650674`, `2792650678`, `2792650680`, `2792650683`, `2792650689`, `2792650694`, `2792650697`.
+  Resolution note: logs now avoid phone/username/email values in auth and API flows.
 - `DONE` ~~Workflow docs mention precheck while runtime removed precheck~~: `2792650698`.
   Resolution note: old workflow docs were removed; consolidated state is documented in this file (`C-3`).
 - `DONE` ~~Phone lookup ambiguity in backend example store~~: `2792650700`.
@@ -135,6 +136,9 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Phone ownership never verified prior to account creation~~
   Evidence: OTP challenge/verification path in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/SendValidateOtpAuthenticator.kt:20` and `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/SendValidateOtpAuthenticator.kt:79`.
 
+- `DONE` ~~PII is logged in cleartext across API gateway and enrollment authenticators.~~
+  Evidence: logs now avoid phone/username/email values in `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:60` and key enrollment authenticators.
+
 ### Open Findings
 
 - `MEDIUM` S-1: Approval polling token is not bound to user/session/client context.
@@ -159,20 +163,6 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
   - `compose.yaml:8`
   Recommendation:
   - Keep as dev-only and document stronger production secret handling explicitly.
-
-- `MEDIUM` S-4: PII is logged in cleartext across API gateway and enrollment authenticators.
-  Affected samples:
-  - `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:115`
-  - `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:138`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:24`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CollectPhoneFormAuthenticator.kt:30`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/FindOrCreateUserAuthenticator.kt:30`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/SendValidateOtpAuthenticator.kt:54`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/KeyboundUserResolver.kt:75`
-  Impact:
-  - Phone numbers/usernames/emails may leak through centralized logs.
-  PR references:
-  - Inline comment ids `2792650646`, `2792650651`, `2792650654`, `2792650660`, `2792650663`, `2792650666`, `2792650670`, `2792650674`, `2792650678`, `2792650680`, `2792650683`, `2792650689`, `2792650694`, `2792650697`.
 
 ## Future-Proofing Review
 
@@ -222,7 +212,7 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 ## Prioritized Backlog
 
 1. ~~Fix enrollment routing fallback so unresolved users cannot enter approval path (`C-5`).~~
-2. Remove/mask PII from auth and API logs (`S-4`).
+2. ~~Remove/mask PII from auth and API logs (`S-4`).~~
 3. Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.
 4. ~~Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.~~
 5. Enforce Java 21 toolchain in all plugin modules (`F-1`).

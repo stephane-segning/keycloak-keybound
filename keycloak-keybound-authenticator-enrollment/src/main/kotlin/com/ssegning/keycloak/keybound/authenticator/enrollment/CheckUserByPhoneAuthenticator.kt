@@ -2,6 +2,7 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
+import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
@@ -22,7 +23,7 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
 
         val resolved = context.session.getApi().resolveUserByPhone(context, phoneE164)
         if (resolved == null) {
-            log.error("Backend phone resolve failed for phone {}", phoneE164)
+            log.error("Backend phone resolve failed for phone {}", maskPhone(phoneE164))
             context.failure(org.keycloak.authentication.AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
@@ -51,10 +52,14 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
             phoneE164 = phoneE164
         )
         if (resolvedUser != null) {
-            log.debug("Resolved existing user {} by phone {}", resolvedUser.username, phoneE164)
+            log.debug("Resolved existing user by phone {}", maskPhone(phoneE164))
             context.user = resolvedUser
         } else {
-            log.debug("No Keycloak user resolved for phone {} (backend user_exists={})", phoneE164, resolved.userExists)
+            log.debug(
+                "No Keycloak user resolved by phone {} (backend user_exists={})",
+                maskPhone(phoneE164),
+                resolved.userExists
+            )
             if (wantsApproval) {
                 log.debug("Fallback to OTP enrollment path because no Keycloak user was resolved")
                 authSession.setAuthNote(

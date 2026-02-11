@@ -4,6 +4,7 @@ import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
+import com.ssegning.keycloak.keybound.core.helper.maskForAttribute
 
 object KeyboundUserResolver {
     private val log = LoggerFactory.getLogger(KeyboundUserResolver::class.java)
@@ -72,9 +73,9 @@ object KeyboundUserResolver {
                 val first = iterator.next()
                 if (iterator.hasNext()) {
                     log.error(
-                        "Multiple users resolved for {}='{}' in realm {}",
+                        "Multiple users resolved for {}={} in realm {}",
                         attributeName,
-                        attributeValue,
+                        maskForAttribute(attributeName, attributeValue),
                         context.realm.name
                     )
                     null

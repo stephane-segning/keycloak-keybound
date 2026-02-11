@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
@@ -27,7 +28,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         val phoneNumber = formData.getFirst(PHONE_FORM_FIELD)?.trim()
 
         if (phoneNumber.isNullOrBlank() || !isValidE164(phoneNumber)) {
-            log.debug("Invalid phone number submitted: {}", phoneNumber)
+            log.debug("Invalid phone number submitted {}", maskPhone(phoneNumber))
             val challenge = context.form()
                 .setError("invalidPhoneNumber")
                 .setAttribute(PHONE_FORM_FIELD, phoneNumber)
@@ -42,7 +43,7 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         context.authenticationSession.removeAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
         context.authenticationSession.removeAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME)
         context.authenticationSession.removeAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
-        log.debug("Collected phone number {}", phoneNumber)
+        log.debug("Collected phone number {}", maskPhone(phoneNumber))
         context.success()
     }
 

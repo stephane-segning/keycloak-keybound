@@ -2,6 +2,7 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
+import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import com.ssegning.keycloak.keybound.core.models.SmsRequest
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
@@ -51,7 +52,7 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
         val hash = try {
             apiGateway.sendSmsAndGetHash(context, smsRequest, phoneNumber)
         } catch (e: Exception) {
-            log.error("Failed to send OTP SMS for phone {}", phoneNumber, e)
+            log.error("Failed to send OTP SMS for phone {}", maskPhone(phoneNumber), e)
             null
         }
 
@@ -68,7 +69,7 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
         authSession.setAuthNote(KeyboundFlowNotes.ENROLL_SMS_HASH_NOTE_NAME, hash)
         authSession.removeAuthNote(KeyboundFlowNotes.PHONE_VERIFIED_NOTE_NAME)
 
-        log.debug("OTP challenge sent for phone {}", phoneNumber)
+        log.debug("OTP challenge sent for phone {}", maskPhone(phoneNumber))
         context.challenge(
             context.form()
                 .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
@@ -112,7 +113,7 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
                 hash = smsHash
             )?.toBooleanStrictOrNull() == true
         } catch (e: Exception) {
-            log.error("OTP confirmation failed for phone {}", phoneNumber, e)
+            log.error("OTP confirmation failed for phone {}", maskPhone(phoneNumber), e)
             false
         }
 
@@ -130,7 +131,7 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
         authSession.removeAuthNote(KeyboundFlowNotes.ENROLL_PHONE_NOTE_NAME)
         authSession.removeAuthNote(KeyboundFlowNotes.ENROLL_SMS_HASH_NOTE_NAME)
 
-        log.debug("OTP verified for phone {}", phoneNumber)
+        log.debug("OTP verified for phone {}", maskPhone(phoneNumber))
         context.success()
     }
 

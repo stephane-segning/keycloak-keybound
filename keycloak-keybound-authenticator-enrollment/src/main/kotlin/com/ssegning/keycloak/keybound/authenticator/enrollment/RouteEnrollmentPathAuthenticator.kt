@@ -21,7 +21,7 @@ class RouteEnrollmentPathAuthenticator : AbstractAuthenticator() {
             ?: KeyboundFlowNotes.ENROLLMENT_PATH_OTP
 
         authSession.setAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME, path)
-        log.debug("Enrollment flow routed to '{}' (user={})", path, context.user?.username)
+        log.debug("Enrollment flow routed to '{}'", path)
         context.success()
     }
 
