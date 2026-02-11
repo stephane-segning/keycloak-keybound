@@ -14,7 +14,8 @@ import org.springframework.web.server.ResponseStatusException
 @RestController
 @RequestMapping
 class HttpBinLikeController(
-    private val backendApprovalsClient: BackendApprovalsClient
+    private val backendApprovalsClient: BackendApprovalsClient,
+    private val backendUserIdResolver: BackendUserIdResolver
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(HttpBinLikeController::class.java)
@@ -68,7 +69,7 @@ class HttpBinLikeController(
     @GetMapping("/approvals")
     fun approvals(authentication: Authentication): ResponseEntity<Map<String, Any?>> {
         val jwt = authentication.principal as? Jwt
-        val backendUserId = extractBackendUserId(jwt)
+        val backendUserId = backendUserIdResolver.resolve(jwt)
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unable to resolve backend user id from token")
 
         val backendResponse = try {
@@ -86,32 +87,5 @@ class HttpBinLikeController(
                 "backend" to backendResponse
             )
         )
-    }
-
-    private fun extractBackendUserId(jwt: Jwt?): String? {
-        if (jwt == null) {
-            return null
-        }
-
-        val explicit = listOf("backend_user_id", "user_id")
-            .mapNotNull { claim -> jwt.claims[claim] as? String }
-            .firstOrNull { it.isNotBlank() }
-        if (!explicit.isNullOrBlank()) {
-            return explicit
-        }
-
-        val subject = jwt.subject?.trim().orEmpty()
-        if (subject.isBlank()) {
-            return null
-        }
-
-        if (subject.startsWith("f:")) {
-            val parts = subject.split(":")
-            if (parts.size >= 3 && parts.last().isNotBlank()) {
-                return parts.last()
-            }
-        }
-
-        return subject
     }
 }

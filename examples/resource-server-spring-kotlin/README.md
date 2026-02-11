@@ -16,6 +16,7 @@ This service is a local httpbin-like resource server for token/debug validation.
 - `GET /health` is public.
 - `GET /get` requires a valid bearer token and returns token/keycloak details (`sub`, `azp`, `aud`, `scope`, `device_id`, `cnf`, timestamps).
 - `GET /approvals` requires a valid bearer token and proxies user approvals from backend (`/v1/users/{user_id}/approvals`) after resolving backend user id from token claims/subject.
+- `GET /ws/approvals?access_token=<jwt>` opens a WebSocket stream and pushes approval snapshots in near real-time. The stream polls backend every 2 seconds and only emits when approval payload changes.
 
 ## Run
 

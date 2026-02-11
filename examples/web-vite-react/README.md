@@ -19,6 +19,7 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 - `/callback` auth callback payload relay
 - `/session` backend user-id binding
 - `/resource` protected resource call + approvals view proxied by resource server
+- `/resource` also includes a simple `start live` button that subscribes to resource-server WebSocket approvals stream (`/ws/approvals`)
 
 ## File Layout
 
