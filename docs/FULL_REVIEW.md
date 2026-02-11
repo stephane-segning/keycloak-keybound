@@ -135,12 +135,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Nonce replay keys are global string keys without realm scoping.~~
   Evidence: replay keys now include realm name in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt:51` and `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt:164`.
 
-- `LOW` S-3: Example/dev configuration ships plaintext bootstrap credentials.
-  Affected:
-  - `compose.yaml:2`
-  - `compose.yaml:8`
-  Recommendation:
-  - Keep as dev-only and document stronger production secret handling explicitly.
+- `DONE` ~~Example/dev configuration ships plaintext bootstrap credentials.~~
+  Evidence: compose now labels bootstrap secrets as dev-only in `compose.yaml:4`.
 
 ## Future-Proofing Review
 
