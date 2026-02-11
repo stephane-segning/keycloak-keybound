@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.ssegning.keycloak.keybound.examples"
-version = "0.1.1"
+version = "0.1.2"
 
 java {
     toolchain {

@@ -82,6 +82,64 @@ jobs:
             echo "Unexpected API status while checking release: $status_code"
             exit 1
           fi
+      - name: Generate release notes since latest release
+        if: steps.release_check.outputs.release_exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.release_tag }}"
+
+          latest_status=$(curl -sS -o latest-release.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")
+
+          previous_tag=""
+          if [ "$latest_status" = "200" ]; then
+            previous_tag=$(python3 -c 'import json; import sys; print(json.load(open("latest-release.json")).get("tag_name",""))')
+          elif [ "$latest_status" = "404" ]; then
+            previous_tag=""
+          else
+            echo "Unexpected API status while fetching latest release: $latest_status"
+            exit 1
+          fi
+
+          export TAG="$tag"
+          export PREVIOUS_TAG="$previous_tag"
+
+          python3 - <<'PY' > generate-notes.json
+          import json, os
+
+          tag = os.environ["TAG"].strip()
+          prev = os.environ.get("PREVIOUS_TAG", "").strip()
+
+          payload = {"tag_name": tag, "target_commitish": "main"}
+          if prev and prev != tag:
+              payload["previous_tag_name"] = prev
+
+          print(json.dumps(payload))
+          PY
+
+          notes_status=$(curl -sS -o generated-notes.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d @generate-notes.json \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/generate-notes")
+
+          if [ "$notes_status" != "200" ]; then
+            echo "Unexpected API status while generating release notes: $notes_status"
+            cat generated-notes.json || true
+            exit 1
+          fi
+
+          python3 - <<'PY' > release-notes.md
+          import json
+          body = json.load(open("generated-notes.json")).get("body", "")
+          print(body)
+          PY
       - name: Create release with commit-based notes
         if: steps.release_check.outputs.release_exists == 'false'
         uses: ncipollo/release-action@v1.20.0
@@ -90,5 +148,5 @@ jobs:
           draft: false
           prerelease: false
           allowUpdates: false
-          generateReleaseNotes: true
+          bodyFile: release-notes.md
           tag: ${{ steps.version.outputs.release_tag }}

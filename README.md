@@ -3,9 +3,9 @@
 [![CI](https://github.com/stephane-segning/keycloak-keybound/actions/workflows/releases.yml/badge.svg)](https://github.com/stephane-segning/keycloak-keybound/actions/workflows/releases.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-_Keycloak Keybound_ is a community-ready plugin suite that turns Keycloak into a device-bound authentication powerhouse
-with minimal changes to your tenant. It bundles authenticators, credential providers, protocol mappers, a custom grant,
-and ready-to-run examples so teams can adopt frictionless, high-security device keys in one repository.
+_Keycloak Keybound_ is a plugin suite that adds device-bound authentication to Keycloak (Quarkus). It brings together
+enrollment authenticators, a device-key credential type, a protocol mapper, a custom grant, a custom endpoint, and
+examples so you can roll out per-device keys with a clear, auditable security contract.
 
 ## Highlights
 
@@ -17,6 +17,29 @@ and ready-to-run examples so teams can adopt frictionless, high-security device 
   for every module.
 - **Designed for production** – contract-driven grant, signature verification helpers, and workflows that respect
   Keycloak SPI lifecycles.
+
+## Why Device-Bound Auth
+
+Device-bound auth helps when you want more than "the user knows the password":
+
+- Reduce risk from phishing or stolen credentials by requiring a per-device private key.
+- Limit replay by signing requests with `nonce` and `ts`.
+- Give relying services a stable device identifier and proof-of-possession signal via token claims.
+- Keep policy and enforcement in Keycloak (flows, sessions, SPI contracts), not scattered across apps.
+
+## Security Model (At A Glance)
+
+Keycloak Keybound is designed around a simple contract:
+
+- Each enrolled device holds a private key.
+- Requests are signed over canonical payloads (see `docs/SIGNING_AND_VERIFICATION.md`).
+- Keycloak verifies signatures and issues tokens that carry device context for downstream policy.
+
+Threats it helps with (depending on your tenant policy and flow configuration):
+
+- Stolen credentials, token exfiltration, and "login on a different device" abuse.
+- Blind replays of signed requests (nonce and timestamp windowing).
+- Drift between clients and verifiers by standardizing payload ADTs.
 
 ## Plugin Modules & Flow
 
@@ -36,12 +59,12 @@ and ready-to-run examples so teams can adopt frictionless, high-security device 
 
 - Java 21+ SDK.
 - Gradle wrapper (`./gradlew`) already in repo.
-- Target Keycloak 21+/Quarkus mode (compatible with the SPI contracts).
+- Target Keycloak Quarkus distribution (the examples and dependencies target Keycloak 26.x).
 
 ### Build the plugin
 
 ```bash
-./gradlew clean build -x test
+./gradlew clean build
 ```
 
 Each module produces a provider JAR under `build/libs/`. Copy the ones you need into Keycloak's `providers/` directory
@@ -57,6 +80,11 @@ or keep them in a shared layer for custom container images.
 3. Upload the provider JARs (via the admin console or drop them into `providers/` before boot).
 4. Enable the authenticators in a custom flow, register device credentials, and wire the custom grant type into your
    clients.
+
+## Release Artifacts
+
+GitHub Releases ship the built module JARs from `*/build/libs/*.jar`. Pick only the SPIs you use and copy them into
+Keycloak's `providers/` directory.
 
 ## Quick Start Checklist
 
