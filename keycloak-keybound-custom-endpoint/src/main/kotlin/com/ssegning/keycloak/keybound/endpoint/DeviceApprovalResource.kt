@@ -112,11 +112,11 @@ class DeviceApprovalResource(
         val audience = jwt.otherClaims["aud"] as? String ?: return null
         val sessionId = jwt.otherClaims["sid"] as? String ?: return null
         val subject = jwt.otherClaims["sub"] as? String ?: return null
-        val issuedAt = (jwt.otherClaims["iat"] as? Number)?.toLong() ?: return null
-        val notBefore = (jwt.otherClaims["nbf"] as? Number)?.toLong() ?: return null
+        val issuedAt = jwt.iat ?: return null
+        val notBefore = jwt.nbf ?: return null
         val requestId = jwt.otherClaims["request_id"] as? String ?: return null
         val tokenId = jwt.otherClaims["jti"] as? String ?: return null
-        val exp = (jwt.otherClaims["exp"] as? Number)?.toLong() ?: return null
+        val exp = jwt.exp ?: return null
         return ApprovalPollingTokenClaims(
             realm = realm,
             client_id = clientId,
