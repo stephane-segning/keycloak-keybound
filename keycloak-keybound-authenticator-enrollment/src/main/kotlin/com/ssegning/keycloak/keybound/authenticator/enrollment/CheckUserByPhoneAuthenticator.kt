@@ -27,9 +27,10 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
             return
         }
 
+        val wantsApproval = resolved.enrollmentPath == CoreEnrollmentPath.APPROVAL
         authSession.setAuthNote(
             KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME,
-            if (resolved.enrollmentPath == CoreEnrollmentPath.APPROVAL) {
+            if (wantsApproval) {
                 KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL
             } else {
                 KeyboundFlowNotes.ENROLLMENT_PATH_OTP
@@ -54,6 +55,13 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
             context.user = resolvedUser
         } else {
             log.debug("No Keycloak user resolved for phone {} (backend user_exists={})", phoneE164, resolved.userExists)
+            if (wantsApproval) {
+                log.debug("Fallback to OTP enrollment path because no Keycloak user was resolved")
+                authSession.setAuthNote(
+                    KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME,
+                    KeyboundFlowNotes.ENROLLMENT_PATH_OTP
+                )
+            }
         }
 
         context.success()

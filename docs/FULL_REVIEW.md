@@ -47,7 +47,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
   Resolution note: example lookup now only matches phone attributes.
 - `DONE` ~~Readability suggestions for fully qualified names/imports in `Api.kt` and `CheckUserByPhoneAuthenticator.kt`~~: `2792650704`, `2792650719`, `2792650726`.
   Resolution note: import alias used for `EnrollmentPath`.
-- `OPEN` Approval-path routing can fail instead of OTP fallback when backend/user mapping is out of sync: `2792656255`.
+ - `DONE` ~~Approval-path routing can fail instead of OTP fallback when backend/user mapping is out of sync~~: `2792656255`.
+  Resolution note: fallback to OTP when no Keycloak user is resolved.
 
 ## Code Review
 
@@ -106,15 +107,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
   Impact:
   - Policy gate is backend-only at bind-time; if precheck gating is desired in-auth-flow it is currently missing.
 
-- `HIGH` C-5: Enrollment path can select approval even when no Keycloak user is resolvable.
-  Affected:
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:29`
-  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:45`
-  Impact:
-  - Backend may return approval path, but `context.user` remains null.
-  - Later authenticators requiring user can fail instead of safely falling back to OTP path.
-  Reference:
-  - PR inline comment `2792656255`.
+ - `DONE` ~~Enrollment path can select approval even when no Keycloak user is resolvable.~~
+  Evidence: OTP fallback enforced in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:40`.
 
 ## Security Review
 
@@ -227,7 +221,7 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 
 ## Prioritized Backlog
 
-1. Fix enrollment routing fallback so unresolved users cannot enter approval path (`C-5`).
+1. ~~Fix enrollment routing fallback so unresolved users cannot enter approval path (`C-5`).~~
 2. Remove/mask PII from auth and API logs (`S-4`).
 3. Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.
 4. ~~Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.~~
