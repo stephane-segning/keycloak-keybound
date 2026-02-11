@@ -17,7 +17,7 @@ Build verification performed:
 - `PARTIAL` ~~Device credentials are locally managed in Keycloak store by default~~
   Current state:
   - Local create is blocked as intended: `keycloak-keybound-credentials-device-key/src/main/kotlin/credentials/DeviceKeyCredential.kt:27`
-  - Reads/deletes are routed to backend APIs, but backend user-id resolution is inconsistent in credential provider (see open finding C-1).
+  - Reads/deletes are routed to backend APIs; backend user-id resolution now aligns with backend ids.
 
 - `DONE` ~~Device IDs are not first-class credential identifiers~~
   Evidence:
@@ -88,18 +88,13 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Protocol mapper note contract is mismatched with producers.~~
   Evidence: mapper now accepts `cnf.jkt` in `keycloak-keybound-protocol-mapper/src/main/kotlin/com/ssegning/keycloak/keybound/mapper/DeviceBindingProtocolMapper.kt:21`.
 
-### Open Findings
+- `DONE` ~~Enrollment path can select approval even when no Keycloak user is resolvable.~~
+  Evidence: OTP fallback enforced in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:40`.
 
-- `HIGH` C-1: Credential provider uses Keycloak internal `user.id` where backend user id is expected.
-  Affected:
-  - `keycloak-keybound-credentials-device-key/src/main/kotlin/credentials/DeviceKeyCredential.kt:65`
-  - `keycloak-keybound-credentials-device-key/src/main/kotlin/credentials/DeviceKeyCredential.kt:76`
-  - `keycloak-keybound-credentials-device-key/src/main/kotlin/credentials/DeviceKeyCredential.kt:113`
-  Impact:
-  - Device listing/configuration detection can fail for federated users (`StorageId` ids).
-  - Delete/disable may target wrong backend user id.
-  Recommendation:
-  - Resolve backend user id consistently (same strategy as `KeyboundUserResolver.resolveBackendUserId`).
+- `DONE` ~~Credential provider uses Keycloak internal `user.id` where backend user id is expected.~~
+  Evidence: credential provider now resolves backend user id in `keycloak-keybound-credentials-device-key/src/main/kotlin/credentials/DeviceKeyCredential.kt:67`.
+
+### Open Findings
 
 - `MEDIUM` C-3: Enrollment precheck API exists but is not part of runtime authenticator execution.
   Evidence:
@@ -107,9 +102,6 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
   - Precheck API exists but unused by authenticators: `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:184`
   Impact:
   - Policy gate is backend-only at bind-time; if precheck gating is desired in-auth-flow it is currently missing.
-
- - `DONE` ~~Enrollment path can select approval even when no Keycloak user is resolvable.~~
-  Evidence: OTP fallback enforced in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:40`.
 
 ## Security Review
 
@@ -213,7 +205,7 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 
 1. ~~Fix enrollment routing fallback so unresolved users cannot enter approval path (`C-5`).~~
 2. ~~Remove/mask PII from auth and API logs (`S-4`).~~
-3. Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.
+3. ~~Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.~~
 4. ~~Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.~~
 5. Enforce Java 21 toolchain in all plugin modules (`F-1`).
 6. ~~Restrict backend phone lookup matching to dedicated phone attributes (`C-6`).~~
