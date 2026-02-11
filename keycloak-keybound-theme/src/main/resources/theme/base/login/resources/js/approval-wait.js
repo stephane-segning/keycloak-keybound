@@ -45,12 +45,21 @@
             }
         })
             .then(function (response) {
+                if (response.status === 401) {
+                    submitWithStatus("EXPIRED");
+                    return null;
+                }
+
                 if (!response.ok) {
                     throw new Error("Polling returned status " + response.status);
                 }
                 return response.json();
             })
             .then(function (data) {
+                if (!data) {
+                    return;
+                }
+
                 var status = (data && data.status) || "PENDING";
                 if (status === "APPROVED" || status === "DENIED" || status === "EXPIRED") {
                     submitWithStatus(status);

@@ -18,6 +18,7 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
     companion object {
         private val log = LoggerFactory.getLogger(WaitForApprovalFormAuthenticator::class.java)
         private const val POLLING_INTERVAL_MS = 2000
+        private const val APPROVAL_STATUS_FORM_FIELD = "approval_status"
     }
 
     override fun requiresUser() = true
@@ -54,6 +55,24 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
     }
 
     override fun action(context: AuthenticationFlowContext) {
+        val submittedStatus = context.httpRequest.decodedFormParameters
+            .getFirst(APPROVAL_STATUS_FORM_FIELD)
+            ?.trim()
+            ?.uppercase()
+        when (submittedStatus) {
+            "DENIED" -> {
+                log.info("Approval wait flow submitted with denied status from browser")
+                context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                return
+            }
+
+            "EXPIRED", "CANCELLED", "UNAUTHORIZED", "ERROR" -> {
+                log.info("Approval wait flow submitted with terminal status={} from browser", submittedStatus)
+                context.failure(AuthenticationFlowError.EXPIRED_CODE)
+                return
+            }
+        }
+
         val authSession = context.authenticationSession
         val requestId = authSession.getAuthNote(StartApprovalRequestAuthenticator.APPROVAL_REQUEST_ID_NOTE)
         if (requestId.isNullOrBlank()) {

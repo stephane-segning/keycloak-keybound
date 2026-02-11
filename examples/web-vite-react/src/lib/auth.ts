@@ -5,6 +5,9 @@ import {loadDeviceRecord} from './storage';
 
 export const TOKEN_STORAGE_KEY = 'keybound.tokens';
 export const GRANT_USER_ID_STORAGE_KEY = 'keybound.grant_user_id';
+const CODE_VERIFIER_STORAGE_KEY = "code_verifier";
+const LAST_LOGIN_NONCE_STORAGE_KEY = "last_login_nonce";
+const LAST_LOGIN_TS_STORAGE_KEY = "last_login_ts";
 const DEVICE_KEY_GRANT_TYPE = 'urn:ssegning:params:oauth:grant-type:device_key';
 
 export type TokenResponse = {
@@ -99,7 +102,7 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
 }
 
 export async function exchangeAuthorizationCode(code: string): Promise<TokenResponse> {
-    const codeVerifier = sessionStorage.getItem('code_verifier');
+    const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
     if (!codeVerifier) {
         throw new Error('Missing code_verifier in sessionStorage');
     }
@@ -126,6 +129,12 @@ export async function exchangeAuthorizationCode(code: string): Promise<TokenResp
     }
 
     return payload;
+}
+
+export function saveLoginChallengeContext(codeVerifier: string, nonce: string, ts: string): void {
+    sessionStorage.setItem(CODE_VERIFIER_STORAGE_KEY, codeVerifier);
+    sessionStorage.setItem(LAST_LOGIN_NONCE_STORAGE_KEY, nonce);
+    sessionStorage.setItem(LAST_LOGIN_TS_STORAGE_KEY, ts);
 }
 
 export async function fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {

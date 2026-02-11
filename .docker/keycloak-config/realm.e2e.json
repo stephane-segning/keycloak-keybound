@@ -148,6 +148,7 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
+        "http://localhost:5173/popup-callback.html",
         "http://localhost:5173/callback"
       ],
       "webOrigins": [

@@ -1,7 +1,21 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {CLIENT_ID, KEYCLOAK_BASE_URL, KEYCLOAK_REALM, REDIRECT_URI} from '../config';
 import {useDeviceStorage} from '../hooks/use-device-storage';
-import {exchangeAuthorizationCode, extractUserId, fetchUserInfo, saveGrantUserId, saveTokens,} from '../lib/auth';
+import {
+    exchangeAuthorizationCode,
+    extractUserId,
+    fetchUserInfo,
+    saveGrantUserId,
+    saveLoginChallengeContext,
+    saveTokens,
+} from '../lib/auth';
+import {
+    closePopup,
+    getCurrentOrigin,
+    openCenteredPopup,
+    registerWindowMessageListener,
+    resolveDevicePlatform
+} from '../lib/browser-runtime';
 import {signPayload, stringifyPublicJwk} from '../lib/crypto';
 import {createPrefixedId} from '../lib/id';
 import {createCodeChallenge, createCodeVerifier} from '../lib/pkce';
@@ -37,9 +51,7 @@ export const LoginPage = () => {
                     await setUserId(userId);
                 }
 
-                if (popupRef.current && !popupRef.current.closed) {
-                    popupRef.current.close();
-                }
+                closePopup(popupRef.current);
 
                 setResult({
                     userId,
@@ -60,7 +72,7 @@ export const LoginPage = () => {
     useEffect(() => {
         // Receives callback payload from /callback popup and finishes code exchange in this window.
         const handler = (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) return;
+            if (event.origin !== getCurrentOrigin()) return;
             const payload = event.data as {
                 type?: string;
                 code?: string;
@@ -80,37 +92,24 @@ export const LoginPage = () => {
             void completeCodeFlow(payload.code);
         };
 
-        window.addEventListener('message', handler);
-        return () => window.removeEventListener('message', handler);
+        return registerWindowMessageListener(handler);
     }, [completeCodeFlow]);
 
     useEffect(
         () => () => {
-            if (popupRef.current && !popupRef.current.closed) {
-                popupRef.current.close();
-            }
+            closePopup(popupRef.current);
         },
         []
     );
 
     const openPopup = useCallback((url: string) => {
-        const width = 480;
-        const height = 760;
-        const left = Math.max(0, Math.floor((window.screen.width - width) / 2));
-        const top = Math.max(0, Math.floor((window.screen.height - height) / 2));
-        const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
-        const popup = window.open(url, 'keybound-login', features);
+        const popup = openCenteredPopup(url, 'keybound-login', 480, 760);
         if (!popup) {
             setStatus('error: popup blocked by browser');
             return;
         }
         popupRef.current = popup;
         setStatus('awaiting-login');
-    }, []);
-
-    const resolveDeviceOs = useCallback(() => {
-        const nav = window.navigator as Navigator & { userAgentData?: { platform?: string } };
-        return nav.userAgentData?.platform || nav.platform || 'web';
     }, []);
 
     const handleStart = async () => {
@@ -130,9 +129,7 @@ export const LoginPage = () => {
         // PKCE verifier/challenge pair for authorization code flow.
         const codeVerifier = createCodeVerifier();
         const codeChallenge = await createCodeChallenge(codeVerifier);
-        sessionStorage.setItem('code_verifier', codeVerifier);
-        sessionStorage.setItem('last_login_nonce', nonce);
-        sessionStorage.setItem('last_login_ts', ts);
+        saveLoginChallengeContext(codeVerifier, nonce, ts);
 
         // Custom auth params (device key, signature, metadata) are attached to /auth request.
         const params = new URLSearchParams({
@@ -150,7 +147,7 @@ export const LoginPage = () => {
             sig: signature,
             action: 'login',
             aud: CLIENT_ID,
-            device_os: resolveDeviceOs(),
+            device_os: resolveDevicePlatform(),
             device_model: 'vite-react',
             user_hint: current.userId ?? '',
         });
