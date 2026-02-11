@@ -7,6 +7,8 @@ import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
 import com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
 import com.ssegning.keycloak.keybound.core.models.EnrollmentPrecheckResult
+import com.ssegning.keycloak.keybound.core.models.PhoneResolveOrCreateResult
+import com.ssegning.keycloak.keybound.core.models.PhoneResolveResult
 import com.ssegning.keycloak.keybound.core.models.SmsRequest
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.provider.Provider
@@ -21,6 +23,17 @@ interface ApiGateway : Provider {
         code: String,
         hash: String
     ): String?
+
+    fun resolveUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String,
+        userHint: String? = null
+    ): PhoneResolveResult?
+
+    fun resolveOrCreateUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String
+    ): PhoneResolveOrCreateResult?
 
     fun checkApprovalStatus(requestId: String): ApprovalStatus?
 

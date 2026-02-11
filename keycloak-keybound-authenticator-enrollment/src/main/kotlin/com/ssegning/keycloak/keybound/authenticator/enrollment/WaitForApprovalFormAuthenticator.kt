@@ -27,7 +27,8 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
             return false
         }
 
-        val deviceCount = apiGateway.listUserDevices(user.id, false)?.size
+        val backendUserId = KeyboundUserResolver.resolveBackendUserId(user)
+        val deviceCount = apiGateway.listUserDevices(backendUserId, false)?.size
         return deviceCount != null && deviceCount > 0
     }
 

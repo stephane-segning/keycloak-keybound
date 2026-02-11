@@ -28,19 +28,22 @@ class StartApprovalRequestAuthenticator(
             return false
         }
 
-        val deviceCount = apiGateway.listUserDevices(user.id, false)?.size
+        val backendUserId = KeyboundUserResolver.resolveBackendUserId(user)
+        val deviceCount = apiGateway.listUserDevices(backendUserId, false)?.size
         return deviceCount != null && deviceCount > 0
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
         val authSession = context.authenticationSession
-        val userId = authSession.authenticatedUser.id
+        val authenticatedUser = authSession.authenticatedUser
+        val userId = authSession.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
+            ?: authenticatedUser?.let { KeyboundUserResolver.resolveBackendUserId(it) }
         val deviceId = authSession.getAuthNote(AbstractKeyAuthenticator.DEVICE_ID_NOTE_NAME)
         val publicKeyStr = authSession.getAuthNote(AbstractKeyAuthenticator.DEVICE_PUBLIC_KEY_NOTE_NAME)
         val deviceOs = authSession.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_OS_NOTE_NAME)
         val deviceModel = authSession.getAuthNote(PersistDeviceCredentialAuthenticator.DEVICE_MODEL_NOTE_NAME)
 
-        if (deviceId.isNullOrBlank() || publicKeyStr.isNullOrBlank()) {
+        if (userId.isNullOrBlank() || deviceId.isNullOrBlank() || publicKeyStr.isNullOrBlank()) {
             log.error("Missing device details for approval request (deviceId={}, publicKeyPresent={})", deviceId, !publicKeyStr.isNullOrBlank())
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return

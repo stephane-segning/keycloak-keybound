@@ -3,6 +3,8 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 object KeyboundFlowNotes {
     const val PHONE_E164_NOTE_NAME = "phone_e164"
     const val PHONE_VERIFIED_NOTE_NAME = "phone_verified"
+    const val RESOLVED_USERNAME_NOTE_NAME = "keybound.user.username"
+    const val BACKEND_USER_ID_NOTE_NAME = "keybound.user.backend_id"
 
     const val ENROLL_PHONE_NOTE_NAME = "enroll.phone_e164"
     const val ENROLL_SMS_HASH_NOTE_NAME = "enroll.sms_hash"

@@ -430,6 +430,57 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /v1/enrollments/phone/resolve:
+    post:
+      tags: [enrollment]
+      summary: Resolve user by phone and recommended enrollment path
+      description: |
+        Backend resolves whether the phone belongs to an existing user and whether the user has active devices.
+        This lets Keycloak keep routing logic minimal.
+      operationId: resolveUserByPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneResolveRequest'
+      responses:
+        '200':
+          description: Phone resolution and routing recommendation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneResolveResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/enrollments/phone/resolve-or-create:
+    post:
+      tags: [enrollment]
+      summary: Resolve existing user by phone or create one
+      description: |
+        Used after OTP verification to offload user find/create behavior to backend.
+      operationId: resolveOrCreateUserByPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneResolveOrCreateRequest'
+      responses:
+        '200':
+          description: User resolved or created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhoneResolveOrCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   parameters:
     IdempotencyKey:
@@ -877,6 +928,67 @@ components:
         reason:
           type: string
           nullable: true
+
+    EnrollmentPath:
+      type: string
+      enum: [APPROVAL, OTP]
+
+    PhoneResolveRequest:
+      type: object
+      required: [realm, client_id, phone_number]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        phone_number:
+          type: string
+        user_hint:
+          type: string
+          nullable: true
+
+    PhoneResolveResponse:
+      type: object
+      required: [phone_number, user_exists, has_device_credentials, enrollment_path]
+      properties:
+        phone_number:
+          type: string
+        user_exists:
+          type: boolean
+        has_device_credentials:
+          type: boolean
+        enrollment_path:
+          $ref: '#/components/schemas/EnrollmentPath'
+        user_id:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+
+    PhoneResolveOrCreateRequest:
+      type: object
+      required: [realm, client_id, phone_number]
+      properties:
+        realm:
+          type: string
+        client_id:
+          type: string
+        phone_number:
+          type: string
+
+    PhoneResolveOrCreateResponse:
+      type: object
+      required: [phone_number, user_id, username, created]
+      properties:
+        phone_number:
+          type: string
+        user_id:
+          type: string
+        username:
+          type: string
+        created:
+          type: boolean
 
     Error:
       type: object

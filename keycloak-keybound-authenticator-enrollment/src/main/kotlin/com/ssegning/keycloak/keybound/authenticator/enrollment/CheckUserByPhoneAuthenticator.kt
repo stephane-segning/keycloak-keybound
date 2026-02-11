@@ -1,8 +1,8 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.core.helper.getApi
 import org.keycloak.authentication.AuthenticationFlowContext
-import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
 class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
@@ -11,65 +11,54 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
     }
 
     override fun authenticate(context: AuthenticationFlowContext) {
-        val phoneE164 = context.authenticationSession.getAuthNote(KeyboundFlowNotes.PHONE_E164_NOTE_NAME)?.trim()
+        val authSession = context.authenticationSession
+        val phoneE164 = authSession.getAuthNote(KeyboundFlowNotes.PHONE_E164_NOTE_NAME)?.trim()
         if (phoneE164.isNullOrBlank()) {
             log.debug("Phone note missing; skipping user lookup")
             context.success()
             return
         }
 
-        val resolvedUser = resolveByPhone(context, phoneE164)
-        if (resolvedUser == null) {
-            log.debug("No user resolved by phone {}", phoneE164)
-            context.success()
+        val resolved = context.session.getApi().resolveUserByPhone(context, phoneE164)
+        if (resolved == null) {
+            log.error("Backend phone resolve failed for phone {}", phoneE164)
+            context.failure(org.keycloak.authentication.AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
 
-        log.debug("Resolved existing user {} by phone {}", resolvedUser.username, phoneE164)
-        context.user = resolvedUser
+        authSession.setAuthNote(
+            KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME,
+            if (resolved.enrollmentPath == com.ssegning.keycloak.keybound.core.models.EnrollmentPath.APPROVAL) {
+                KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL
+            } else {
+                KeyboundFlowNotes.ENROLLMENT_PATH_OTP
+            }
+        )
+
+        if (!resolved.userId.isNullOrBlank()) {
+            authSession.setAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME, resolved.userId)
+        }
+        if (!resolved.username.isNullOrBlank()) {
+            authSession.setAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME, resolved.username)
+        }
+
+        val resolvedUser = KeyboundUserResolver.resolveUser(
+            context = context,
+            backendUserId = resolved.userId,
+            username = resolved.username,
+            phoneE164 = phoneE164
+        )
+        if (resolvedUser != null) {
+            log.debug("Resolved existing user {} by phone {}", resolvedUser.username, phoneE164)
+            context.user = resolvedUser
+        } else {
+            log.debug("No Keycloak user resolved for phone {} (backend user_exists={})", phoneE164, resolved.userExists)
+        }
+
         context.success()
     }
 
     override fun action(context: AuthenticationFlowContext) {
         // No action needed for this authenticator
-    }
-
-    private fun resolveByPhone(context: AuthenticationFlowContext, phoneE164: String): UserModel? {
-        val session = context.session
-        val realm = context.realm
-        return findSingleUserByAttribute(context, "phone_e164", phoneE164)
-            ?: findSingleUserByAttribute(context, "phone_number", phoneE164)
-            ?: session.users().getUserByUsername(realm, phoneE164)
-            ?: session.users().getUserByEmail(realm, phoneE164)
-    }
-
-    private fun findSingleUserByAttribute(
-        context: AuthenticationFlowContext,
-        attributeName: String,
-        attributeValue: String
-    ): UserModel? {
-        val stream = context.session.users()
-            .searchForUserByUserAttributeStream(context.realm, attributeName, attributeValue)
-        return try {
-            val iterator = stream.iterator()
-            if (!iterator.hasNext()) {
-                null
-            } else {
-                val first = iterator.next()
-                if (iterator.hasNext()) {
-                    log.error(
-                        "Multiple users resolved for {}='{}' in realm {}",
-                        attributeName,
-                        attributeValue,
-                        context.realm.name
-                    )
-                    null
-                } else {
-                    first
-                }
-            }
-        } finally {
-            stream.close()
-        }
     }
 }

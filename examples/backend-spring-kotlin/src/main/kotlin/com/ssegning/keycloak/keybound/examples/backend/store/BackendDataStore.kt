@@ -316,6 +316,47 @@ class BackendDataStore {
         }
     }
 
+    fun resolveUserByPhone(request: PhoneResolveRequest): PhoneResolveResponse {
+        val normalizedPhone = request.phoneNumber.trim()
+        val matchedUser = findSingleUserByPhone(request.realm, normalizedPhone)
+        val hasActiveDevices = matchedUser?.let { hasActiveDeviceCredentials(it.userId) } == true
+        val enrollmentPath = if (matchedUser != null && hasActiveDevices) EnrollmentPath.APPROVAL else EnrollmentPath.OTP
+
+        return PhoneResolveResponse()
+            .phoneNumber(normalizedPhone)
+            .userExists(matchedUser != null)
+            .hasDeviceCredentials(hasActiveDevices)
+            .enrollmentPath(enrollmentPath)
+            .userId(matchedUser?.userId)
+            .username(matchedUser?.username)
+    }
+
+    fun resolveOrCreateUserByPhone(request: PhoneResolveOrCreateRequest): PhoneResolveOrCreateResponse {
+        val normalizedPhone = request.phoneNumber.trim()
+        val existingUser = findSingleUserByPhone(request.realm, normalizedPhone)
+        if (existingUser != null) {
+            return PhoneResolveOrCreateResponse()
+                .phoneNumber(normalizedPhone)
+                .userId(existingUser.userId)
+                .username(existingUser.username)
+                .created(false)
+        }
+
+        val createdUser = createUser(
+            UserUpsertRequest()
+                .realm(request.realm)
+                .username(normalizedPhone)
+                .enabled(true)
+                .attributes(mapOf("phone_e164" to normalizedPhone))
+        )
+
+        return PhoneResolveOrCreateResponse()
+            .phoneNumber(normalizedPhone)
+            .userId(createdUser.userId)
+            .username(createdUser.username)
+            .created(true)
+    }
+
     fun createApproval(request: ApprovalCreateRequest): ApprovalCreateResponse {
         val requestId = nextPrefixedId("apr")
         val created = StoredApproval(
@@ -355,6 +396,28 @@ class BackendDataStore {
     private fun canonicalAttributeKey(attributeKey: String): String = when (attributeKey.trim()) {
         "phone_number", "phone" -> "phone_e164"
         else -> attributeKey
+    }
+
+    private fun hasActiveDeviceCredentials(userId: String): Boolean =
+        devicesById.values.any { it.userId == userId && it.status == DeviceRecord.StatusEnum.ACTIVE }
+
+    private fun findSingleUserByPhone(realm: String, phoneE164: String): StoredUser? {
+        val matches = users.values
+            .asSequence()
+            .filter { it.realm == realm }
+            .filter { candidate ->
+                candidate.attributes["phone_e164"] == phoneE164 ||
+                    candidate.attributes["phone_number"] == phoneE164 ||
+                    candidate.username.equals(phoneE164, ignoreCase = true) ||
+                    candidate.email?.equals(phoneE164, ignoreCase = true) == true
+            }
+            .toList()
+
+        if (matches.size > 1) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Multiple users matched phone number")
+        }
+
+        return matches.firstOrNull()
     }
 
     private fun nextUserId(): String = nextPrefixedId("usr")

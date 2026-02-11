@@ -86,6 +86,59 @@ open class Api(
         return enrollmentApi.confirmSms(smsConfirmRequest).confirmed.toString()
     }
 
+    override fun resolveUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String,
+        userHint: String?
+    ): PhoneResolveResult? = try {
+        val response = enrollmentApi.resolveUserByPhone(
+            PhoneResolveRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                phoneNumber = phoneNumber,
+                userHint = userHint
+            )
+        )
+
+        PhoneResolveResult(
+            phoneNumber = response.phoneNumber,
+            userExists = response.userExists,
+            hasDeviceCredentials = response.hasDeviceCredentials,
+            enrollmentPath = when (response.enrollmentPath) {
+                EnrollmentPath.APPROVAL -> com.ssegning.keycloak.keybound.core.models.EnrollmentPath.APPROVAL
+                EnrollmentPath.OTP -> com.ssegning.keycloak.keybound.core.models.EnrollmentPath.OTP
+            },
+            userId = response.userId,
+            username = response.username
+        )
+    } catch (e: Exception) {
+        log.error("Failed to resolve user by phone {}", phoneNumber, e)
+        null
+    }
+
+    override fun resolveOrCreateUserByPhone(
+        context: AuthenticationFlowContext,
+        phoneNumber: String
+    ): PhoneResolveOrCreateResult? = try {
+        val response = enrollmentApi.resolveOrCreateUserByPhone(
+            PhoneResolveOrCreateRequest(
+                realm = context.realm.name,
+                clientId = context.authenticationSession.client.clientId,
+                phoneNumber = phoneNumber
+            )
+        )
+
+        PhoneResolveOrCreateResult(
+            phoneNumber = response.phoneNumber,
+            userId = response.userId,
+            username = response.username,
+            created = response.created
+        )
+    } catch (e: Exception) {
+        log.error("Failed to resolve or create user by phone {}", phoneNumber, e)
+        null
+    }
+
     override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {
         log.debug("Checking approval status for request {}", requestId)
         val response = approvalsApi.getApproval(requestId)

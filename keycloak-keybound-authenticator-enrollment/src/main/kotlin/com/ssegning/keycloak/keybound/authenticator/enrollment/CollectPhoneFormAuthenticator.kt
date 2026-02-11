@@ -39,6 +39,9 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         context.authenticationSession.setAuthNote(KeyboundFlowNotes.PHONE_E164_NOTE_NAME, phoneNumber)
         context.authenticationSession.removeAuthNote(KeyboundFlowNotes.PHONE_VERIFIED_NOTE_NAME)
         context.authenticationSession.removeAuthNote(KeyboundFlowNotes.ENROLL_SMS_HASH_NOTE_NAME)
+        context.authenticationSession.removeAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
+        context.authenticationSession.removeAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME)
+        context.authenticationSession.removeAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
         log.debug("Collected phone number {}", phoneNumber)
         context.success()
     }

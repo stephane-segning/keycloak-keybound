@@ -1,9 +1,9 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
+import com.ssegning.keycloak.keybound.core.helper.getApi
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
-import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
 /**
@@ -25,14 +25,26 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
             return
         }
 
-        log.debug("Resolving or creating user from verified phone '{}'", phoneE164)
-        var user = resolveByVerifiedPhone(context, phoneE164)
-        if (user == null) {
-            user = createUserFromPhone(context, phoneE164)
+        val resolved = context.session.getApi().resolveOrCreateUserByPhone(context, phoneE164)
+        if (resolved == null) {
+            log.error("Backend failed to resolve or create user from phone '{}'", phoneE164)
+            context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+            return
         }
 
+        authSession.setAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME, resolved.userId)
+        authSession.setAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME, resolved.username)
+
+        log.debug("Resolving Keycloak user for backend userId={} username={}", resolved.userId, resolved.username)
+        val user = KeyboundUserResolver.resolveUser(
+            context = context,
+            backendUserId = resolved.userId,
+            username = resolved.username,
+            phoneE164 = phoneE164
+        )
+
         if (user == null) {
-            log.warn("Unable to resolve or create user from verified phone")
+            log.warn("Unable to map backend user '{}' to Keycloak user context", resolved.userId)
             context.failure(AuthenticationFlowError.UNKNOWN_USER)
             return
         }
@@ -44,63 +56,5 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
 
     override fun action(context: AuthenticationFlowContext) {
         // No action needed for this authenticator
-    }
-
-    private fun resolveByVerifiedPhone(context: AuthenticationFlowContext, phoneE164: String): UserModel? {
-        val session = context.session
-        val realm = context.realm
-        return findSingleUserByAttribute(context, "phone_e164", phoneE164)
-            ?: findSingleUserByAttribute(context, "phone_number", phoneE164)
-            ?: session.users().getUserByUsername(realm, phoneE164)
-            ?: session.users().getUserByEmail(realm, phoneE164)
-    }
-
-    private fun findSingleUserByAttribute(
-        context: AuthenticationFlowContext,
-        attributeName: String,
-        attributeValue: String
-    ): UserModel? {
-        val stream = context.session.users()
-            .searchForUserByUserAttributeStream(context.realm, attributeName, attributeValue)
-        return try {
-            val iterator = stream.iterator()
-            if (!iterator.hasNext()) {
-                null
-            } else {
-                val first = iterator.next()
-                if (iterator.hasNext()) {
-                    log.error(
-                        "Multiple users resolved for {}='{}' in realm {}",
-                        attributeName,
-                        attributeValue,
-                        context.realm.name
-                    )
-                    null
-                } else {
-                    first
-                }
-            }
-        } finally {
-            stream.close()
-        }
-    }
-
-    private fun createUserFromPhone(context: AuthenticationFlowContext, phoneE164: String): UserModel? {
-        val normalizedPhone = phoneE164.trim()
-        return try {
-            val createdUser = context.session.users().addUser(context.realm, normalizedPhone)
-            if (createdUser == null) {
-                log.error("Failed to create user from verified phone {}", normalizedPhone)
-                null
-            } else {
-                createdUser.isEnabled = true
-                createdUser.setSingleAttribute("phone_e164", normalizedPhone)
-                log.debug("Created new user '{}' from verified phone '{}'", createdUser.username, normalizedPhone)
-                createdUser
-            }
-        } catch (exception: Exception) {
-            log.error("Error creating user from verified phone {}", normalizedPhone, exception)
-            null
-        }
     }
 }
