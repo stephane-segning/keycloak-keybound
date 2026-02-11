@@ -28,13 +28,13 @@ and ready-to-run examples so teams can adopt frictionless, high-security device 
 | `keycloak-keybound-protocol-mapper`          | Maps device metadata into access tokens so downstream services can make policy decisions.               |
 | `keycloak-keybound-theme`                    | Skin for login flows that surfaces device status to users.                                              |
 | `keycloak-keybound-api-gateway-http`         | Custom endpoint for verifying device signatures from external services.                                 |
-| `keycloak-keybound-user-storage-backend`     | Optional SPI for syncing devices from external systems (planned).                                       |
+| `keycloak-keybound-user-storage-backend`     | User Storage SPI backed by backend APIs for externalized user CRUD/search.                              |
 
 ## Installation
 
 ### Prerequisites
 
-- Java 17+ SDK (matching Keycloak's runtime).
+- Java 21+ SDK.
 - Gradle wrapper (`./gradlew`) already in repo.
 - Target Keycloak 21+/Quarkus mode (compatible with the SPI contracts).
 
@@ -87,18 +87,14 @@ or keep them in a shared layer for custom container images.
 
 ## Documentation & Learning
 
-- `docs/USAGE.md` – setup, troubleshooting, and day-one guide.
-- `docs/STRUCTURE.md` – module breakdown and interdependencies.
-- `docs/WORKFLOWS/` – sequence diagrams for enrollment, approval, grants, and proposed flows.
-- `docs/PLAN.md` – roadmap, implementation status, and contribution checkpoints.
-- `docs/SECURITY.md` – risk review and mitigation notes.
+- `docs/FULL_REVIEW.md` – merged implementation, code, security, and future-proofing review.
 - `docs/recommendations.md` – practical deployment suggestions.
 
 ## Contributing
 
 Pull requests, issue reports, and architectural feedback are welcome. Please:
 
-1. Read `docs/PLAN.md` before proposing structure changes.
+1. Read `docs/FULL_REVIEW.md` before proposing structure changes.
 2. Place tests or behavior demonstrations in `examples/` when touching runtime logic.
 3. Keep docs ASCII and reference existing workflow diagrams.
 
