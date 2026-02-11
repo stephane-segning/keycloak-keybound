@@ -17,6 +17,7 @@ open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTok
         const val PROVIDER_ID = "device-binding-mapper"
         const val DEVICE_ID_NOTE = "device.id"
         const val JKT_NOTE = "jkt"
+        const val CNF_JKT_NOTE = "cnf.jkt"
     }
 
     private val log = LoggerFactory.getLogger(DeviceBindingProtocolMapper::class.java)
@@ -40,7 +41,10 @@ open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTok
     ) {
         val clientSession = clientSessionCtx.clientSession
         val deviceId = clientSession.getNote(DEVICE_ID_NOTE) ?: userSession.getNote(DEVICE_ID_NOTE)
-        val jkt = clientSession.getNote(JKT_NOTE) ?: userSession.getNote(JKT_NOTE)
+        val jkt = clientSession.getNote(JKT_NOTE)
+            ?: userSession.getNote(JKT_NOTE)
+            ?: clientSession.getNote(CNF_JKT_NOTE)
+            ?: userSession.getNote(CNF_JKT_NOTE)
 
         if (deviceId == null && jkt == null) {
             log.debug("No device binding notes found for clientSession {} userSession {}", clientSession.id, userSession.id)
