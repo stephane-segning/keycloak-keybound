@@ -3,11 +3,8 @@ on:
   push:
     branches:
       - '**'
-    tags:
-      - '*'
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,86 +20,79 @@ jobs:
         uses: gradle/actions/setup-gradle@v4.2.2
       - name: Build with Gradle
         run: ./gradlew shadow
-      - name: Centralize Artifacts
+      - name: Collect artifacts
         run: |
           mkdir -p dist
-          cp */build/libs/*.jar ./
-      - name: Archive Artifacts
+          cp */build/libs/*.jar dist/
+      - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: target-jar
-          path: "*.jar"
+          path: dist/*.jar
 
-  prepare_release:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      release_tag: ${{ steps.prepare.outputs.release_tag }}
-      tag_created: ${{ steps.prepare.outputs.tag_created }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Configure Git
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-      - name: Resolve release tag and create it on main when missing
-        id: prepare
-        run: |
-          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-            echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "tag_created=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          version_line=$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' build.gradle.kts | head -n 1)
-          if [ -z "$version_line" ]; then
-            echo "Unable to read version from build.gradle.kts"
-            exit 1
-          fi
-
-          tag="v${version_line}"
-          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
-          if git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists"
-            echo "tag_created=false" >> "$GITHUB_OUTPUT"
-          else
-            git tag "$tag"
-            git push origin "$tag"
-            echo "tag_created=true" >> "$GITHUB_OUTPUT"
-          fi
-
-
-  release:
-    needs:
-      - build
-      - prepare_release
-    if: startsWith(github.ref, 'refs/tags/') || (github.ref == 'refs/heads/main' && needs.prepare_release.outputs.tag_created == 'true')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v6
-      - name: Download Build Artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: target-jar
           path: dist
           merge-multiple: true
-      - name: Move jars into workspace
-        run: cp dist/*.jar .
-      - name: Release
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Determine release tag from Gradle version
+        id: version
+        run: |
+          version_line=$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' build.gradle.kts | head -n 1)
+          if [ -z "$version_line" ]; then
+            echo "Unable to read version from build.gradle.kts"
+            exit 1
+          fi
+          echo "release_tag=v${version_line}" >> "$GITHUB_OUTPUT"
+      - name: Ensure version tag exists
+        run: |
+          tag="${{ steps.version.outputs.release_tag }}"
+          if git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+          fi
+      - name: Check if release already exists
+        id: release_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.release_tag }}"
+          status_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${tag}")
+          if [ "$status_code" = "200" ]; then
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+          elif [ "$status_code" = "404" ]; then
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unexpected API status while checking release: $status_code"
+            exit 1
+          fi
+      - name: Create release with commit-based notes
+        if: steps.release_check.outputs.release_exists == 'false'
         uses: ncipollo/release-action@v1.20.0
         with:
-          artifacts: '*.jar'
+          artifacts: 'dist/*.jar'
           draft: false
           prerelease: false
-          allowUpdates: true
-          bodyFile: CHANGELOG.md
-          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          allowUpdates: false
+          generateReleaseNotes: true
+          tag: ${{ steps.version.outputs.release_tag }}
