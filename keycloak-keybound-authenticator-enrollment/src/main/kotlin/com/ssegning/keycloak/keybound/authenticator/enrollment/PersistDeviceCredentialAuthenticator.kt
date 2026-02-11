@@ -4,6 +4,7 @@ import com.ssegning.keycloak.keybound.authenticator.enrollment.authenticator.Abs
 import com.ssegning.keycloak.keybound.core.helper.computeJkt
 import com.ssegning.keycloak.keybound.core.helper.parsePublicJwk
 import com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
+import com.ssegning.keycloak.keybound.core.models.EnrollmentDecision
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
@@ -53,9 +54,45 @@ class PersistDeviceCredentialAuthenticator(
                 appVersion = null
             )
 
-            val bound = apiGateway.enrollmentBind(
+            val precheck = apiGateway.enrollmentPrecheck(
                 context = context,
                 userId = backendUserId,
+                userHint = user.username,
+                deviceData = deviceDescriptor
+            )
+
+            if (precheck == null) {
+                log.error("Enrollment precheck failed for user {}", backendUserId)
+                context.failure(AuthenticationFlowError.INTERNAL_ERROR)
+                return
+            }
+
+            precheck.boundUserId?.takeIf { it.isNotBlank() }?.let {
+                session.setAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME, it)
+            }
+
+            when (precheck.decision) {
+                EnrollmentDecision.REJECT -> {
+                    log.warn("Enrollment precheck rejected for user {}", backendUserId)
+                    context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                    return
+                }
+
+                EnrollmentDecision.REQUIRE_APPROVAL -> {
+                    val path = session.getAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
+                    if (path != KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL) {
+                        log.warn("Enrollment precheck requires approval for user {}", backendUserId)
+                        context.failure(AuthenticationFlowError.ACCESS_DENIED)
+                        return
+                    }
+                }
+
+                EnrollmentDecision.ALLOW -> {}
+            }
+
+            val bound = apiGateway.enrollmentBind(
+                context = context,
+                userId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME) ?: backendUserId,
                 userHint = user.username,
                 deviceData = deviceDescriptor,
                 attributes = mapOf(

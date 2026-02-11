@@ -96,12 +96,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 
 ### Open Findings
 
-- `MEDIUM` C-3: Enrollment precheck API exists but is not part of runtime authenticator execution.
-  Evidence:
-  - Runtime bind only: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/PersistDeviceCredentialAuthenticator.kt:56`
-  - Precheck API exists but unused by authenticators: `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:184`
-  Impact:
-  - Policy gate is backend-only at bind-time; if precheck gating is desired in-auth-flow it is currently missing.
+- `DONE` ~~Enrollment precheck API exists but is not part of runtime authenticator execution.~~
+  Evidence: precheck now enforced in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/PersistDeviceCredentialAuthenticator.kt:65`.
 
 ## Security Review
 
