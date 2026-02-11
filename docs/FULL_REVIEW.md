@@ -48,6 +48,23 @@ Build verification performed:
   - Enforced in some modules: `keycloak-keybound-api-gateway-http/build.gradle.kts:33`, `keycloak-keybound-grant-device-key/build.gradle.kts:32`
   - Not explicitly enforced in other Keycloak plugin modules (see finding F-1).
 
+## PR #3 Comment Coverage
+
+Source PR:
+- `https://github.com/stephane-segning/keycloak-keybound/pull/3`
+
+High-level review threads:
+- `INFO` PR summary thread (Gemini): `3883684546` (issue comment), `3784124711` (review body). Incorporated below in Code/Security/Future-Proofing findings.
+- `INFO` Codex review wrapper thread: `3784130396` (non-actionable wrapper text only).
+
+Inline review comments (`pulls/3/comments`) mapped to this file:
+- `OPEN` PII logging concerns (all still reproducible in current code): `2792650646`, `2792650651`, `2792650654`, `2792650660`, `2792650663`, `2792650666`, `2792650670`, `2792650674`, `2792650678`, `2792650680`, `2792650683`, `2792650689`, `2792650694`, `2792650697`.
+- `DONE` ~~Workflow docs mention precheck while runtime removed precheck~~: `2792650698`.
+  Resolution note: old workflow docs were removed; consolidated state is documented in this file (`C-3`).
+- `OPEN` Phone lookup ambiguity in backend example store: `2792650700`.
+- `OPEN` Readability suggestions for fully qualified names/imports in `Api.kt` and `CheckUserByPhoneAuthenticator.kt`: `2792650704`, `2792650719`, `2792650726`.
+- `OPEN` Approval-path routing can fail instead of OTP fallback when backend/user mapping is out of sync: `2792656255`.
+
 ## Code Review
 
 ### Implemented / Closed Items (struck through)
@@ -93,12 +110,12 @@ Build verification performed:
   Impact:
   - Mapper can silently produce no `cnf.jkt` claim unless another component sets `jkt` note.
 
-- `MEDIUM` C-3: Enrollment workflow docs and runtime diverge around precheck.
+- `MEDIUM` C-3: Enrollment precheck API exists but is not part of runtime authenticator execution.
   Evidence:
   - Runtime bind only: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/PersistDeviceCredentialAuthenticator.kt:56`
   - Precheck API exists but unused by authenticators: `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:184`
   Impact:
-  - Intended policy gate is backend-only at bind-time; operational expectation may differ.
+  - Policy gate is backend-only at bind-time; if precheck gating is desired in-auth-flow it is currently missing.
 
 - `LOW` C-4: Theme custom message keys are referenced, but no messages bundle is present in this theme package.
   Affected files:
@@ -107,6 +124,34 @@ Build verification performed:
   - `keycloak-keybound-theme/src/main/resources/theme/base/login/enroll-verify-phone.ftl:4`
   Impact:
   - Depending on inherited theme messages, UI may show raw key names.
+
+- `HIGH` C-5: Enrollment path can select approval even when no Keycloak user is resolvable.
+  Affected:
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:29`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:45`
+  Impact:
+  - Backend may return approval path, but `context.user` remains null.
+  - Later authenticators requiring user can fail instead of safely falling back to OTP path.
+  Reference:
+  - PR inline comment `2792656255`.
+
+- `MEDIUM` C-6: Backend example phone lookup is overly broad and can match username/email.
+  Affected:
+  - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt:451`
+  - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt:453`
+  - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt:454`
+  Impact:
+  - Ambiguous identity resolution when phone-like strings overlap with username/email fields.
+  Reference:
+  - PR inline comment `2792650700`.
+
+- `LOW` C-7: Readability issues from fully qualified names where import aliases/simple imports would be clearer.
+  Affected:
+  - `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:108`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:25`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:31`
+  Reference:
+  - PR inline comments `2792650704`, `2792650719`, `2792650726`.
 
 ## Security Review
 
@@ -158,6 +203,20 @@ Build verification performed:
   Recommendation:
   - Keep as dev-only and document stronger production secret handling explicitly.
 
+- `MEDIUM` S-4: PII is logged in cleartext across API gateway and enrollment authenticators.
+  Affected samples:
+  - `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:115`
+  - `keycloak-keybound-api-gateway-http/src/main/kotlin/Api.kt:138`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CheckUserByPhoneAuthenticator.kt:24`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/CollectPhoneFormAuthenticator.kt:30`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/FindOrCreateUserAuthenticator.kt:30`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/SendValidateOtpAuthenticator.kt:54`
+  - `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/KeyboundUserResolver.kt:75`
+  Impact:
+  - Phone numbers/usernames/emails may leak through centralized logs.
+  PR references:
+  - Inline comment ids `2792650646`, `2792650651`, `2792650654`, `2792650660`, `2792650663`, `2792650666`, `2792650670`, `2792650674`, `2792650678`, `2792650680`, `2792650683`, `2792650689`, `2792650694`, `2792650697`.
+
 ## Future-Proofing Review
 
 ### Implemented / Closed Items (struck through)
@@ -205,8 +264,10 @@ Build verification performed:
 
 ## Prioritized Backlog
 
-1. Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.
-2. Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.
-3. Enforce Java 21 toolchain in all plugin modules (`F-1`).
-4. Decide whether enrollment precheck must be an explicit Keycloak-side gate or remain backend bind-only (`C-3`).
-5. Harden approval polling token context binding (`S-1`).
+1. Fix enrollment routing fallback so unresolved users cannot enter approval path (`C-5`).
+2. Remove/mask PII from auth and API logs (`S-4`).
+3. Fix credential-provider user-id mapping to backend ids (`C-1`) before relying on admin-side device operations.
+4. Unify mapper/session-note contract (`C-2`) and decide whether mapper or grant is authoritative for `cnf`/`device_id` claims.
+5. Enforce Java 21 toolchain in all plugin modules (`F-1`).
+6. Restrict backend phone lookup matching to dedicated phone attributes (`C-6`).
+7. Harden approval polling token context binding (`S-1`).
