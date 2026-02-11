@@ -172,9 +172,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Minimal realm imports do not preconfigure the protocol mapper.~~
   Evidence: realm import JSONs now include `device-binding-mapper` on clients in `.docker/keycloak-config/realm.e2e.json` and `.docker/keycloak-config/realm.theme.vymalo-wh-01.json`.
 
-- `LOW` F-4: No meaningful automated test coverage in provider modules.
-  Evidence:
-  - Build output shows mostly `NO-SOURCE` tests.
+- `DONE` ~~No meaningful automated test coverage in provider modules.~~
+  Evidence: protocol mapper now has a basic unit test (`keycloak-keybound-protocol-mapper/src/test/kotlin/com/ssegning/keycloak/keybound/mapper/DeviceBindingProtocolMapperTest.kt:1`).
 
 ## Prioritized Backlog
 

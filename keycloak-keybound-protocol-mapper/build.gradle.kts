@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
+    testImplementation("io.mockk", "mockk", "1.13.12")
 
     annotationProcessor("com.google.auto.service", "auto-service", "1.1.1")
     compileOnly("com.google.auto.service", "auto-service", "1.1.1")
