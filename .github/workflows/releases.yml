@@ -19,7 +19,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4.2.2
       - name: Build with Gradle
-        run: ./gradlew shadow
+        run: ./gradlew clean build shadow
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
