@@ -132,12 +132,8 @@ Inline review comments (`pulls/3/comments`) mapped to this file:
 - `DONE` ~~Approval polling token is not bound to user/session/client context.~~
   Evidence: polling token now includes realm/client/session/user and is validated in `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt:44`.
 
-- `LOW` S-2: Nonce replay keys are global string keys without realm scoping.
-  Affected:
-  - `avoid-replay:$nonce`: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt:51`
-  - `device-grant-replay:$nonce`: `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt:164`
-  Impact:
-  - Cross-realm nonce collisions can cause false rejections under shared cache backends.
+- `DONE` ~~Nonce replay keys are global string keys without realm scoping.~~
+  Evidence: replay keys now include realm name in `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt:51` and `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt:164`.
 
 - `LOW` S-3: Example/dev configuration ships plaintext bootstrap credentials.
   Affected:

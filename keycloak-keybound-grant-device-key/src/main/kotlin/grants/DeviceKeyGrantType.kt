@@ -161,7 +161,7 @@ class DeviceKeyGrantType(
 
         // Nonce Verification
         val suo = session.getProvider(SingleUseObjectProvider::class.java)
-        val nonceKey = "device-grant-replay:$nonce"
+        val nonceKey = "device-grant-replay:${realm.name}:$nonce"
         log.debug("Checking nonce replay for key {}", nonceKey)
         if (!suo.putIfAbsent(nonceKey, TTL)) {
             event.error(Errors.INVALID_USER_CREDENTIALS)

@@ -90,7 +90,7 @@ class DeviceApprovalResource(
         }
 
         val client = session.clients().getClientByClientId(realm, claims.client_id)
-        val clientSession = client?.let { userSession.getAuthenticatedClientSessionByClient(it) }
+        val clientSession = client?.let { userSession.getAuthenticatedClientSessionByClient(it.clientId) }
         if (clientSession == null) {
             log.debug("Approval token client not bound to session")
             return Response.status(Response.Status.UNAUTHORIZED)

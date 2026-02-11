@@ -48,7 +48,7 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
 
         // 2. Nonce Replay Prevention (atomic)
         val suo = context.session.getProvider(SingleUseObjectProvider::class.java)
-        val nonceKey = "avoid-replay:$nonce"
+        val nonceKey = "avoid-replay:${context.realm.name}:$nonce"
 
         // returns true only the first time within TTL
         val firstSeen = suo.putIfAbsent(nonceKey, ttl)
