@@ -142,7 +142,7 @@ jobs:
         if: steps.release_check.outputs.release_exists == 'false'
         uses: ncipollo/release-action@v1.20.0
         with:
-          artifacts: 'dist/**/*.jar'
+          artifacts: 'dist/**/*.jar,openapi/*'
           draft: false
           prerelease: false
           allowUpdates: false
