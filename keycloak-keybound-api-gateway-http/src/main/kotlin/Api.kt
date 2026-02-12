@@ -6,11 +6,11 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.*
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
+import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPath
 import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.*
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
-import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
@@ -20,7 +20,7 @@ import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.function.Supplier
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 
 open class Api(
     val devicesApi: DevicesApi,
@@ -430,7 +430,7 @@ open class Api(
     private fun <T> executeGuarded(operation: String, errorMessage: String, block: () -> T): T? {
         val retry = retries.retry(operation)
         val circuitBreaker = circuitBreakers.circuitBreaker(operation)
-        val retryingCall = Retry.decorateSupplier(retry, Supplier { block() })
+        val retryingCall = Retry.decorateSupplier(retry) { block() }
         val guardedCall = CircuitBreaker.decorateSupplier(circuitBreaker, retryingCall)
 
         return try {
