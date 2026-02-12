@@ -12,10 +12,15 @@ import com.ssegning.keycloak.keybound.core.models.*
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
 import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import io.github.resilience4j.retry.Retry
+import io.github.resilience4j.retry.RetryRegistry
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.function.Supplier
 
 open class Api(
     val devicesApi: DevicesApi,
@@ -26,6 +31,9 @@ open class Api(
     companion object {
         private val log = LoggerFactory.getLogger(Api::class.java)
     }
+
+    private val circuitBreakers = CircuitBreakerRegistry.ofDefaults()
+    private val retries = RetryRegistry.ofDefaults()
 
     /**
      * Sends an SMS with an OTP to the given phone number.
@@ -92,7 +100,10 @@ open class Api(
         context: AuthenticationFlowContext,
         phoneNumber: String,
         userHint: String?
-    ): PhoneResolveResult? = try {
+    ): PhoneResolveResult? = executeGuarded(
+        operation = "enrollment.resolveUserByPhone",
+        errorMessage = "Failed to resolve user by phone ${maskPhone(phoneNumber)}"
+    ) {
         val response = enrollmentApi.resolveUserByPhone(
             PhoneResolveRequest(
                 realm = context.realm.name,
@@ -113,15 +124,15 @@ open class Api(
             userId = response.userId,
             username = response.username
         )
-    } catch (e: Exception) {
-        log.error("Failed to resolve user by phone {}", maskPhone(phoneNumber), e)
-        null
     }
 
     override fun resolveOrCreateUserByPhone(
         context: AuthenticationFlowContext,
         phoneNumber: String
-    ): PhoneResolveOrCreateResult? = try {
+    ): PhoneResolveOrCreateResult? = executeGuarded(
+        operation = "enrollment.resolveOrCreateUserByPhone",
+        errorMessage = "Failed to resolve or create user by phone ${maskPhone(phoneNumber)}"
+    ) {
         val response = enrollmentApi.resolveOrCreateUserByPhone(
             PhoneResolveOrCreateRequest(
                 realm = context.realm.name,
@@ -136,12 +147,12 @@ open class Api(
             username = response.username,
             created = response.created
         )
-    } catch (e: Exception) {
-        log.error("Failed to resolve or create user by phone {}", maskPhone(phoneNumber), e)
-        null
     }
 
-    override fun checkApprovalStatus(requestId: String): ApprovalStatus? = try {
+    override fun checkApprovalStatus(requestId: String): ApprovalStatus? = executeGuarded(
+        operation = "approval.checkStatus",
+        errorMessage = "Failed to check approval status for request $requestId"
+    ) {
         log.debug("Checking approval status for request {}", requestId)
         val response = approvalsApi.getApproval(requestId)
         log.debug("Approval request {} reported status {}", requestId, response.status)
@@ -151,16 +162,16 @@ open class Api(
             ApprovalStatusResponse.Status.DENIED -> ApprovalStatus.DENIED
             ApprovalStatusResponse.Status.EXPIRED -> ApprovalStatus.EXPIRED
         }
-    } catch (e: Exception) {
-        log.error("Failed to check approval status for request $requestId", e)
-        null
     }
 
     override fun createApprovalRequest(
         context: AuthenticationFlowContext,
         userId: String,
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
-    ): String? = try {
+    ): String? = executeGuarded(
+        operation = "approval.createRequest",
+        errorMessage = "Failed to create approval request for user $userId"
+    ) {
         log.debug("Creating approval request for user {} device {}", userId, deviceData.deviceId)
         val response = approvalsApi.createApproval(
             ApprovalCreateRequest(
@@ -178,9 +189,6 @@ open class Api(
             )
         )
         response.requestId
-    } catch (e: Exception) {
-        log.error("Failed to create approval request for user $userId", e)
-        null
     }
 
     override fun enrollmentPrecheck(
@@ -188,7 +196,10 @@ open class Api(
         userId: String,
         userHint: String?,
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
-    ): EnrollmentPrecheckResult? = try {
+    ): EnrollmentPrecheckResult? = executeGuarded(
+        operation = "enrollment.precheck",
+        errorMessage = "Failed to precheck device enrollment for user $userId"
+    ) {
         log.debug(
             "Performing enrollment precheck realm={} user={} device={}",
             context.realm.name,
@@ -216,9 +227,6 @@ open class Api(
             boundUserId = response.boundUserId,
             retryAfterSeconds = response.retryAfterSeconds
         )
-    } catch (e: Exception) {
-        log.error("Failed to precheck device enrollment for user $userId", e)
-        null
     }
 
     override fun enrollmentBind(
@@ -228,8 +236,11 @@ open class Api(
         deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
         attributes: Map<String, String>?,
         proof: Map<String, Any>?
-    ): Boolean = try {
-        val publicJwk = deviceData.publicJwk ?: return false
+    ): Boolean = executeGuarded(
+        operation = "enrollment.bind",
+        errorMessage = "Failed to bind device ${deviceData.deviceId} for user $userId"
+    ) {
+        val publicJwk = deviceData.publicJwk ?: return@executeGuarded false
         log.debug("Binding device {} for user {} realm={}", deviceData.deviceId, userId, context.realm.name)
         val response = enrollmentApi.enrollmentBind(
             EnrollmentBindRequest(
@@ -246,12 +257,12 @@ open class Api(
             )
         )
         response.boundUserId == userId
-    } catch (e: Exception) {
-        log.error("Failed to bind device ${deviceData.deviceId} for user $userId", e)
-        false
-    }
+    } ?: false
 
-    override fun listUserDevices(userId: String, includeDisabled: Boolean): List<DeviceRecord>? = try {
+    override fun listUserDevices(userId: String, includeDisabled: Boolean): List<DeviceRecord>? = executeGuarded(
+        operation = "device.listByUser",
+        errorMessage = "Failed to list devices for user $userId"
+    ) {
         log.debug("Listing devices for user {} includeDisabled={}", userId, includeDisabled)
         devicesApi.listUserDevices(userId, includeDisabled).devices.map { device ->
             DeviceRecord(
@@ -267,53 +278,53 @@ open class Api(
                 label = device.label
             )
         }
-    } catch (e: Exception) {
-        log.error("Failed to list devices for user $userId", e)
-        null
     }
 
-    override fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResult? = try {
+    override fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResult? {
         log.debug("Looking up device deviceId={} jkt={}", deviceId, jkt)
         if (deviceId.isNullOrBlank() && jkt.isNullOrBlank()) {
             return null
         }
 
-        val response = devicesApi.lookupDevice(
-            DeviceLookupRequest(
-                deviceId = deviceId,
-                jkt = jkt
-            )
-        )
-        DeviceLookupResult(
-            found = response.found,
-            userId = response.userId,
-            device = response.device?.let {
-                DeviceRecord(
-                    deviceId = it.deviceId,
-                    jkt = it.jkt,
-                    status = when (it.status) {
-                        com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE -> DeviceStatus.ACTIVE
-                        else -> DeviceStatus.DISABLED
-                    },
-                    createdAt = it.createdAt.atOffset(ZoneOffset.UTC),
-                    label = it.label
+        return executeGuarded(
+            operation = "device.lookup",
+            errorMessage = "Failed to lookup device by deviceId=$deviceId and jkt=$jkt"
+        ) {
+            val response = devicesApi.lookupDevice(
+                DeviceLookupRequest(
+                    deviceId = deviceId,
+                    jkt = jkt
                 )
-            },
-            publicJwk = response.publicJwk
-        )
-    } catch (e: Exception) {
-        log.error("Failed to lookup device by deviceId=$deviceId and jkt=$jkt", e)
-        null
+            )
+
+            DeviceLookupResult(
+                found = response.found,
+                userId = response.userId,
+                device = response.device?.let {
+                    DeviceRecord(
+                        deviceId = it.deviceId,
+                        jkt = it.jkt,
+                        status = when (it.status) {
+                            com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE -> DeviceStatus.ACTIVE
+                            else -> DeviceStatus.DISABLED
+                        },
+                        createdAt = it.createdAt.atOffset(ZoneOffset.UTC),
+                        label = it.label
+                    )
+                },
+                publicJwk = response.publicJwk
+            )
+        }
     }
 
-    override fun disableDevice(userId: String, deviceId: String): Boolean = try {
+    override fun disableDevice(userId: String, deviceId: String): Boolean = executeGuarded(
+        operation = "device.disable",
+        errorMessage = "Failed to disable device $deviceId for user $userId"
+    ) {
         log.debug("Disabling device {} for user {}", deviceId, userId)
         devicesApi.disableUserDevice(userId, deviceId)
         true
-    } catch (e: Exception) {
-        log.error("Failed to disable device $deviceId for user $userId", e)
-        false
-    }
+    } ?: false
 
     override fun createUser(
         realmName: String,
@@ -324,7 +335,10 @@ open class Api(
         enabled: Boolean?,
         emailVerified: Boolean?,
         attributes: Map<String, String>?
-    ): BackendUser? = try {
+    ): BackendUser? = executeGuarded(
+        operation = "user.create",
+        errorMessage = "Failed to create user in realm=$realmName"
+    ) {
         log.debug("Creating backend user realm={}", realmName)
         usersApi.createUser(
             UserUpsertRequest(
@@ -338,17 +352,14 @@ open class Api(
                 attributes = attributes
             )
         ).toBackendUser()
-    } catch (e: Exception) {
-        log.error("Failed to create user in realm={}", realmName, e)
-        null
     }
 
-    override fun getUser(userId: String): BackendUser? = try {
+    override fun getUser(userId: String): BackendUser? = executeGuarded(
+        operation = "user.get",
+        errorMessage = "Failed to get user $userId"
+    ) {
         log.debug("Fetching backend user {}", userId)
         usersApi.getUser(userId).toBackendUser()
-    } catch (e: Exception) {
-        log.error("Failed to get user {}", userId, e)
-        null
     }
 
     override fun updateUser(
@@ -361,7 +372,10 @@ open class Api(
         enabled: Boolean?,
         emailVerified: Boolean?,
         attributes: Map<String, String>?
-    ): BackendUser? = try {
+    ): BackendUser? = executeGuarded(
+        operation = "user.update",
+        errorMessage = "Failed to update user $userId"
+    ) {
         log.debug("Updating backend user realm={}", realmName)
         usersApi.updateUser(
             userId = userId,
@@ -376,24 +390,24 @@ open class Api(
                 attributes = attributes
             )
         ).toBackendUser()
-    } catch (e: Exception) {
-        log.error("Failed to update user {}", userId, e)
-        null
     }
 
-    override fun deleteUser(userId: String): Boolean = try {
+    override fun deleteUser(userId: String): Boolean = executeGuarded(
+        operation = "user.delete",
+        errorMessage = "Failed to delete user $userId"
+    ) {
         log.debug("Deleting backend user {}", userId)
         usersApi.deleteUser(userId)
         true
-    } catch (e: Exception) {
-        log.error("Failed to delete user {}", userId, e)
-        false
-    }
+    } ?: false
 
     override fun searchUsers(
         realmName: String,
         criteria: BackendUserSearchCriteria
-    ): List<BackendUser>? = try {
+    ): List<BackendUser>? = executeGuarded(
+        operation = "user.search",
+        errorMessage = "Failed to search users in realm=$realmName"
+    ) {
         log.debug("Searching backend users realm={} criteria={}", realmName, criteria)
         usersApi.searchUsers(
             UserSearchRequest(
@@ -411,9 +425,20 @@ open class Api(
                 maxResults = criteria.maxResults
             )
         ).users.map { it.toBackendUser() }
-    } catch (e: Exception) {
-        log.error("Failed to search users in realm={}", realmName, e)
-        null
+    }
+
+    private fun <T> executeGuarded(operation: String, errorMessage: String, block: () -> T): T? {
+        val retry = retries.retry(operation)
+        val circuitBreaker = circuitBreakers.circuitBreaker(operation)
+        val retryingCall = Retry.decorateSupplier(retry, Supplier { block() })
+        val guardedCall = CircuitBreaker.decorateSupplier(circuitBreaker, retryingCall)
+
+        return try {
+            guardedCall.get()
+        } catch (e: Exception) {
+            log.error(errorMessage, e)
+            null
+        }
     }
 
     private fun UserRecord.toBackendUser() = BackendUser(
