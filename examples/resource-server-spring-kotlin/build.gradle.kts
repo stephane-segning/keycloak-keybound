@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.ssegning.keycloak.keybound.examples"
-version = "0.1.3"
+version = project.parent?.version ?: "latest"
 
 java {
     toolchain {

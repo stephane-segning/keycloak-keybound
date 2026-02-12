@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.ssegning.keycloak.keybound"
-version = "0.1.3"
+version = project.parent?.version ?: "latest"
 
 repositories {
     mavenCentral()

@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.ssegning.keycloak.keybound"
-version = "0.1.3"
+version = project.parent?.version ?: "latest"
 
 repositories {
     mavenCentral()
@@ -21,6 +21,8 @@ dependencies {
 
     implementation("com.googlecode.libphonenumber", "libphonenumber", "9.0.20")
     implementation("com.squareup.okhttp3", "okhttp", "4.12.0")
+    // Ensure kotlin-reflect matches the Kotlin compiler/stdlib version used by this build (avoid transitive mismatch).
+    implementation(kotlin("reflect"))
     implementation("com.fasterxml.jackson.core", "jackson-databind", "2.21.0")
     implementation("com.fasterxml.jackson.module", "jackson-module-kotlin", "2.21.0")
     implementation("com.fasterxml.jackson.datatype", "jackson-datatype-jsr310", "2.21.0")
