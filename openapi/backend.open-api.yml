@@ -10,7 +10,6 @@ servers:
     description: Backend base URL
 
 tags:
-  - name: health
   - name: enrollment
   - name: approvals
   - name: users
@@ -211,8 +210,7 @@ paths:
           schema:
             type: array
             items:
-              type: string
-              enum: [PENDING, APPROVED, DENIED, EXPIRED]
+              $ref: '#/components/schemas/QueryApprovalStatus'
       responses:
         '200':
           description: Approval list
@@ -591,21 +589,26 @@ components:
       properties:
         realm:
           type: string
-          example: my-realm
+          examples:
+             - my-realm
         client_id:
           type: string
-          example: mobile-app
+          examples: 
+            - mobile-app
         user_hint:
           type: string
           description: Optional user identifier hint (phone/email) if known at precheck time
-          example: +491234567890
+          examples: 
+            - "+491234567890"
         device_id:
           type: string
-          example: 3f6a0f2b-1f2e-4c37-9f7e-10f1a7c2b0d1
+          examples:
+            - "3f6a0f2b-1f2e-4c37-9f7e-10f1a7c2b0d1"
         jkt:
           type: string
           description: JWK thumbprint (base64url)
-          example: 7bYwzOQ8f0o6u9p...
+          examples: 
+            - "7bYwzOQ8f0o6u9p..."
         public_jwk:
           type: object
           description: Optional JWK for convenience; may be omitted at precheck
@@ -616,23 +619,25 @@ components:
           description: |
             Free-form context: ip, user-agent, platform, etc.
 
+    EnrollmentPrecheckResponseDecision:
+      type: string
+      enum: [ALLOW, REQUIRE_APPROVAL, REJECT]
+
     EnrollmentPrecheckResponse:
       type: object
       required: [decision]
       properties:
         decision:
-          type: string
-          enum: [ALLOW, REQUIRE_APPROVAL, REJECT]
+          $ref: '#/components/schemas/EnrollmentPrecheckResponseDecision'
         reason:
           type: string
-          example: device_already_bound
+          examples: 
+            - "device_already_bound"
         bound_user_id:
           type: string
-          nullable: true
           description: If known, the user_id the device is already bound to
         retry_after_seconds:
           type: integer
-          nullable: true
 
     EnrollmentBindRequest:
       type: object
@@ -668,18 +673,24 @@ components:
           description: Optional proof summary (ts, nonce, sig hash) for audit
           additionalProperties: true
 
+    EnrollmentBindResponseStatus:
+      type: string
+      enum: [BOUND, ALREADY_BOUND]
+
     EnrollmentBindResponse:
       type: object
       required: [status]
       properties:
         status:
-          type: string
-          enum: [BOUND, ALREADY_BOUND]
+          $ref: '#/components/schemas/EnrollmentBindResponseStatus'
         device_record_id:
           type: string
-          nullable: true
         bound_user_id:
           type: string
+
+    QueryApprovalStatus:
+      type: string
+      enum: [PENDING, APPROVED, DENIED, EXPIRED]
 
     ApprovalCreateRequest:
       type: object
@@ -695,7 +706,8 @@ components:
           $ref: '#/components/schemas/DeviceDescriptor'
         reason:
           type: string
-          example: add_new_device
+          examples: 
+            - add_new_device
         expires_at:
           type: string
           format: date-time
@@ -704,16 +716,20 @@ components:
           additionalProperties: true
           description: ip, user agent, geo hints, etc.
 
+    ApprovalCreateResponseStatus:
+      type: string
+      enum: [PENDING]
+
     ApprovalCreateResponse:
       type: object
       required: [request_id, status]
       properties:
         request_id:
           type: string
-          example: apr_01HZX8V9A3M1Y8S9R6W3B4KQ2P
+          examples: 
+            - apr_01HZX8V9A3M1Y8S9R6W3B4KQ2P
         status:
-          type: string
-          enum: [PENDING]
+          $ref: '#/components/schemas/ApprovalCreateResponseStatus'
         expires_at:
           type: string
           format: date-time
@@ -725,32 +741,33 @@ components:
         request_id:
           type: string
         status:
-          type: string
-          enum: [PENDING, APPROVED, DENIED, EXPIRED]
+          $ref: '#/components/schemas/QueryApprovalStatus'
         decided_at:
           type: string
           format: date-time
-          nullable: true
         decided_by_device_id:
           type: string
-          nullable: true
         message:
           type: string
-          nullable: true
+
+    ApprovalDecisionRequestDecision:
+      type: string
+      enum: [APPROVE, DENY]
 
     ApprovalDecisionRequest:
       type: object
       required: [decision]
       properties:
         decision:
-          type: string
-          enum: [APPROVE, DENY]
+          $ref: '#/components/schemas/QueryApprovalStatus'
         decided_by_device_id:
           type: string
-          nullable: true
         message:
           type: string
-          nullable: true
+
+    UserApprovalRecordStatus:
+      type: string
+      enum: [PENDING, APPROVED, DENIED, EXPIRED]
 
     UserApprovalRecord:
       type: object
@@ -763,21 +780,17 @@ components:
         device_id:
           type: string
         status:
-          type: string
-          enum: [PENDING, APPROVED, DENIED, EXPIRED]
+          $ref: '#/components/schemas/UserApprovalRecordStatus'
         created_at:
           type: string
           format: date-time
         decided_at:
           type: string
           format: date-time
-          nullable: true
         decided_by_device_id:
           type: string
-          nullable: true
         message:
           type: string
-          nullable: true
 
     UserApprovalsResponse:
       type: object
@@ -801,17 +814,14 @@ components:
         public_jwk:
           type: object
           additionalProperties: true
-          nullable: true
         platform:
           type: string
-          nullable: true
-          example: ios
+          examples: 
+            - ios
         model:
           type: string
-          nullable: true
         app_version:
           type: string
-          nullable: true
 
     UserRecord:
       type: object
@@ -825,13 +835,10 @@ components:
           type: string
         first_name:
           type: string
-          nullable: true
         last_name:
           type: string
-          nullable: true
         email:
           type: string
-          nullable: true
         enabled:
           type: boolean
         email_verified:
@@ -839,12 +846,10 @@ components:
         created_at:
           type: string
           format: date-time
-          nullable: true
         attributes:
           type: object
           additionalProperties:
             type: string
-          nullable: true
 
     UserUpsertRequest:
       type: object
@@ -856,24 +861,18 @@ components:
           type: string
         first_name:
           type: string
-          nullable: true
         last_name:
           type: string
-          nullable: true
         email:
           type: string
-          nullable: true
         enabled:
           type: boolean
-          nullable: true
         email_verified:
           type: boolean
-          nullable: true
         attributes:
           type: object
           additionalProperties:
             type: string
-          nullable: true
 
     UserSearchRequest:
       type: object
@@ -883,39 +882,28 @@ components:
           type: string
         search:
           type: string
-          nullable: true
         username:
           type: string
-          nullable: true
         first_name:
           type: string
-          nullable: true
         last_name:
           type: string
-          nullable: true
         email:
           type: string
-          nullable: true
         enabled:
           type: boolean
-          nullable: true
         email_verified:
           type: boolean
-          nullable: true
         exact:
           type: boolean
-          nullable: true
         attributes:
           type: object
           additionalProperties:
             type: string
-          nullable: true
         first_result:
           type: integer
-          nullable: true
         max_results:
           type: integer
-          nullable: true
 
     UserSearchResponse:
       type: object
@@ -927,7 +915,6 @@ components:
             $ref: '#/components/schemas/UserRecord'
         total_count:
           type: integer
-          nullable: true
 
     UserDevicesResponse:
       type: object
@@ -939,7 +926,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DeviceRecord'
-
+    DeviceRecordStatus:
+      type: string
+      enum: [ACTIVE, REVOKED, SUSPENDED]
+      
     DeviceRecord:
       type: object
       required: [device_id, jkt, status, created_at]
@@ -949,18 +939,15 @@ components:
         jkt:
           type: string
         status:
-          type: string
-          enum: [ACTIVE, REVOKED, SUSPENDED]
+          $ref: '#/components/schemas/DeviceRecordStatus'
         created_at:
           type: string
           format: date-time
         last_seen_at:
           type: string
           format: date-time
-          nullable: true
         label:
           type: string
-          nullable: true
 
     DeviceLookupRequest:
       type: object
@@ -968,10 +955,8 @@ components:
       properties:
         device_id:
           type: string
-          nullable: true
         jkt:
           type: string
-          nullable: true
 
     DeviceLookupResponse:
       type: object
@@ -981,13 +966,11 @@ components:
           type: boolean
         user_id:
           type: string
-          nullable: true
         device:
           $ref: '#/components/schemas/DeviceRecord'
         public_jwk:
           type: object
           additionalProperties: true
-          nullable: true
 
     SmsSendRequest:
       type: object
@@ -999,21 +982,17 @@ components:
           type: string
         user_id:
           type: string
-          nullable: true
         phone_number:
           type: string
         otp:
           type: string
         session_id:
           type: string
-          nullable: true
         trace_id:
           type: string
-          nullable: true
         metadata:
           type: object
           additionalProperties: true
-          nullable: true
 
     SmsSendResponse:
       type: object
@@ -1023,10 +1002,8 @@ components:
           type: string
         ttl_seconds:
           type: integer
-          nullable: true
         status:
           type: string
-          nullable: true
 
     SmsConfirmRequest:
       type: object
@@ -1045,7 +1022,6 @@ components:
           type: boolean
         reason:
           type: string
-          nullable: true
 
     EnrollmentPath:
       type: string
@@ -1063,7 +1039,6 @@ components:
           type: string
         user_hint:
           type: string
-          nullable: true
 
     PhoneResolveResponse:
       type: object
@@ -1079,10 +1054,8 @@ components:
           $ref: '#/components/schemas/EnrollmentPath'
         user_id:
           type: string
-          nullable: true
         username:
           type: string
-          nullable: true
 
     PhoneResolveOrCreateRequest:
       type: object
@@ -1114,11 +1087,12 @@ components:
       properties:
         code:
           type: string
-          example: bad_request
+          examples: 
+            - bad_request
         message:
           type: string
-          example: Invalid payload
+          examples: 
+            - Invalid payload
         details:
           type: object
           additionalProperties: true
-          nullable: true
