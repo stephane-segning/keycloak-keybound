@@ -157,10 +157,10 @@ open class Api(
         val response = approvalsApi.getApproval(requestId)
         log.debug("Approval request {} reported status {}", requestId, response.status)
         when (response.status) {
-            ApprovalStatusResponse.Status.PENDING -> ApprovalStatus.PENDING
-            ApprovalStatusResponse.Status.APPROVED -> ApprovalStatus.APPROVED
-            ApprovalStatusResponse.Status.DENIED -> ApprovalStatus.DENIED
-            ApprovalStatusResponse.Status.EXPIRED -> ApprovalStatus.EXPIRED
+            QueryApprovalStatus.PENDING -> ApprovalStatus.PENDING
+            QueryApprovalStatus.APPROVED -> ApprovalStatus.APPROVED
+            QueryApprovalStatus.DENIED -> ApprovalStatus.DENIED
+            QueryApprovalStatus.EXPIRED -> ApprovalStatus.EXPIRED
         }
     }
 
@@ -219,9 +219,9 @@ open class Api(
 
         EnrollmentPrecheckResult(
             decision = when (response.decision) {
-                EnrollmentPrecheckResponse.Decision.ALLOW -> EnrollmentDecision.ALLOW
-                EnrollmentPrecheckResponse.Decision.REQUIRE_APPROVAL -> EnrollmentDecision.REQUIRE_APPROVAL
-                EnrollmentPrecheckResponse.Decision.REJECT -> EnrollmentDecision.REJECT
+                EnrollmentPrecheckResponseDecision.ALLOW -> EnrollmentDecision.ALLOW
+                EnrollmentPrecheckResponseDecision.REQUIRE_APPROVAL -> EnrollmentDecision.REQUIRE_APPROVAL
+                EnrollmentPrecheckResponseDecision.REJECT -> EnrollmentDecision.REJECT
             },
             reason = response.reason,
             boundUserId = response.boundUserId,
@@ -269,7 +269,7 @@ open class Api(
                 deviceId = device.deviceId,
                 jkt = device.jkt,
                 status = when (device.status) {
-                    com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE ->
+                    DeviceRecordStatus.ACTIVE ->
                         DeviceStatus.ACTIVE
 
                     else -> DeviceStatus.DISABLED
@@ -305,7 +305,7 @@ open class Api(
                         deviceId = it.deviceId,
                         jkt = it.jkt,
                         status = when (it.status) {
-                            com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecord.Status.ACTIVE -> DeviceStatus.ACTIVE
+                            DeviceRecordStatus.ACTIVE -> DeviceStatus.ACTIVE
                             else -> DeviceStatus.DISABLED
                         },
                         createdAt = it.createdAt.atOffset(ZoneOffset.UTC),
