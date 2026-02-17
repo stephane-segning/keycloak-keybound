@@ -37,7 +37,6 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
             return
         }
 
-        val otp = generateOtp()
         val smsRequest = SmsRequest(
             realm = context.realm.name,
             clientId = authSession.client.clientId,
@@ -45,7 +44,7 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
             userAgent = context.httpRequest.httpHeaders.getRequestHeader("User-Agent").firstOrNull(),
             sessionId = authSession.parentSession.id,
             traceId = null,
-            metadata = mutableMapOf("otp" to otp)
+            metadata = mapOf()
         )
 
         val apiGateway = context.session.getApi()
@@ -133,11 +132,5 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
 
         log.debug("OTP verified for phone {}", maskPhone(phoneNumber))
         context.success()
-    }
-
-    private fun generateOtp(): String {
-        val random = SecureRandom()
-        val num = random.nextInt(1_000_000)
-        return String.format("%06d", num)
     }
 }

@@ -7,5 +7,5 @@ data class SmsRequest(
     val userAgent: String?,
     val sessionId: String?,
     val traceId: String?,
-    val metadata: MutableMap<String?, Any?>?
+    val metadata: Map<String?, Any?>?
 )

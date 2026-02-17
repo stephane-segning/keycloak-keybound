@@ -47,14 +47,10 @@ open class Api(
         request: SmsRequest,
         phoneNumber: String
     ): String {
-        val otp = request.metadata?.get("otp") as? String
-            ?: throw IllegalArgumentException("OTP not found in request metadata")
-
         val smsSendRequest = SmsSendRequest(
             realm = request.realm ?: context.realm?.name.orEmpty(),
             clientId = request.clientId ?: context.authenticationSession.client.clientId,
             phoneNumber = phoneNumber,
-            otp = otp,
             userId = context.user?.id,
             sessionId = request.sessionId,
             traceId = request.traceId,
