@@ -26,12 +26,18 @@ open class ApiFactory : ApiGatewayProviderFactory {
     }
 
     private class KotlinInstantDeserializer : JsonDeserializer<Instant>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Instant =
-            Instant.parse(p.text)
+        override fun deserialize(
+            p: JsonParser,
+            ctxt: DeserializationContext,
+        ): Instant = Instant.parse(p.text)
     }
 
     private class KotlinInstantSerializer : JsonSerializer<Instant>() {
-        override fun serialize(value: Instant, gen: JsonGenerator, serializers: SerializerProvider) {
+        override fun serialize(
+            value: Instant,
+            gen: JsonGenerator,
+            serializers: SerializerProvider,
+        ) {
             gen.writeString(value.toString()) // ISO-8601, e.g. 2026-02-17T13:02:25.060234Z
         }
     }
@@ -52,9 +58,10 @@ open class ApiFactory : ApiGatewayProviderFactory {
 
     override fun init(config: Config.Scope) = noop()
 
-    fun kotlinTimeModule(): Module = SimpleModule("KotlinTimeModule")
-        .addDeserializer(Instant::class.java, KotlinInstantDeserializer())
-        .addSerializer(Instant::class.java, KotlinInstantSerializer())
+    fun kotlinTimeModule(): Module =
+        SimpleModule("KotlinTimeModule")
+            .addDeserializer(Instant::class.java, KotlinInstantDeserializer())
+            .addSerializer(Instant::class.java, KotlinInstantSerializer())
 
     override fun postInit(factory: KeycloakSessionFactory) {
         Serializer.jacksonObjectMapper

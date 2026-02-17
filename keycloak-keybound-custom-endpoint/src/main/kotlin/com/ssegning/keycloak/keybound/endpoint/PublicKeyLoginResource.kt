@@ -28,7 +28,7 @@ import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
-import java.util.Base64
+import java.util.*
 import kotlin.math.abs
 
 class PublicKeyLoginResource(
@@ -74,7 +74,6 @@ class PublicKeyLoginResource(
         }
 
         val realm = session.context.realm
-        val clientId = request.clientId.normalize()
         val deviceId = request.deviceId.normalize()
         val publicKeyJwk = request.publicKey.normalize()
         val nonce = request.nonce.normalize()
@@ -99,7 +98,6 @@ class PublicKeyLoginResource(
         val nonceValue = nonce ?: return badRequest("Missing required fields: nonce")
         val tsStrValue = tsStr ?: return badRequest("Missing required fields: ts")
         val sigValue = sig ?: return badRequest("Missing required fields: sig")
-        val requestClientId = clientId
 
         val fieldsToCheck =
             buildMap<String, String> {
@@ -179,12 +177,14 @@ class PublicKeyLoginResource(
             try {
                 computeJkt(publicKeyJwkValue)
             } catch (e: Exception) {
+                log.error("Malformed public_key JWK", e)
                 return badRequest("Invalid public_key thumbprint data")
             }
         val publicJwkMap =
             try {
                 parsePublicJwk(publicKeyJwkValue)
             } catch (e: Exception) {
+                log.error("Malformed public_key JWK", e)
                 return badRequest("Malformed public_key JWK")
             }
 
@@ -228,7 +228,6 @@ class PublicKeyLoginResource(
                         attributes =
                             buildMap {
                                 put("source", SOURCE_ATTRIBUTE_VALUE)
-                                requestClientId?.let { put("request_client_id", it) }
                             },
                         proof =
                             mapOf(
@@ -246,8 +245,7 @@ class PublicKeyLoginResource(
             }
 
         log.debug(
-            "Public-key login succeeded client={} keycloakUser={} backendUser={} created={} credentialCreated={}",
-            requestClientId,
+            "Public-key login succeeded keycloakUser={} backendUser={} created={} credentialCreated={}",
             user.id,
             backendUserId,
             createdUser,
@@ -260,17 +258,17 @@ class PublicKeyLoginResource(
                     "created_user" to createdUser,
                     "credential_created" to credentialCreated,
                 ),
-            )
-            .withCorsHeaders()
+            ).withCorsHeaders()
             .build()
     }
 
     @OPTIONS
     @Produces(MediaType.APPLICATION_JSON)
-    fun options(): Response = Response
-        .ok()
-        .withCorsHeaders()
-        .build()
+    fun options(): Response =
+        Response
+            .ok()
+            .withCorsHeaders()
+            .build()
 
     private data class UserCreationResult(
         val user: UserModel? = null,
@@ -324,7 +322,12 @@ class PublicKeyLoginResource(
             } else {
                 val first = iterator.next()
                 if (iterator.hasNext()) {
-                    log.error("Multiple users resolved for {}={} in realm {}", attributeName, attributeValue, realm.name)
+                    log.error(
+                        "Multiple users resolved for {}={} in realm {}",
+                        attributeName,
+                        attributeValue,
+                        realm.name,
+                    )
                     null
                 } else {
                     first

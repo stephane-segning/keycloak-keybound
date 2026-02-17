@@ -28,6 +28,7 @@ class BackendUserAdapter(
     private var user: BackendUser = backendUser
     private var createdTimestamp = backendUser.createdAt?.toEpochMilliseconds()
     private val keycloakStorageId = StorageId.keycloakId(componentModel, backendUser.userId)
+
     private fun effectiveUsername(current: BackendUser = user): String = current.username.ifBlank { current.userId }
 
     override fun getId(): String = keycloakStorageId
