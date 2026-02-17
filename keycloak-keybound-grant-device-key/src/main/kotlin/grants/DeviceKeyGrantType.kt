@@ -27,6 +27,7 @@ import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
 import java.util.*
+import java.util.TreeMap
 import kotlin.math.abs
 
 class DeviceKeyGrantType(
@@ -185,7 +186,7 @@ class DeviceKeyGrantType(
         // Signature Verification
         try {
             val publicKeyJwk =
-                lookup.publicJwk?.let { JsonSerialization.writeValueAsString(it) }
+                lookup.publicJwk?.let { JsonSerialization.writeValueAsString(TreeMap(it)) }
                     ?: requestPublicKey
                     ?: throw CorsErrorResponseException(
                         cors,

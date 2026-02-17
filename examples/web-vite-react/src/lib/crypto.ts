@@ -67,4 +67,10 @@ export const signPayload = async (privateJwk: JsonWebKey, payload: string) => {
     return toBase64Url(signature);
 };
 
-export const stringifyPublicJwk = (publicJwk: JsonWebKey) => JSON.stringify(publicJwk);
+export const stringifyPublicJwk = (publicJwk: JsonWebKey) => {
+    const sorted: any = {};
+    Object.keys(publicJwk).sort().forEach(key => {
+        sorted[key] = (publicJwk as any)[key];
+    });
+    return JSON.stringify(sorted);
+};

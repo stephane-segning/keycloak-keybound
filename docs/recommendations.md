@@ -51,3 +51,9 @@ Current implementation:
 - Add server-generated `device_record_id` as primary key and keep client `device_id` as external identifier.
 - Track `last_seen_at` on every successful lookup/grant usage.
 - Allow user-managed labels while storing raw platform/model metadata separately.
+
+## 5) Stable JWK Serialization for Signatures
+
+- When embedding a JWK as a string within a signature payload (e.g., `DeviceSignaturePayload`), ensure the field order is deterministic.
+- Always sort JWK keys alphabetically (`crv`, `kty`, `x`, `y`) before serializing to JSON.
+- Use ordered map structures (e.g., `BTreeMap` in Rust, `TreeMap` in Java/Kotlin) or explicit key sorting in JavaScript to prevent signature mismatches caused by non-deterministic field ordering.
