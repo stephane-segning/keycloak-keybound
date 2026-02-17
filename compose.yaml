@@ -1,6 +1,6 @@
 x-keycloak-common-env: &keycloak-common-env
-  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://api-mock:8080"
-  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://api-backend-example:18080"
+  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://app:3000/kc"
+  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://app:3000/kc"
 
   NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
 

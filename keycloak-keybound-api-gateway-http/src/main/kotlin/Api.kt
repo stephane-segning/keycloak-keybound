@@ -238,6 +238,7 @@ open class Api(
     ) {
         val publicJwk = deviceData.publicJwk ?: return@executeGuarded false
         log.debug("Binding device {} for user {} realm={}", deviceData.deviceId, userId, context.realm.name)
+
         val response = enrollmentApi.enrollmentBind(
             EnrollmentBindRequest(
                 realm = context.realm.name,
@@ -249,7 +250,7 @@ open class Api(
                 publicJwk = publicJwk,
                 attributes = attributes,
                 proof = proof,
-                createdAt = LocalDateTime.now()
+                createdAt = LocalDateTime.now().toString()
             )
         )
         response.boundUserId == userId
