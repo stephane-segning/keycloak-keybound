@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment & Approval API
-  version: 0.1.7
+  version: 0.1.8
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers device enrollment checks, device-user binding, approval workflow, and device registry queries.
@@ -21,13 +21,7 @@ paths:
       tags: [ enrollment ]
       summary: Pre-check whether a device key can be enrolled
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Keycloak calls this to detect duplicates and enforce policy before persisting.
         Backend should check if device_id or jkt is already bound to a user, revoked, etc.
@@ -59,13 +53,7 @@ paths:
       tags: [ enrollment ]
       summary: Bind an enrolled device key to a user
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Called when Keycloak has identified/created the user and is ready to persist.
         Backend should atomically bind (device_id,jkt) to user_id and store public key material.
@@ -102,13 +90,7 @@ paths:
       tags: [ approvals ]
       summary: Create a new-device approval request
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Called when an existing user is adding a new device and your policy requires approval.
         Backend should notify existing devices (push/poll feed) and return a request_id.
@@ -144,13 +126,7 @@ paths:
       tags: [ approvals ]
       summary: Get approval request status
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Keycloak polls this endpoint server-to-server, then serves a KC-local polling endpoint to the browser.
       operationId: getApproval
@@ -176,13 +152,7 @@ paths:
       tags: [ approvals ]
       summary: Cancel an approval request
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       operationId: cancelApproval
       parameters:
         - name: request_id
@@ -203,13 +173,7 @@ paths:
       tags: [ approvals ]
       summary: Decide an approval request
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Used by an approved device (or delegated UI) to approve or deny a pending approval request.
       operationId: decideApproval
@@ -244,13 +208,7 @@ paths:
       tags: [ approvals ]
       summary: List approval requests for a user
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Returns approval requests that belong to the specified user.
       operationId: listUserApprovals
@@ -284,13 +242,7 @@ paths:
       tags: [ users ]
       summary: Create a user
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Creates a backend user record that is used by Keycloak user-storage SPI.
       operationId: createUser
@@ -324,13 +276,7 @@ paths:
       summary: Get user by id
       operationId: getUser
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -354,13 +300,7 @@ paths:
       summary: Update user by id
       operationId: updateUser
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -392,13 +332,7 @@ paths:
       summary: Delete user by id
       operationId: deleteUser
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -418,13 +352,7 @@ paths:
       tags: [ users ]
       summary: Search users by fields and attributes
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Supports exact/general search plus custom user attributes.
       operationId: searchUsers
@@ -451,13 +379,7 @@ paths:
       tags: [ devices ]
       summary: List devices for a user
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Optional convenience endpoint for Keycloak to consult user device registry.
       operationId: listUserDevices
@@ -490,13 +412,7 @@ paths:
       tags: [ devices ]
       summary: Disable a device for a user
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Disables a device binding for the specified user.
         In Keycloak semantics, disable/revoke are treated the same.
@@ -535,13 +451,7 @@ paths:
       tags: [ devices ]
       summary: Lookup device binding by device_id and/or jkt
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Useful for custom grant: device_id/jkt -> user_id + public key material.
       operationId: lookupDevice
@@ -570,13 +480,7 @@ paths:
       tags: [ enrollment ]
       summary: Send an OTP via SMS
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Called when a new device enrollment needs an OTP delivered to the user's phone.
       operationId: sendSms
@@ -603,13 +507,7 @@ paths:
       tags: [ enrollment ]
       summary: Confirm an OTP
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Validates the OTP/hash pair that was previously issued to the user.
       operationId: confirmSms
@@ -636,13 +534,7 @@ paths:
       tags: [ enrollment ]
       summary: Resolve user by phone and recommended enrollment path
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Backend resolves whether the phone belongs to an existing user and whether the user has active devices.
         This lets Keycloak keep routing logic minimal.
@@ -670,13 +562,7 @@ paths:
       tags: [ enrollment ]
       summary: Resolve existing user by phone or create one
       security:
-        - KCRequestId: [ ]
-        - KCActor: [ ]
-        - KCTimestamp: [ ]
-        - KCSignatureVersion: [ ]
         - KCSignature: [ ]
-        - KCRealm: [ ]
-        - KCClientId: [ ]
       description: |
         Used after OTP verification to offload user find/create behavior to backend.
       operationId: resolveOrCreateUserByPhone
@@ -699,34 +585,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
-    KCRequestId:
-      type: apiKey
-      in: header
-      name: X-KC-Request-Id
-    KCActor:
-      type: apiKey
-      in: header
-      name: X-KC-Actor
-    KCTimestamp:
-      type: apiKey
-      in: header
-      name: X-KC-Timestamp
-    KCSignatureVersion:
-      type: apiKey
-      in: header
-      name: X-KC-Signature-Version
     KCSignature:
       type: apiKey
       in: header
       name: X-KC-Signature
-    KCRealm:
-      type: apiKey
-      in: header
-      name: X-KC-Realm
-    KCClientId:
-      type: apiKey
-      in: header
-      name: X-KC-Client-Id
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
