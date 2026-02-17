@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment & Approval API
-  version: 1.0.0
+  version: 0.1.7
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers device enrollment checks, device-user binding, approval workflow, and device registry queries.
@@ -18,8 +18,16 @@ tags:
 paths:
   /v1/enrollments/precheck:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Pre-check whether a device key can be enrolled
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Keycloak calls this to detect duplicates and enforce policy before persisting.
         Backend should check if device_id or jkt is already bound to a user, revoked, etc.
@@ -48,8 +56,16 @@ paths:
 
   /v1/enrollments/bind:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Bind an enrolled device key to a user
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Called when Keycloak has identified/created the user and is ready to persist.
         Backend should atomically bind (device_id,jkt) to user_id and store public key material.
@@ -83,8 +99,16 @@ paths:
 
   /v1/approvals:
     post:
-      tags: [approvals]
+      tags: [ approvals ]
       summary: Create a new-device approval request
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Called when an existing user is adding a new device and your policy requires approval.
         Backend should notify existing devices (push/poll feed) and return a request_id.
@@ -117,8 +141,16 @@ paths:
 
   /v1/approvals/{request_id}:
     get:
-      tags: [approvals]
+      tags: [ approvals ]
       summary: Get approval request status
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Keycloak polls this endpoint server-to-server, then serves a KC-local polling endpoint to the browser.
       operationId: getApproval
@@ -141,8 +173,16 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
     delete:
-      tags: [approvals]
+      tags: [ approvals ]
       summary: Cancel an approval request
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       operationId: cancelApproval
       parameters:
         - name: request_id
@@ -160,8 +200,16 @@ paths:
 
   /v1/approvals/{request_id}/decision:
     post:
-      tags: [approvals]
+      tags: [ approvals ]
       summary: Decide an approval request
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Used by an approved device (or delegated UI) to approve or deny a pending approval request.
       operationId: decideApproval
@@ -193,8 +241,16 @@ paths:
 
   /v1/users/{user_id}/approvals:
     get:
-      tags: [approvals]
+      tags: [ approvals ]
       summary: List approval requests for a user
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Returns approval requests that belong to the specified user.
       operationId: listUserApprovals
@@ -225,8 +281,16 @@ paths:
 
   /v1/users:
     post:
-      tags: [users]
+      tags: [ users ]
       summary: Create a user
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Creates a backend user record that is used by Keycloak user-storage SPI.
       operationId: createUser
@@ -256,9 +320,17 @@ paths:
 
   /v1/users/{user_id}:
     get:
-      tags: [users]
+      tags: [ users ]
       summary: Get user by id
       operationId: getUser
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -278,9 +350,17 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     put:
-      tags: [users]
+      tags: [ users ]
       summary: Update user by id
       operationId: updateUser
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -308,9 +388,17 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      tags: [users]
+      tags: [ users ]
       summary: Delete user by id
       operationId: deleteUser
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       parameters:
         - name: user_id
           in: path
@@ -327,8 +415,16 @@ paths:
 
   /v1/users:search:
     post:
-      tags: [users]
+      tags: [ users ]
       summary: Search users by fields and attributes
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Supports exact/general search plus custom user attributes.
       operationId: searchUsers
@@ -352,8 +448,16 @@ paths:
 
   /v1/users/{user_id}/devices:
     get:
-      tags: [devices]
+      tags: [ devices ]
       summary: List devices for a user
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Optional convenience endpoint for Keycloak to consult user device registry.
       operationId: listUserDevices
@@ -383,8 +487,16 @@ paths:
 
   /v1/users/{user_id}/devices/{device_id}/disable:
     post:
-      tags: [devices]
+      tags: [ devices ]
       summary: Disable a device for a user
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Disables a device binding for the specified user.
         In Keycloak semantics, disable/revoke are treated the same.
@@ -420,8 +532,16 @@ paths:
 
   /v1/devices/lookup:
     post:
-      tags: [devices]
+      tags: [ devices ]
       summary: Lookup device binding by device_id and/or jkt
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Useful for custom grant: device_id/jkt -> user_id + public key material.
       operationId: lookupDevice
@@ -447,8 +567,16 @@ paths:
 
   /v1/sms/send:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Send an OTP via SMS
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Called when a new device enrollment needs an OTP delivered to the user's phone.
       operationId: sendSms
@@ -472,8 +600,16 @@ paths:
 
   /v1/sms/confirm:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Confirm an OTP
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Validates the OTP/hash pair that was previously issued to the user.
       operationId: confirmSms
@@ -497,8 +633,16 @@ paths:
 
   /v1/enrollments/phone/resolve:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Resolve user by phone and recommended enrollment path
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Backend resolves whether the phone belongs to an existing user and whether the user has active devices.
         This lets Keycloak keep routing logic minimal.
@@ -523,8 +667,16 @@ paths:
 
   /v1/enrollments/phone/resolve-or-create:
     post:
-      tags: [enrollment]
+      tags: [ enrollment ]
       summary: Resolve existing user by phone or create one
+      security:
+        - KCRequestId: [ ]
+        - KCActor: [ ]
+        - KCTimestamp: [ ]
+        - KCSignatureVersion: [ ]
+        - KCSignature: [ ]
+        - KCRealm: [ ]
+        - KCClientId: [ ]
       description: |
         Used after OTP verification to offload user find/create behavior to backend.
       operationId: resolveOrCreateUserByPhone
@@ -546,6 +698,35 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
+  securitySchemes:
+    KCRequestId:
+      type: apiKey
+      in: header
+      name: X-KC-Request-Id
+    KCActor:
+      type: apiKey
+      in: header
+      name: X-KC-Actor
+    KCTimestamp:
+      type: apiKey
+      in: header
+      name: X-KC-Timestamp
+    KCSignatureVersion:
+      type: apiKey
+      in: header
+      name: X-KC-Signature-Version
+    KCSignature:
+      type: apiKey
+      in: header
+      name: X-KC-Signature
+    KCRealm:
+      type: apiKey
+      in: header
+      name: X-KC-Realm
+    KCClientId:
+      type: apiKey
+      in: header
+      name: X-KC-Client-Id
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -585,20 +766,20 @@ components:
   schemas:
     EnrollmentPrecheckRequest:
       type: object
-      required: [realm, client_id, device_id, jkt]
+      required: [ realm, client_id, device_id, jkt ]
       properties:
         realm:
           type: string
           examples:
-             - my-realm
+            - my-realm
         client_id:
           type: string
-          examples: 
+          examples:
             - mobile-app
         user_hint:
           type: string
           description: Optional user identifier hint (phone/email) if known at precheck time
-          examples: 
+          examples:
             - "+491234567890"
         device_id:
           type: string
@@ -607,7 +788,7 @@ components:
         jkt:
           type: string
           description: JWK thumbprint (base64url)
-          examples: 
+          examples:
             - "7bYwzOQ8f0o6u9p..."
         public_jwk:
           type: object
@@ -621,17 +802,17 @@ components:
 
     EnrollmentPrecheckResponseDecision:
       type: string
-      enum: [ALLOW, REQUIRE_APPROVAL, REJECT]
+      enum: [ ALLOW, REQUIRE_APPROVAL, REJECT ]
 
     EnrollmentPrecheckResponse:
       type: object
-      required: [decision]
+      required: [ decision ]
       properties:
         decision:
           $ref: '#/components/schemas/EnrollmentPrecheckResponseDecision'
         reason:
           type: string
-          examples: 
+          examples:
             - "device_already_bound"
         bound_user_id:
           type: string
@@ -641,7 +822,7 @@ components:
 
     EnrollmentBindRequest:
       type: object
-      required: [realm, client_id, user_id, device_id, jkt, public_jwk]
+      required: [ realm, client_id, user_id, device_id, jkt, public_jwk ]
       properties:
         realm:
           type: string
@@ -675,11 +856,11 @@ components:
 
     EnrollmentBindResponseStatus:
       type: string
-      enum: [BOUND, ALREADY_BOUND]
+      enum: [ BOUND, ALREADY_BOUND ]
 
     EnrollmentBindResponse:
       type: object
-      required: [status]
+      required: [ status ]
       properties:
         status:
           $ref: '#/components/schemas/EnrollmentBindResponseStatus'
@@ -690,11 +871,11 @@ components:
 
     QueryApprovalStatus:
       type: string
-      enum: [PENDING, APPROVED, DENIED, EXPIRED]
+      enum: [ PENDING, APPROVED, DENIED, EXPIRED ]
 
     ApprovalCreateRequest:
       type: object
-      required: [realm, client_id, user_id, new_device]
+      required: [ realm, client_id, user_id, new_device ]
       properties:
         realm:
           type: string
@@ -706,7 +887,7 @@ components:
           $ref: '#/components/schemas/DeviceDescriptor'
         reason:
           type: string
-          examples: 
+          examples:
             - add_new_device
         expires_at:
           type: string
@@ -718,15 +899,15 @@ components:
 
     ApprovalCreateResponseStatus:
       type: string
-      enum: [PENDING]
+      enum: [ PENDING ]
 
     ApprovalCreateResponse:
       type: object
-      required: [request_id, status]
+      required: [ request_id, status ]
       properties:
         request_id:
           type: string
-          examples: 
+          examples:
             - apr_01HZX8V9A3M1Y8S9R6W3B4KQ2P
         status:
           $ref: '#/components/schemas/ApprovalCreateResponseStatus'
@@ -736,7 +917,7 @@ components:
 
     ApprovalStatusResponse:
       type: object
-      required: [request_id, status]
+      required: [ request_id, status ]
       properties:
         request_id:
           type: string
@@ -752,11 +933,11 @@ components:
 
     ApprovalDecisionRequestDecision:
       type: string
-      enum: [APPROVE, DENY]
+      enum: [ APPROVE, DENY ]
 
     ApprovalDecisionRequest:
       type: object
-      required: [decision]
+      required: [ decision ]
       properties:
         decision:
           $ref: '#/components/schemas/QueryApprovalStatus'
@@ -767,11 +948,11 @@ components:
 
     UserApprovalRecordStatus:
       type: string
-      enum: [PENDING, APPROVED, DENIED, EXPIRED]
+      enum: [ PENDING, APPROVED, DENIED, EXPIRED ]
 
     UserApprovalRecord:
       type: object
-      required: [request_id, user_id, device_id, status, created_at]
+      required: [ request_id, user_id, device_id, status, created_at ]
       properties:
         request_id:
           type: string
@@ -794,7 +975,7 @@ components:
 
     UserApprovalsResponse:
       type: object
-      required: [user_id, approvals]
+      required: [ user_id, approvals ]
       properties:
         user_id:
           type: string
@@ -805,7 +986,7 @@ components:
 
     DeviceDescriptor:
       type: object
-      required: [device_id, jkt]
+      required: [ device_id, jkt ]
       properties:
         device_id:
           type: string
@@ -816,7 +997,7 @@ components:
           additionalProperties: true
         platform:
           type: string
-          examples: 
+          examples:
             - ios
         model:
           type: string
@@ -825,7 +1006,7 @@ components:
 
     UserRecord:
       type: object
-      required: [user_id, username, enabled, email_verified]
+      required: [ user_id, username, enabled, email_verified ]
       properties:
         user_id:
           type: string
@@ -853,7 +1034,7 @@ components:
 
     UserUpsertRequest:
       type: object
-      required: [realm, username]
+      required: [ realm, username ]
       properties:
         realm:
           type: string
@@ -876,7 +1057,7 @@ components:
 
     UserSearchRequest:
       type: object
-      required: [realm]
+      required: [ realm ]
       properties:
         realm:
           type: string
@@ -907,7 +1088,7 @@ components:
 
     UserSearchResponse:
       type: object
-      required: [users]
+      required: [ users ]
       properties:
         users:
           type: array
@@ -918,7 +1099,7 @@ components:
 
     UserDevicesResponse:
       type: object
-      required: [user_id, devices]
+      required: [ user_id, devices ]
       properties:
         user_id:
           type: string
@@ -928,11 +1109,11 @@ components:
             $ref: '#/components/schemas/DeviceRecord'
     DeviceRecordStatus:
       type: string
-      enum: [ACTIVE, REVOKED, SUSPENDED]
-      
+      enum: [ ACTIVE, REVOKED, SUSPENDED ]
+
     DeviceRecord:
       type: object
-      required: [device_id, jkt, status, created_at]
+      required: [ device_id, jkt, status, created_at ]
       properties:
         device_id:
           type: string
@@ -960,7 +1141,7 @@ components:
 
     DeviceLookupResponse:
       type: object
-      required: [found]
+      required: [ found ]
       properties:
         found:
           type: boolean
@@ -974,7 +1155,7 @@ components:
 
     SmsSendRequest:
       type: object
-      required: [realm, client_id, phone_number, otp]
+      required: [ realm, client_id, phone_number, otp ]
       properties:
         realm:
           type: string
@@ -996,7 +1177,7 @@ components:
 
     SmsSendResponse:
       type: object
-      required: [hash]
+      required: [ hash ]
       properties:
         hash:
           type: string
@@ -1007,7 +1188,7 @@ components:
 
     SmsConfirmRequest:
       type: object
-      required: [hash, otp]
+      required: [ hash, otp ]
       properties:
         hash:
           type: string
@@ -1016,7 +1197,7 @@ components:
 
     SmsConfirmResponse:
       type: object
-      required: [confirmed]
+      required: [ confirmed ]
       properties:
         confirmed:
           type: boolean
@@ -1025,11 +1206,11 @@ components:
 
     EnrollmentPath:
       type: string
-      enum: [APPROVAL, OTP]
+      enum: [ APPROVAL, OTP ]
 
     PhoneResolveRequest:
       type: object
-      required: [realm, client_id, phone_number]
+      required: [ realm, client_id, phone_number ]
       properties:
         realm:
           type: string
@@ -1042,7 +1223,7 @@ components:
 
     PhoneResolveResponse:
       type: object
-      required: [phone_number, user_exists, has_device_credentials, enrollment_path]
+      required: [ phone_number, user_exists, has_device_credentials, enrollment_path ]
       properties:
         phone_number:
           type: string
@@ -1059,7 +1240,7 @@ components:
 
     PhoneResolveOrCreateRequest:
       type: object
-      required: [realm, client_id, phone_number]
+      required: [ realm, client_id, phone_number ]
       properties:
         realm:
           type: string
@@ -1070,7 +1251,7 @@ components:
 
     PhoneResolveOrCreateResponse:
       type: object
-      required: [phone_number, user_id, username, created]
+      required: [ phone_number, user_id, username, created ]
       properties:
         phone_number:
           type: string
@@ -1083,15 +1264,15 @@ components:
 
     Error:
       type: object
-      required: [code, message]
+      required: [ code, message ]
       properties:
         code:
           type: string
-          examples: 
+          examples:
             - bad_request
         message:
           type: string
-          examples: 
+          examples:
             - Invalid payload
         details:
           type: object
