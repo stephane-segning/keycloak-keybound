@@ -122,6 +122,7 @@ Required JSON fields:
 Optional JSON fields:
 
 - `client_id` (accepted for traceability only; not used for enrollment binding)
+- `pow_nonce` (required when PoW is enabled via `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}`)
 
 Successful response:
 
@@ -141,6 +142,8 @@ input:
 
 assert abs(nowEpochSeconds - parseLong(ts)) <= ttl
 assert singleUseStore.putIfAbsent("public-key-login-replay:<realm>:<nonce>", ttl) == true
+if powDifficulty > 0:
+  assert SHA256("<realm>:<device_id>:<username>:<ts>:<nonce>:<pow_nonce>") has required leading zero nibbles
 
 payload = PublicKeyLoginSignaturePayload(
   nonce=nonce,

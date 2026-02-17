@@ -123,6 +123,12 @@ Required body fields:
 Optional body fields:
 
 - `client_id` (accepted for traceability only; not used for enrollment binding)
+- `pow_nonce` (required only when server-side PoW is enabled)
+
+PoW server setting:
+
+- `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}`: number of leading zero hex nibbles required in
+  `SHA-256("${realm}:${device_id}:${username}:${ts}:${nonce}:${pow_nonce}")`
 
 Example:
 

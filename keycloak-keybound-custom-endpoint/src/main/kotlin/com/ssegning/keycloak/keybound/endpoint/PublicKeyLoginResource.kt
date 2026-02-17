@@ -59,6 +59,8 @@ class PublicKeyLoginResource(
         val ts: String? = null,
         @param:JsonProperty("sig")
         val sig: String? = null,
+        @param:JsonProperty("pow_nonce")
+        val powNonce: String? = null,
     )
 
     @POST
@@ -77,6 +79,7 @@ class PublicKeyLoginResource(
         val nonce = request.nonce.normalize()
         val tsStr = request.ts.normalize()
         val sig = request.sig.normalize()
+        val powNonce = request.powNonce.normalize()
 
         val missing =
             listOfNotNull(
@@ -105,20 +108,28 @@ class PublicKeyLoginResource(
         }
 
         val fieldsToCheck =
-            mapOf(
-                "username" to normalizedUsername,
-                "device_id" to deviceIdValue,
-                "public_key" to publicKeyJwkValue,
-                "nonce" to nonceValue,
-                "ts" to tsStrValue,
-                "sig" to sigValue,
-            )
+            buildMap<String, String> {
+                put("username", normalizedUsername)
+                put("device_id", deviceIdValue)
+                put("public_key", publicKeyJwkValue)
+                put("nonce", nonceValue)
+                put("ts", tsStrValue)
+                put("sig", sigValue)
+                powNonce?.let { put("pow_nonce", it) }
+            }
         val oversizedField = fieldsToCheck.entries.firstOrNull { (_, value) -> value.length > MAX_INPUT_LENGTH }?.key
         if (oversizedField != null) {
             return badRequest("$oversizedField exceeds max length of $MAX_INPUT_LENGTH")
         }
 
         val ttl = resolveTtlSeconds(realm.name)
+        val powDifficulty = resolvePowDifficulty(realm.name)
+        if (powDifficulty > 0) {
+            val powNonceValue = powNonce ?: return badRequest("Missing required fields: pow_nonce")
+            if (!verifyPow(realm.name, deviceIdValue, normalizedUsername, tsStrValue, nonceValue, powNonceValue, powDifficulty)) {
+                return unauthorized("Invalid proof-of-work")
+            }
+        }
         val ts = tsStrValue.toLongOrNull() ?: return badRequest("Invalid timestamp")
         val now = Time.currentTimeMillis() / 1000
         if (abs(now - ts) > ttl) {
@@ -231,6 +242,8 @@ class PublicKeyLoginResource(
                                 "ts" to tsStrValue,
                                 "nonce" to nonceValue,
                                 "sig_sha256" to sha256Base64Url(signatureBytes),
+                                "pow_nonce" to (powNonce ?: ""),
+                                "pow_difficulty" to powDifficulty,
                             ),
                     )
                 if (!bound) {
@@ -343,6 +356,14 @@ class PublicKeyLoginResource(
         return DEFAULT_TTL_SECONDS
     }
 
+    private fun resolvePowDifficulty(realmName: String): Int {
+        val fromEnv = "PUBLIC_KEY_LOGIN_POW_DIFFICULTY_$realmName".getEnv()?.toIntOrNull()
+        if (fromEnv != null && fromEnv >= 0) {
+            return fromEnv
+        }
+        return 0
+    }
+
     private fun isConflict(
         lookup: DeviceLookupResult,
         backendUserId: String,
@@ -374,6 +395,46 @@ class PublicKeyLoginResource(
             .getUrlEncoder()
             .withoutPadding()
             .encodeToString(digest)
+    }
+
+    private fun verifyPow(
+        realmName: String,
+        deviceId: String,
+        username: String,
+        ts: String,
+        nonce: String,
+        powNonce: String,
+        difficulty: Int,
+    ): Boolean {
+        val material = "$realmName:$deviceId:$username:$ts:$nonce:$powNonce"
+        val digest = MessageDigest.getInstance("SHA-256").digest(material.toByteArray(Charsets.UTF_8))
+        return hasLeadingZeroNibbles(digest, difficulty)
+    }
+
+    private fun hasLeadingZeroNibbles(
+        digest: ByteArray,
+        difficulty: Int,
+    ): Boolean {
+        if (difficulty <= 0) return true
+        var remaining = difficulty
+        for (byteValue in digest) {
+            val unsigned = byteValue.toInt() and 0xFF
+            val highNibble = unsigned ushr 4
+            val lowNibble = unsigned and 0x0F
+
+            if (remaining > 0) {
+                if (highNibble != 0) return false
+                remaining--
+            }
+
+            if (remaining > 0) {
+                if (lowNibble != 0) return false
+                remaining--
+            }
+
+            if (remaining == 0) return true
+        }
+        return remaining == 0
     }
 
     private fun String?.normalize(): String? = this?.trim()?.takeIf { it.isNotBlank() }

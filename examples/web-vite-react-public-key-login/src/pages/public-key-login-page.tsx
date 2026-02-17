@@ -4,6 +4,7 @@ import {
     PublicKeyLoginResponse,
     callPublicKeyLoginEndpoint,
 } from '../lib/public-key-login';
+import {PUBLIC_LOGIN_POW_DIFFICULTY} from '../config';
 
 const STATUS_IDLE = 'idle';
 
@@ -48,6 +49,9 @@ export const PublicKeyLoginPage = () => {
             <div className="rounded border border-base-300 bg-base-100 p-6 shadow">
                 <p className="text-sm text-base-content/70">Device seed</p>
                 <p className="text-lg font-semibold">{deviceInfo}</p>
+                <p className="mt-2 text-xs text-base-content/70">
+                    PoW difficulty: {PUBLIC_LOGIN_POW_DIFFICULTY} leading zero hex nibbles
+                </p>
             </div>
 
             <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -77,7 +81,7 @@ export const PublicKeyLoginPage = () => {
                     className="btn btn-primary"
                     disabled={status === 'pending'}
                 >
-                    {status === 'pending' ? 'Calling endpoint…' : 'Call public-key login'}
+                    {status === 'pending' ? 'Solving PoW + calling endpoint...' : 'Call public-key login'}
                 </button>
             </form>
 

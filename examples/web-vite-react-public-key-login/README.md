@@ -49,6 +49,7 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 - `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_REDIRECT_URI`
 - `VITE_RESOURCE_SERVER`
 - `VITE_RESOURCE_SERVER_SIGNED` (defaults to `http://localhost:18082`)
+- `VITE_PUBLIC_LOGIN_POW_DIFFICULTY` (default `0`; set `3-5` to enforce endpoint PoW)
 
 ## Run
 

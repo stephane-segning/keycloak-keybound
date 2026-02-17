@@ -1,9 +1,10 @@
 import axios, {AxiosError} from 'axios';
-import {KEYCLOAK_BASE_URL, KEYCLOAK_REALM} from '../config';
+import {KEYCLOAK_BASE_URL, KEYCLOAK_REALM, PUBLIC_LOGIN_POW_DIFFICULTY} from '../config';
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
 import {signPayload, stringifyPublicJwk} from './crypto';
 import {PublicKeyLoginPayload} from './canonical-payloads';
+import {solvePow} from './pow';
 
 export type PublicKeyLoginResponse = {
     user_id: string;
@@ -23,6 +24,14 @@ export async function callPublicKeyLoginEndpoint(params: {
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
+    const powNonce = await solvePow({
+        realm: KEYCLOAK_REALM,
+        deviceId: device.deviceId,
+        username: params.username,
+        ts,
+        nonce,
+        difficulty: PUBLIC_LOGIN_POW_DIFFICULTY,
+    });
     const payload = new PublicKeyLoginPayload(nonce, device.deviceId, params.username, ts, publicKey);
     const sig = await signPayload(device.privateJwk, payload.toCanonicalJson());
 
@@ -36,6 +45,9 @@ export async function callPublicKeyLoginEndpoint(params: {
     };
     if (params.clientId) {
         body.client_id = params.clientId;
+    }
+    if (powNonce) {
+        body.pow_nonce = powNonce;
     }
 
     try {
