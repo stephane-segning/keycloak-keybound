@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment & Approval API
-  version: 0.1.9
+  version: 0.1.10
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers device enrollment checks, device-user binding, approval workflow, and device registry queries.
@@ -710,7 +710,6 @@ components:
           description: Extra attributes to store with the device
         created_at:
           type: string
-          format: date-time
         proof:
           type: object
           description: Optional proof summary (ts, nonce, sig hash) for audit
@@ -753,7 +752,6 @@ components:
             - add_new_device
         expires_at:
           type: string
-          format: date-time
         context:
           type: object
           additionalProperties: true
@@ -775,7 +773,6 @@ components:
           $ref: '#/components/schemas/ApprovalCreateResponseStatus'
         expires_at:
           type: string
-          format: date-time
 
     ApprovalStatusResponse:
       type: object
@@ -787,7 +784,6 @@ components:
           $ref: '#/components/schemas/QueryApprovalStatus'
         decided_at:
           type: string
-          format: date-time
         decided_by_device_id:
           type: string
         message:
@@ -826,10 +822,8 @@ components:
           $ref: '#/components/schemas/UserApprovalRecordStatus'
         created_at:
           type: string
-          format: date-time
         decided_at:
           type: string
-          format: date-time
         decided_by_device_id:
           type: string
         message:
@@ -888,7 +882,6 @@ components:
           type: boolean
         created_at:
           type: string
-          format: date-time
         attributes:
           type: object
           additionalProperties:
@@ -985,10 +978,8 @@ components:
           $ref: '#/components/schemas/DeviceRecordStatus'
         created_at:
           type: string
-          format: date-time
         last_seen_at:
           type: string
-          format: date-time
         label:
           type: string
 

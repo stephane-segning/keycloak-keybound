@@ -29,8 +29,6 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
     - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
     - ./keycloak-keybound-user-storage-backend/build/libs:/tmp/libs-user-storage-backend
-  links:
-    - api-mock
 
 services:
   keycloak-26:
