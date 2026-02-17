@@ -12,8 +12,7 @@ class ConditionApprovalPathAuthenticatorFactory : ConditionalAuthenticatorFactor
 
     override fun getDisplayType() = "Condition - Approval Path"
 
-    override fun getHelpText() =
-        "Executes the current subflow only when enrollment routing selected the approval path."
+    override fun getHelpText() = "Executes the current subflow only when enrollment routing selected the approval path."
 
     override fun getRequirementChoices() = REQUIREMENT_CHOICES
 
@@ -41,9 +40,10 @@ class ConditionApprovalPathAuthenticatorFactory : ConditionalAuthenticatorFactor
 
     companion object {
         const val ID = "condition-approval-path"
-        private val REQUIREMENT_CHOICES = arrayOf(
-            AuthenticationExecutionModel.Requirement.REQUIRED,
-            AuthenticationExecutionModel.Requirement.DISABLED
-        )
+        private val REQUIREMENT_CHOICES =
+            arrayOf(
+                AuthenticationExecutionModel.Requirement.REQUIRED,
+                AuthenticationExecutionModel.Requirement.DISABLED,
+            )
     }
 }

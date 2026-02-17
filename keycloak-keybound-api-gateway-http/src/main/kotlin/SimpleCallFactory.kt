@@ -17,7 +17,7 @@ import javax.crypto.spec.SecretKeySpec
 
 class SimpleCallFactory(
     private val session: KeycloakSession,
-    private val config: HttpConfig = HttpConfig.fromEnv(session.context)
+    private val config: HttpConfig = HttpConfig.fromEnv(session.context),
 ) : Call.Factory {
     val baseUrl: String = config.baseUrl
 
@@ -35,12 +35,14 @@ class SimpleCallFactory(
         val targetBaseUrl = config.baseUrlForRealm(realmName)
         val rewrittenUrl = rewriteUrl(request, targetBaseUrl)
 
-        val builder = request.newBuilder()
-            .url(rewrittenUrl)
-            .header("X-KC-Request-Id", requestId)
-            .header("X-KC-Actor", config.actor)
-            .header("X-KC-Timestamp", timestamp)
-            .header("X-KC-Signature-Version", config.signatureVersion)
+        val builder =
+            request
+                .newBuilder()
+                .url(rewrittenUrl)
+                .header("X-KC-Request-Id", requestId)
+                .header("X-KC-Actor", config.actor)
+                .header("X-KC-Timestamp", timestamp)
+                .header("X-KC-Signature-Version", config.signatureVersion)
 
         if (!realmName.isNullOrBlank()) {
             builder.header("X-KC-Realm", realmName)
@@ -56,8 +58,9 @@ class SimpleCallFactory(
 
         if (config.telemetryEnabled) {
             val incomingHeaders = session.context.httpRequest?.httpHeaders
-            val traceParent = incomingHeaders?.getHeaderString("traceparent")?.takeIf { it.isNotBlank() }
-                ?: generateTraceParent()
+            val traceParent =
+                incomingHeaders?.getHeaderString("traceparent")?.takeIf { it.isNotBlank() }
+                    ?: generateTraceParent()
             val traceState = incomingHeaders?.getHeaderString("tracestate")?.takeIf { it.isNotBlank() }
 
             builder.header("traceparent", traceParent)
@@ -68,38 +71,49 @@ class SimpleCallFactory(
 
         val signedRequest = builder.build()
         val signature = buildSignature(signedRequest, timestamp, config.signatureSecret)
-        val finalRequest = if (signature != null) {
-            signedRequest.newBuilder()
-                .header("X-KC-Signature", signature)
-                .build()
-        } else {
-            signedRequest
-        }
+        val finalRequest =
+            if (signature != null) {
+                signedRequest
+                    .newBuilder()
+                    .header("X-KC-Signature", signature)
+                    .build()
+            } else {
+                signedRequest
+            }
 
         return SHARED_CLIENT.newCall(finalRequest)
     }
 
     // Generated clients are initialized with one base URL, but runtime realm may differ.
     // Rewrite scheme/host/base-path while preserving endpoint suffix and query string.
-    private fun rewriteUrl(request: Request, targetBaseUrl: String): okhttp3.HttpUrl {
-        val targetBase = targetBaseUrl.toHttpUrlOrNull()
-            ?: return request.url
+    private fun rewriteUrl(
+        request: Request,
+        targetBaseUrl: String,
+    ): okhttp3.HttpUrl {
+        val targetBase =
+            targetBaseUrl.toHttpUrlOrNull()
+                ?: return request.url
         val targetBasePath = targetBase.encodedPath.trimEnd('/')
         val currentPath = request.url.encodedPath
-        val suffixPath = if (baseUrlPath.isNotBlank() && currentPath.startsWith(baseUrlPath)) {
-            currentPath.removePrefix(baseUrlPath)
-        } else {
-            currentPath
-        }.trimStart('/')
+        val suffixPath =
+            if (baseUrlPath.isNotBlank() && currentPath.startsWith(baseUrlPath)) {
+                currentPath.removePrefix(baseUrlPath)
+            } else {
+                currentPath
+            }.trimStart('/')
         val mergedPath = mergePaths(targetBasePath, suffixPath)
 
-        return targetBase.newBuilder()
+        return targetBase
+            .newBuilder()
             .encodedPath(mergedPath)
             .encodedQuery(request.url.encodedQuery)
             .build()
     }
 
-    private fun mergePaths(basePath: String, suffixPath: String): String {
+    private fun mergePaths(
+        basePath: String,
+        suffixPath: String,
+    ): String {
         val normalizedBase = basePath.trimEnd('/')
         val normalizedSuffix = suffixPath.trimStart('/')
 
@@ -116,28 +130,35 @@ class SimpleCallFactory(
         }
     }
 
-    private fun buildSignature(request: Request, timestamp: String, secret: String?): String? {
+    private fun buildSignature(
+        request: Request,
+        timestamp: String,
+        secret: String?,
+    ): String? {
         if (secret.isNullOrBlank()) {
             return null
         }
 
-        val canonicalBody = request.body?.let { body ->
-            val buffer = Buffer()
-            body.writeTo(buffer)
-            buffer.readUtf8()
-        } ?: ""
-        val canonicalPayload = listOf(
-            timestamp,
-            request.method.uppercase(),
-            request.url.encodedPath,
-            canonicalBody
-        ).joinToString("\n")
+        val canonicalBody =
+            request.body?.let { body ->
+                val buffer = Buffer()
+                body.writeTo(buffer)
+                buffer.readUtf8()
+            } ?: ""
+        val canonicalPayload =
+            listOf(
+                timestamp,
+                request.method.uppercase(),
+                request.url.encodedPath,
+                canonicalBody,
+            ).joinToString("\n")
 
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
         val digest = mac.doFinal(canonicalPayload.toByteArray(Charsets.UTF_8))
 
-        return Base64.getUrlEncoder()
+        return Base64
+            .getUrlEncoder()
             .withoutPadding()
             .encodeToString(digest)
     }
@@ -160,9 +181,11 @@ class SimpleCallFactory(
 
         // One shared client/pool for all provider instances to maximize connection reuse.
         private val CONNECTION_POOL = ConnectionPool(64, 10, TimeUnit.MINUTES)
-        private val SHARED_CLIENT: OkHttpClient = OkHttpClient.Builder()
-            .followRedirects(true)
-            .connectionPool(CONNECTION_POOL)
-            .build()
+        private val SHARED_CLIENT: OkHttpClient =
+            OkHttpClient
+                .Builder()
+                .followRedirects(true)
+                .connectionPool(CONNECTION_POOL)
+                .build()
     }
 }

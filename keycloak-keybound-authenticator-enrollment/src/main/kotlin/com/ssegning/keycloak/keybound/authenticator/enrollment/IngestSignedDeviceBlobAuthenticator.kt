@@ -34,7 +34,7 @@ class IngestSignedDeviceBlobAuthenticator : AbstractKeyAuthenticator() {
             action,
             userHint,
             deviceOs,
-            deviceModel
+            deviceModel,
         )
 
         // Input length validation to prevent potential DoS attacks

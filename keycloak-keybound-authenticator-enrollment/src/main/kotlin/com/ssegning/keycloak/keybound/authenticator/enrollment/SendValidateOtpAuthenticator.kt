@@ -7,7 +7,6 @@ import com.ssegning.keycloak.keybound.core.models.SmsRequest
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
-import java.security.SecureRandom
 
 class SendValidateOtpAuthenticator : AbstractAuthenticator() {
     companion object {
@@ -30,36 +29,44 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
         val smsHash = authSession.getAuthNote(KeyboundFlowNotes.ENROLL_SMS_HASH_NOTE_NAME)
         if (phoneForChallenge == phoneNumber && !smsHash.isNullOrBlank()) {
             context.challenge(
-                context.form()
+                context
+                    .form()
                     .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
-                    .createForm(VERIFY_FORM_TEMPLATE)
+                    .createForm(VERIFY_FORM_TEMPLATE),
             )
             return
         }
 
-        val smsRequest = SmsRequest(
-            realm = context.realm.name,
-            clientId = authSession.client.clientId,
-            ipAddress = context.connection.remoteAddr,
-            userAgent = context.httpRequest.httpHeaders.getRequestHeader("User-Agent").firstOrNull(),
-            sessionId = authSession.parentSession.id,
-            traceId = null,
-            metadata = mapOf()
-        )
+        val smsRequest =
+            SmsRequest(
+                realm = context.realm.name,
+                clientId = authSession.client.clientId,
+                ipAddress = context.connection.remoteAddr,
+                userAgent =
+                    context.httpRequest.httpHeaders
+                        .getRequestHeader("User-Agent")
+                        .firstOrNull(),
+                sessionId = authSession.parentSession.id,
+                traceId = null,
+                metadata = mapOf(),
+            )
 
         val apiGateway = context.session.getApi()
-        val hash = try {
-            apiGateway.sendSmsAndGetHash(context, smsRequest, phoneNumber)
-        } catch (e: Exception) {
-            log.error("Failed to send OTP SMS for phone {}", maskPhone(phoneNumber), e)
-            null
-        }
+        val hash =
+            try {
+                apiGateway.sendSmsAndGetHash(context, smsRequest, phoneNumber)
+            } catch (e: Exception) {
+                log.error("Failed to send OTP SMS for phone {}", maskPhone(phoneNumber), e)
+                null
+            }
 
         if (hash.isNullOrBlank()) {
-            val challenge = context.form()
-                .setError("smsSendError")
-                .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
-                .createForm(VERIFY_FORM_TEMPLATE)
+            val challenge =
+                context
+                    .form()
+                    .setError("smsSendError")
+                    .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
+                    .createForm(VERIFY_FORM_TEMPLATE)
             context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR, challenge)
             return
         }
@@ -70,15 +77,19 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
 
         log.debug("OTP challenge sent for phone {}", maskPhone(phoneNumber))
         context.challenge(
-            context.form()
+            context
+                .form()
                 .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
-                .createForm(VERIFY_FORM_TEMPLATE)
+                .createForm(VERIFY_FORM_TEMPLATE),
         )
     }
 
     override fun action(context: AuthenticationFlowContext) {
         val authSession = context.authenticationSession
-        val submittedOtp = context.httpRequest.decodedFormParameters.getFirst(OTP_FORM_FIELD)?.trim()
+        val submittedOtp =
+            context.httpRequest.decodedFormParameters
+                .getFirst(OTP_FORM_FIELD)
+                ?.trim()
         val phoneNumber = authSession.getAuthNote(KeyboundFlowNotes.ENROLL_PHONE_NOTE_NAME)?.trim()
         val smsHash = authSession.getAuthNote(KeyboundFlowNotes.ENROLL_SMS_HASH_NOTE_NAME)?.trim()
 
@@ -87,40 +98,49 @@ class SendValidateOtpAuthenticator : AbstractAuthenticator() {
                 "OTP submission context missing: otp_present={} phone_present={} hash_present={}",
                 !submittedOtp.isNullOrBlank(),
                 !phoneNumber.isNullOrBlank(),
-                !smsHash.isNullOrBlank()
+                !smsHash.isNullOrBlank(),
             )
             context.failure(AuthenticationFlowError.INTERNAL_ERROR)
             return
         }
 
-        val smsRequest = SmsRequest(
-            realm = context.realm.name,
-            clientId = authSession.client.clientId,
-            ipAddress = context.connection.remoteAddr,
-            userAgent = context.httpRequest.httpHeaders.getRequestHeader("User-Agent").firstOrNull(),
-            sessionId = authSession.parentSession.id,
-            traceId = null,
-            metadata = mutableMapOf()
-        )
+        val smsRequest =
+            SmsRequest(
+                realm = context.realm.name,
+                clientId = authSession.client.clientId,
+                ipAddress = context.connection.remoteAddr,
+                userAgent =
+                    context.httpRequest.httpHeaders
+                        .getRequestHeader("User-Agent")
+                        .firstOrNull(),
+                sessionId = authSession.parentSession.id,
+                traceId = null,
+                metadata = mutableMapOf(),
+            )
 
-        val confirmed = try {
-            context.session.getApi().confirmSmsCode(
-                context = context,
-                request = smsRequest,
-                phoneNumber = phoneNumber,
-                code = submittedOtp,
-                hash = smsHash
-            )?.toBooleanStrictOrNull() == true
-        } catch (e: Exception) {
-            log.error("OTP confirmation failed for phone {}", maskPhone(phoneNumber), e)
-            false
-        }
+        val confirmed =
+            try {
+                context.session
+                    .getApi()
+                    .confirmSmsCode(
+                        context = context,
+                        request = smsRequest,
+                        phoneNumber = phoneNumber,
+                        code = submittedOtp,
+                        hash = smsHash,
+                    )?.toBooleanStrictOrNull() == true
+            } catch (e: Exception) {
+                log.error("OTP confirmation failed for phone {}", maskPhone(phoneNumber), e)
+                false
+            }
 
         if (!confirmed) {
-            val challenge = context.form()
-                .setError("invalidOtp")
-                .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
-                .createForm(VERIFY_FORM_TEMPLATE)
+            val challenge =
+                context
+                    .form()
+                    .setError("invalidOtp")
+                    .setAttribute(PHONE_FORM_ATTRIBUTE, phoneNumber)
+                    .createForm(VERIFY_FORM_TEMPLATE)
             context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge)
             return
         }

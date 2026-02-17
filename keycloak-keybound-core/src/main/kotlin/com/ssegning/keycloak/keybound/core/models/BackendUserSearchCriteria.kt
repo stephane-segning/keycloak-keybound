@@ -11,5 +11,5 @@ data class BackendUserSearchCriteria(
     val exact: Boolean? = null,
     val attributes: Map<String, String>? = null,
     val firstResult: Int? = null,
-    val maxResults: Int? = null
+    val maxResults: Int? = null,
 )

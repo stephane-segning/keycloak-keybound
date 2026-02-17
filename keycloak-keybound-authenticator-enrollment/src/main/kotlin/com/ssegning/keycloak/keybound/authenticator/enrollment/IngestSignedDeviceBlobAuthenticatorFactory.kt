@@ -5,8 +5,10 @@ import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
 
 open class IngestSignedDeviceBlobAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway) =
-        IngestSignedDeviceBlobAuthenticator()
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ) = IngestSignedDeviceBlobAuthenticator()
 
     override fun getId() = ID
 

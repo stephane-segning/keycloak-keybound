@@ -37,12 +37,13 @@ class FindOrCreateUserAuthenticator : AbstractAuthenticator() {
         authSession.setAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME, resolved.username)
 
         log.debug("Resolving Keycloak user for backend userId={}", resolved.userId)
-        val user = KeyboundUserResolver.resolveUser(
-            context = context,
-            backendUserId = resolved.userId,
-            username = resolved.username,
-            phoneE164 = phoneE164
-        )
+        val user =
+            KeyboundUserResolver.resolveUser(
+                context = context,
+                backendUserId = resolved.userId,
+                username = resolved.username,
+                phoneE164 = phoneE164,
+            )
 
         if (user == null) {
             log.warn("Unable to map backend user '{}' to Keycloak user context", resolved.userId)

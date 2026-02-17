@@ -11,8 +11,10 @@ import org.keycloak.provider.ProviderConfigProperty
 import org.keycloak.representations.IDToken
 import org.slf4j.LoggerFactory
 
-open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTokenMapper, OIDCAccessTokenMapper {
-
+open class DeviceBindingProtocolMapper :
+    AbstractOIDCProtocolMapper(),
+    OIDCIDTokenMapper,
+    OIDCAccessTokenMapper {
     companion object {
         const val PROVIDER_ID = "device-binding-mapper"
         const val DEVICE_ID_NOTE = "device.id"
@@ -37,14 +39,15 @@ open class DeviceBindingProtocolMapper : AbstractOIDCProtocolMapper(), OIDCIDTok
         mappingModel: ProtocolMapperModel,
         userSession: UserSessionModel,
         keycloakSession: KeycloakSession,
-        clientSessionCtx: ClientSessionContext
+        clientSessionCtx: ClientSessionContext,
     ) {
         val clientSession = clientSessionCtx.clientSession
         val deviceId = clientSession.getNote(DEVICE_ID_NOTE) ?: userSession.getNote(DEVICE_ID_NOTE)
-        val jkt = clientSession.getNote(JKT_NOTE)
-            ?: userSession.getNote(JKT_NOTE)
-            ?: clientSession.getNote(CNF_JKT_NOTE)
-            ?: userSession.getNote(CNF_JKT_NOTE)
+        val jkt =
+            clientSession.getNote(JKT_NOTE)
+                ?: userSession.getNote(JKT_NOTE)
+                ?: clientSession.getNote(CNF_JKT_NOTE)
+                ?: userSession.getNote(CNF_JKT_NOTE)
 
         if (deviceId == null && jkt == null) {
             log.debug("No device binding notes found for clientSession {} userSession {}", clientSession.id, userSession.id)

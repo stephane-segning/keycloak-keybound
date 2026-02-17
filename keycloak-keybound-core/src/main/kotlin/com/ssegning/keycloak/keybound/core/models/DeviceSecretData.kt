@@ -6,5 +6,5 @@ data class DeviceSecretData(
     @param:JsonProperty("public_key")
     val publicKey: String,
     @param:JsonProperty("jkt")
-    val jkt: String
+    val jkt: String,
 )

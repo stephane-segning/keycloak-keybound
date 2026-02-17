@@ -3,9 +3,9 @@ package com.ssegning.keycloak.keybound.authenticator.enrollment
 import com.ssegning.keycloak.keybound.core.authenticator.AbstractAuthenticator
 import com.ssegning.keycloak.keybound.core.helper.getApi
 import com.ssegning.keycloak.keybound.core.helper.maskPhone
-import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
+import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 
 class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
     companion object {
@@ -35,7 +35,7 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
                 KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL
             } else {
                 KeyboundFlowNotes.ENROLLMENT_PATH_OTP
-            }
+            },
         )
 
         if (!resolved.userId.isNullOrBlank()) {
@@ -45,12 +45,13 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
             authSession.setAuthNote(KeyboundFlowNotes.RESOLVED_USERNAME_NOTE_NAME, resolved.username)
         }
 
-        val resolvedUser = KeyboundUserResolver.resolveUser(
-            context = context,
-            backendUserId = resolved.userId,
-            username = resolved.username,
-            phoneE164 = phoneE164
-        )
+        val resolvedUser =
+            KeyboundUserResolver.resolveUser(
+                context = context,
+                backendUserId = resolved.userId,
+                username = resolved.username,
+                phoneE164 = phoneE164,
+            )
         if (resolvedUser != null) {
             log.debug("Resolved existing user by phone {}", maskPhone(phoneE164))
             context.user = resolvedUser
@@ -58,13 +59,13 @@ class CheckUserByPhoneAuthenticator : AbstractAuthenticator() {
             log.debug(
                 "No Keycloak user resolved by phone {} (backend user_exists={})",
                 maskPhone(phoneE164),
-                resolved.userExists
+                resolved.userExists,
             )
             if (wantsApproval) {
                 log.debug("Fallback to OTP enrollment path because no Keycloak user was resolved")
                 authSession.setAuthNote(
                     KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME,
-                    KeyboundFlowNotes.ENROLLMENT_PATH_OTP
+                    KeyboundFlowNotes.ENROLLMENT_PATH_OTP,
                 )
             }
         }

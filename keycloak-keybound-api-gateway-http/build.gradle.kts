@@ -55,7 +55,7 @@ openApiGenerate {
 
     configOptions.set(
         mutableMapOf(
-            "dateLibrary" to "java8-localdatetime",
+            "dateLibrary" to "kotlinx-datetime",
             "serializationLibrary" to "jackson",
         ),
     )

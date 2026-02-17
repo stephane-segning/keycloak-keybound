@@ -6,5 +6,5 @@ data class PhoneResolveResult(
     val hasDeviceCredentials: Boolean,
     val enrollmentPath: EnrollmentPath,
     val userId: String? = null,
-    val username: String? = null
+    val username: String? = null,
 )

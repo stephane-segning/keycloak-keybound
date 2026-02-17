@@ -4,5 +4,5 @@ data class DeviceLookupResult(
     val found: Boolean,
     val userId: String? = null,
     val device: DeviceRecord? = null,
-    val publicJwk: Map<String, Any>? = null
+    val publicJwk: Map<String, Any>? = null,
 )

@@ -5,7 +5,10 @@ import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
 
 open class CollectPhoneFormAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway) = CollectPhoneFormAuthenticator()
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ) = CollectPhoneFormAuthenticator()
 
     override fun getId() = ID
 

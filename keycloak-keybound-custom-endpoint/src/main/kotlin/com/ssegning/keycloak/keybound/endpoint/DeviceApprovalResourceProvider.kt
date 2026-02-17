@@ -7,7 +7,7 @@ import org.keycloak.services.resource.RealmResourceProvider
 
 class DeviceApprovalResourceProvider(
     private val session: KeycloakSession,
-    private val apiGateway: ApiGateway
+    private val apiGateway: ApiGateway,
 ) : RealmResourceProvider {
     override fun getResource(): Any = DeviceApprovalResource(session, apiGateway, session.tokens())
 

@@ -1,10 +1,10 @@
 package com.ssegning.keycloak.keybound.authenticator.enrollment
 
+import com.ssegning.keycloak.keybound.core.helper.maskForAttribute
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
-import com.ssegning.keycloak.keybound.core.helper.maskForAttribute
 
 object KeyboundUserResolver {
     private val log = LoggerFactory.getLogger(KeyboundUserResolver::class.java)
@@ -21,7 +21,7 @@ object KeyboundUserResolver {
         context: AuthenticationFlowContext,
         backendUserId: String?,
         username: String?,
-        phoneE164: String?
+        phoneE164: String?,
     ): UserModel? {
         val realm = context.realm
         val users = context.session.users()
@@ -61,10 +61,12 @@ object KeyboundUserResolver {
     private fun findSingleUserByAttribute(
         context: AuthenticationFlowContext,
         attributeName: String,
-        attributeValue: String
+        attributeValue: String,
     ): UserModel? {
-        val stream = context.session.users()
-            .searchForUserByUserAttributeStream(context.realm, attributeName, attributeValue)
+        val stream =
+            context.session
+                .users()
+                .searchForUserByUserAttributeStream(context.realm, attributeName, attributeValue)
         return try {
             val iterator = stream.iterator()
             if (!iterator.hasNext()) {
@@ -76,7 +78,7 @@ object KeyboundUserResolver {
                         "Multiple users resolved for {}={} in realm {}",
                         attributeName,
                         maskForAttribute(attributeName, attributeValue),
-                        context.realm.name
+                        context.realm.name,
                     )
                     null
                 } else {

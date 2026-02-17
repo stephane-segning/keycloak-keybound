@@ -1,11 +1,11 @@
 package com.ssegning.keycloak.keybound.core.models
 
-import java.time.OffsetDateTime
+import kotlin.time.Instant
 
 data class DeviceRecord(
     val deviceId: String,
     val jkt: String,
     val status: DeviceStatus,
-    val createdAt: OffsetDateTime? = null,
-    val label: String? = null
+    val createdAt: Instant? = null,
+    val label: String? = null,
 )

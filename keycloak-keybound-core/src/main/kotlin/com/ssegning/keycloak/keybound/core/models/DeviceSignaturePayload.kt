@@ -8,7 +8,7 @@ data class DeviceSignaturePayload(
     val deviceId: String,
     val publicKey: String,
     val ts: String,
-    val nonce: String
+    val nonce: String,
 ) {
     fun toCanonicalJson(): String = JsonSerialization.writeValueAsString(this)
 }

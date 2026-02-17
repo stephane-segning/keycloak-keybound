@@ -14,11 +14,13 @@ class RouteEnrollmentPathAuthenticator : AbstractAuthenticator() {
 
     override fun authenticate(context: AuthenticationFlowContext) {
         val authSession = context.authenticationSession
-        val path = authSession.getAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
-            ?.takeIf {
-                it == KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL || it == KeyboundFlowNotes.ENROLLMENT_PATH_OTP
-            }
-            ?: KeyboundFlowNotes.ENROLLMENT_PATH_OTP
+        val path =
+            authSession
+                .getAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME)
+                ?.takeIf {
+                    it == KeyboundFlowNotes.ENROLLMENT_PATH_APPROVAL || it == KeyboundFlowNotes.ENROLLMENT_PATH_OTP
+                }
+                ?: KeyboundFlowNotes.ENROLLMENT_PATH_OTP
 
         authSession.setAuthNote(KeyboundFlowNotes.ENROLLMENT_PATH_NOTE_NAME, path)
         log.debug("Enrollment flow routed to '{}'", path)
@@ -29,5 +31,9 @@ class RouteEnrollmentPathAuthenticator : AbstractAuthenticator() {
         // No action needed for this authenticator
     }
 
-    override fun configuredFor(session: KeycloakSession, realm: RealmModel, user: UserModel?): Boolean = true
+    override fun configuredFor(
+        session: KeycloakSession,
+        realm: RealmModel,
+        user: UserModel?,
+    ): Boolean = true
 }

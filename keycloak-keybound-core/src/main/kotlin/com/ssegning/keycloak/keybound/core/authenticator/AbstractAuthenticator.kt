@@ -17,13 +17,13 @@ abstract class AbstractAuthenticator : Authenticator {
     override fun configuredFor(
         session: KeycloakSession,
         realm: RealmModel,
-        user: UserModel?
+        user: UserModel?,
     ): Boolean = true
 
     override fun setRequiredActions(
         session: KeycloakSession,
         realm: RealmModel,
-        user: UserModel?
+        user: UserModel?,
     ) = noop()
 
     override fun close() = noop()

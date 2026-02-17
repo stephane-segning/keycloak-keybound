@@ -1,8 +1,18 @@
 x-keycloak-common-env: &keycloak-common-env
-  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://api-mock:8080"
-  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://api-backend-example:18080"
-
+  BACKEND_HTTP_BASE_PATH_ssegning-keybound-wh-01: "http://app:3000/kc"
   NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
+
+  # Dev-only credentials. Do not reuse in production; wire secrets via a vault or env injection.
+  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://app:3000/kc"
+  BACKEND_HTTP_SIGNATURE_SECRET_e2e-testing: "some-very-long-secret"
+  BACKEND_HTTP_SIGNATURE_VERSION_e2e-testing: "1"
+  BACKEND_HTTP_TELEMETRY_ENABLED_e2e-testing: "true"
+  BACKEND_HTTP_ACTOR_e2e-testing: "keycloak-u-e2e-testing"
+
+  BACKEND_HTTP_AUTH_USERNAME: "admin"
+  BACKEND_HTTP_AUTH_PASSWORD: "password"
+
+  NONCE_CACHE_TTL_e2e-testing: "60"
 
   # Dev-only Keycloak bootstrap credentials. Replace for production.
   KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -16,7 +26,7 @@ x-keycloak-common-extra: &keycloak-common-extra
       set -ex
       ls -lash /tmp/libs-*/*.jar
       cp /tmp/libs-*/*.jar /opt/keycloak/providers # Copy the provider jars to the providers directory
-      /opt/keycloak/bin/kc.sh start-dev --import-realm # Start Keycloak in dev mode and import the realm
+      /opt/keycloak/bin/kc.sh start-dev --log-level=debug --import-realm # Start Keycloak in dev mode and import the realm
   volumes:
     - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
@@ -29,8 +39,6 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
     - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
     - ./keycloak-keybound-user-storage-backend/build/libs:/tmp/libs-user-storage-backend
-  links:
-    - api-mock
 
 services:
   keycloak-26:

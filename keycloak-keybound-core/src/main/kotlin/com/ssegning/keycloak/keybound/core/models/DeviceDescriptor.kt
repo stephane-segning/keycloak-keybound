@@ -6,5 +6,5 @@ data class DeviceDescriptor(
     val publicJwk: Map<String, Any>?,
     val platform: String?,
     val model: String?,
-    val appVersion: String?
+    val appVersion: String?,
 )

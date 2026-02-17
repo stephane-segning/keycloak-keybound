@@ -10,15 +10,15 @@ import org.keycloak.models.SubjectCredentialManager
 import org.keycloak.models.UserModel
 import org.keycloak.storage.StorageId
 import org.keycloak.storage.adapter.AbstractUserAdapter
-import java.util.stream.Stream
 import org.slf4j.LoggerFactory
+import java.util.stream.Stream
 
 class BackendUserAdapter(
     session: KeycloakSession,
     realm: RealmModel,
     private val componentModel: ComponentModel,
     private val apiGateway: ApiGateway,
-    backendUser: BackendUser
+    backendUser: BackendUser,
 ) : AbstractUserAdapter(session, realm, componentModel) {
     companion object {
         const val BACKEND_USER_ID_ATTRIBUTE = "backend_user_id"
@@ -26,7 +26,7 @@ class BackendUserAdapter(
 
     private val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)
     private var user: BackendUser = backendUser
-    private var createdTimestamp = backendUser.createdAt?.toInstant()?.toEpochMilli()
+    private var createdTimestamp = backendUser.createdAt?.toEpochMilliseconds()
     private val keycloakStorageId = StorageId.keycloakId(componentModel, backendUser.userId)
 
     override fun getId(): String = keycloakStorageId
@@ -73,20 +73,22 @@ class BackendUserAdapter(
         createdTimestamp = timestamp
     }
 
-    override fun getFirstAttribute(name: String): String? = when (name) {
-        UserModel.USERNAME -> user.username
-        UserModel.FIRST_NAME -> user.firstName
-        UserModel.LAST_NAME -> user.lastName
-        UserModel.EMAIL -> user.email
-        UserModel.ENABLED -> user.enabled.toString()
-        UserModel.EMAIL_VERIFIED -> user.emailVerified.toString()
-        BACKEND_USER_ID_ATTRIBUTE -> user.userId
-        else -> user.attributes[name]
-    }
+    override fun getFirstAttribute(name: String): String? =
+        when (name) {
+            UserModel.USERNAME -> user.username
+            UserModel.FIRST_NAME -> user.firstName
+            UserModel.LAST_NAME -> user.lastName
+            UserModel.EMAIL -> user.email
+            UserModel.ENABLED -> user.enabled.toString()
+            UserModel.EMAIL_VERIFIED -> user.emailVerified.toString()
+            BACKEND_USER_ID_ATTRIBUTE -> user.userId
+            else -> user.attributes[name]
+        }
 
-    override fun getAttributeStream(name: String): Stream<String> = getFirstAttribute(name)
-        ?.let { Stream.of(it) }
-        ?: Stream.empty()
+    override fun getAttributeStream(name: String): Stream<String> =
+        getFirstAttribute(name)
+            ?.let { Stream.of(it) }
+            ?: Stream.empty()
 
     override fun getAttributes(): MutableMap<String, MutableList<String>> {
         val attributes = linkedMapOf<String, MutableList<String>>()
@@ -103,7 +105,10 @@ class BackendUserAdapter(
         return attributes
     }
 
-    override fun setSingleAttribute(name: String, value: String?) {
+    override fun setSingleAttribute(
+        name: String,
+        value: String?,
+    ) {
         when (name) {
             UserModel.USERNAME -> {
                 if (value.isNullOrBlank()) {
@@ -130,7 +135,10 @@ class BackendUserAdapter(
         }
     }
 
-    override fun setAttribute(name: String, values: MutableList<String>?) {
+    override fun setAttribute(
+        name: String,
+        values: MutableList<String>?,
+    ) {
         setSingleAttribute(name, values?.firstOrNull())
     }
 
@@ -153,36 +161,39 @@ class BackendUserAdapter(
 
     override fun credentialManager(): SubjectCredentialManager = session.users().getUserCredentialManager(this)
 
-    private fun parseBooleanValue(attribute: String, value: String?, defaultValue: Boolean): Boolean {
-        return when (value?.lowercase()) {
+    private fun parseBooleanValue(
+        attribute: String,
+        value: String?,
+        defaultValue: Boolean,
+    ): Boolean =
+        when (value?.lowercase()) {
             null -> defaultValue
             "true" -> true
             "false" -> false
             else -> throw ModelException("Attribute $attribute must be boolean but was $value")
         }
-    }
 
     private fun persistUser(updatedUser: BackendUser) {
         log.debug("Persisting backend user {} attribute change", user.userId)
-        val persistedUser = apiGateway.updateUser(
-            userId = user.userId,
-            realmName = realm.name,
-            username = updatedUser.username,
-            firstName = updatedUser.firstName,
-            lastName = updatedUser.lastName,
-            email = updatedUser.email,
-            enabled = updatedUser.enabled,
-            emailVerified = updatedUser.emailVerified,
-            attributes = updatedUser.attributes
-        ) ?: run {
-            log.error("Failed to persist backend user {}", user.userId)
-            throw ModelException("Failed to update backend user ${user.userId}")
-        }
+        val persistedUser =
+            apiGateway.updateUser(
+                userId = user.userId,
+                realmName = realm.name,
+                username = updatedUser.username,
+                firstName = updatedUser.firstName,
+                lastName = updatedUser.lastName,
+                email = updatedUser.email,
+                enabled = updatedUser.enabled,
+                emailVerified = updatedUser.emailVerified,
+                attributes = updatedUser.attributes,
+            ) ?: run {
+                log.error("Failed to persist backend user {}", user.userId)
+                throw ModelException("Failed to update backend user ${user.userId}")
+            }
 
         user = persistedUser
         createdTimestamp = persistedUser.createdAt
-            ?.toInstant()
-            ?.toEpochMilli()
+            ?.toEpochMilliseconds()
             ?: createdTimestamp
     }
 }

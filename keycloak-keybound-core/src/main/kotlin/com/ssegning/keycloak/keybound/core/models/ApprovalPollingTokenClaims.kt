@@ -11,5 +11,5 @@ data class ApprovalPollingTokenClaims(
     val iat: Long,
     val nbf: Long,
     val jti: String,
-    val exp: Long
+    val exp: Long,
 )

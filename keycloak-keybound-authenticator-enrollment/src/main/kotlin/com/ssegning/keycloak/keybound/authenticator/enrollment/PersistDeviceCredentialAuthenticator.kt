@@ -11,7 +11,7 @@ import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
 
 class PersistDeviceCredentialAuthenticator(
-    private val apiGateway: ApiGateway
+    private val apiGateway: ApiGateway,
 ) : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(PersistDeviceCredentialAuthenticator::class.java)
@@ -32,8 +32,9 @@ class PersistDeviceCredentialAuthenticator(
         val publicKey = session.getAuthNote(DEVICE_PUBLIC_KEY_NOTE_NAME)
         val deviceOs = session.getAuthNote(DEVICE_OS_NOTE_NAME)?.trim()
         val deviceModel = session.getAuthNote(DEVICE_MODEL_NOTE_NAME) ?: "Unknown"
-        val backendUserId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
-            ?: KeyboundUserResolver.resolveBackendUserId(user)
+        val backendUserId =
+            session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME)
+                ?: KeyboundUserResolver.resolveBackendUserId(user)
 
         log.debug("Persisting device credential for keycloak_user={} backend_user={} device={}", user.id, backendUserId, deviceId)
 
@@ -45,21 +46,23 @@ class PersistDeviceCredentialAuthenticator(
 
         try {
             val jkt = computeJkt(publicKey)
-            val deviceDescriptor = DeviceDescriptor(
-                deviceId = deviceId,
-                jkt = jkt,
-                publicJwk = parsePublicJwk(publicKey),
-                platform = deviceOs,
-                model = deviceModel,
-                appVersion = null
-            )
+            val deviceDescriptor =
+                DeviceDescriptor(
+                    deviceId = deviceId,
+                    jkt = jkt,
+                    publicJwk = parsePublicJwk(publicKey),
+                    platform = deviceOs,
+                    model = deviceModel,
+                    appVersion = null,
+                )
 
-            val precheck = apiGateway.enrollmentPrecheck(
-                context = context,
-                userId = backendUserId,
-                userHint = user.username,
-                deviceData = deviceDescriptor
-            )
+            val precheck =
+                apiGateway.enrollmentPrecheck(
+                    context = context,
+                    userId = backendUserId,
+                    userHint = user.username,
+                    deviceData = deviceDescriptor,
+                )
 
             if (precheck == null) {
                 log.error("Enrollment precheck failed for user {}", backendUserId)
@@ -90,20 +93,23 @@ class PersistDeviceCredentialAuthenticator(
                 EnrollmentDecision.ALLOW -> {}
             }
 
-            val bound = apiGateway.enrollmentBind(
-                context = context,
-                userId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME) ?: backendUserId,
-                userHint = user.username,
-                deviceData = deviceDescriptor,
-                attributes = mapOf(
-                    "device_os" to deviceOs,
-                    "device_model" to deviceModel
-                ),
-                proof = mapOf(
-                    "ts" to (session.getAuthNote(DEVICE_TS_NOTE_NAME) ?: ""),
-                    "nonce" to (session.getAuthNote(DEVICE_NONCE_NOTE_NAME) ?: "")
+            val bound =
+                apiGateway.enrollmentBind(
+                    context = context,
+                    userId = session.getAuthNote(KeyboundFlowNotes.BACKEND_USER_ID_NOTE_NAME) ?: backendUserId,
+                    userHint = user.username,
+                    deviceData = deviceDescriptor,
+                    attributes =
+                        mapOf(
+                            "device_os" to deviceOs,
+                            "device_model" to deviceModel,
+                        ),
+                    proof =
+                        mapOf(
+                            "ts" to (session.getAuthNote(DEVICE_TS_NOTE_NAME) ?: ""),
+                            "nonce" to (session.getAuthNote(DEVICE_NONCE_NOTE_NAME) ?: ""),
+                        ),
                 )
-            )
 
             if (!bound) {
                 context.failure(AuthenticationFlowError.INTERNAL_ERROR)

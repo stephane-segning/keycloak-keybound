@@ -12,8 +12,7 @@ class ConditionOtpPathAuthenticatorFactory : ConditionalAuthenticatorFactory {
 
     override fun getDisplayType() = "Condition - OTP Path"
 
-    override fun getHelpText() =
-        "Executes the current subflow only when enrollment routing selected the OTP path."
+    override fun getHelpText() = "Executes the current subflow only when enrollment routing selected the OTP path."
 
     override fun getRequirementChoices() = REQUIREMENT_CHOICES
 
@@ -41,9 +40,10 @@ class ConditionOtpPathAuthenticatorFactory : ConditionalAuthenticatorFactory {
 
     companion object {
         const val ID = "condition-otp-path"
-        private val REQUIREMENT_CHOICES = arrayOf(
-            AuthenticationExecutionModel.Requirement.REQUIRED,
-            AuthenticationExecutionModel.Requirement.DISABLED
-        )
+        private val REQUIREMENT_CHOICES =
+            arrayOf(
+                AuthenticationExecutionModel.Requirement.REQUIRED,
+                AuthenticationExecutionModel.Requirement.DISABLED,
+            )
     }
 }

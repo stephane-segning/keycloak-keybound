@@ -10,10 +10,12 @@ import org.keycloak.crypto.KeyWrapper
 import org.keycloak.jose.jwk.JWKParser
 import org.keycloak.models.SingleUseObjectProvider
 import org.slf4j.LoggerFactory
-import kotlin.math.abs
 import java.util.Base64
+import kotlin.math.abs
 
-class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() {
+class VerifySignedBlobAuthenticator(
+    val ttl: Long,
+) : AbstractKeyAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(VerifySignedBlobAuthenticator::class.java)
     }
@@ -63,21 +65,23 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
-            val canonicalString = DeviceSignaturePayload(
-                deviceId = deviceId,
-                publicKey = publicKeyJwk,
-                ts = tsStr,
-                nonce = nonce
-            ).toCanonicalJson()
+            val canonicalString =
+                DeviceSignaturePayload(
+                    deviceId = deviceId,
+                    publicKey = publicKeyJwk,
+                    ts = tsStr,
+                    nonce = nonce,
+                ).toCanonicalJson()
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
             val signatureBytes = decodeBase64OrBase64Url(sig)
             val alg = Algorithm.ES256
 
-            val key = KeyWrapper().apply {
-                setPublicKey(publicKey)
-                algorithm = alg
-            }
+            val key =
+                KeyWrapper().apply {
+                    setPublicKey(publicKey)
+                    algorithm = alg
+                }
 
             val verifier = ECDSASignatureVerifierContext(key)
 
@@ -101,11 +105,10 @@ class VerifySignedBlobAuthenticator(val ttl: Long) : AbstractKeyAuthenticator() 
         // No action needed
     }
 
-    private fun decodeBase64OrBase64Url(value: String): ByteArray {
-        return try {
+    private fun decodeBase64OrBase64Url(value: String): ByteArray =
+        try {
             Base64.getUrlDecoder().decode(value)
         } catch (_: IllegalArgumentException) {
             Base64.getDecoder().decode(value)
         }
-    }
 }

@@ -7,9 +7,10 @@ import org.keycloak.models.AuthenticationExecutionModel
 import org.keycloak.models.KeycloakSession
 
 open class PersistDeviceCredentialAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway): Authenticator {
-        return PersistDeviceCredentialAuthenticator(apiGateway)
-    }
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ): Authenticator = PersistDeviceCredentialAuthenticator(apiGateway)
 
     override fun getId() = ID
 
@@ -17,11 +18,12 @@ open class PersistDeviceCredentialAuthenticatorFactory : AbstractAuthenticatorFa
 
     override fun getHelpText() = "Persists the device credential (ID and Public Key) in the backend."
 
-    override fun getRequirementChoices() = arrayOf(
-        AuthenticationExecutionModel.Requirement.REQUIRED,
-        AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-        AuthenticationExecutionModel.Requirement.DISABLED
-    )
+    override fun getRequirementChoices() =
+        arrayOf(
+            AuthenticationExecutionModel.Requirement.REQUIRED,
+            AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+            AuthenticationExecutionModel.Requirement.DISABLED,
+        )
 
     companion object {
         const val ID = "persist-device-credential"

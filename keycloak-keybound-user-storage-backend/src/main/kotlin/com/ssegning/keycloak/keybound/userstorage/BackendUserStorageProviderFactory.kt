@@ -16,19 +16,21 @@ class BackendUserStorageProviderFactory :
         const val ID = "backend-user-storage"
     }
 
-    override fun create(session: KeycloakSession, model: ComponentModel): BackendUserStorageProvider {
+    override fun create(
+        session: KeycloakSession,
+        model: ComponentModel,
+    ): BackendUserStorageProvider {
         log.debug("Creating BackendUserStorageProvider for component {}", model.name)
         return BackendUserStorageProvider(
             session = session,
             componentModel = model,
-            apiGateway = session.getProvider(ApiGateway::class.java)
+            apiGateway = session.getProvider(ApiGateway::class.java),
         )
     }
 
     override fun getId(): String = ID
 
-    override fun getHelpText(): String =
-        "Connects Keycloak user storage to the external backend user API."
+    override fun getHelpText(): String = "Connects Keycloak user storage to the external backend user API."
 
     override fun getOperationalInfo(): Map<String, String> = SPI_CORE_INFO
 }

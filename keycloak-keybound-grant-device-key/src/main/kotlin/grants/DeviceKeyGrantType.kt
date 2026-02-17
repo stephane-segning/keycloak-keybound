@@ -1,5 +1,6 @@
 package com.ssegning.keycloak.keybound.grants
 
+import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import com.ssegning.keycloak.keybound.core.models.DeviceStatus
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.core.Response
@@ -12,17 +13,16 @@ import org.keycloak.events.Details
 import org.keycloak.events.Errors
 import org.keycloak.events.EventType
 import org.keycloak.jose.jwk.JWKParser
+import org.keycloak.models.Constants
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.models.UserSessionModel
-import org.keycloak.representations.AccessToken
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase
-import org.keycloak.models.Constants
+import org.keycloak.representations.AccessToken
 import org.keycloak.services.CorsErrorResponseException
 import org.keycloak.services.Urls
 import org.keycloak.services.util.DefaultClientSessionContext
 import org.keycloak.storage.StorageId
-import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
@@ -30,9 +30,8 @@ import java.util.*
 import kotlin.math.abs
 
 class DeviceKeyGrantType(
-    private val apiGateway: ApiGateway
+    private val apiGateway: ApiGateway,
 ) : OAuth2GrantTypeBase() {
-
     companion object {
         private val log = LoggerFactory.getLogger(DeviceKeyGrantType::class.java)
         private const val TTL = 300L // 5 minutes
@@ -53,7 +52,7 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.UNAUTHORIZED_CLIENT,
                 "Bearer-only client not allowed to retrieve service account",
-                Response.Status.UNAUTHORIZED
+                Response.Status.UNAUTHORIZED,
             )
         }
 
@@ -70,7 +69,7 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_REQUEST,
                 "Missing parameters: device_id, ts, nonce, sig, and user_id are required",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
@@ -84,7 +83,7 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "User not found or disabled",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
@@ -96,38 +95,46 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Device not found",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
         val backendUserId = lookup.userId
-        val userIdCandidates = linkedSetOf<String>().apply {
-            add(user.id)
-            StorageId.externalId(user.id)?.takeIf { it.isNotBlank() }?.let { add(it) }
-            user.getFirstAttribute("backend_user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
-            user.getFirstAttribute("user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
-        }
+        val userIdCandidates =
+            linkedSetOf<String>().apply {
+                add(user.id)
+                StorageId.externalId(user.id)?.takeIf { it.isNotBlank() }?.let { add(it) }
+                user.getFirstAttribute("backend_user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
+                user.getFirstAttribute("user_id")?.takeIf { it.isNotBlank() }?.let { add(it) }
+            }
         if (backendUserId.isNullOrBlank() || backendUserId !in userIdCandidates) {
-            log.debug("Device {} belongs to backend user {} but request user {} not in {}", deviceId, backendUserId, user.id, userIdCandidates)
+            log.debug(
+                "Device {} belongs to backend user {} but request user {} not in {}",
+                deviceId,
+                backendUserId,
+                user.id,
+                userIdCandidates,
+            )
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Device not registered for this user",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
-        val deviceRecord = lookup.device ?: run {
-            log.debug("Device metadata for {} missing from lookup", deviceId)
-            event.error(Errors.INVALID_USER_CREDENTIALS)
-            throw CorsErrorResponseException(
-                cors,
-                OAuthErrorException.INVALID_GRANT,
-                "Device metadata not found",
-                Response.Status.BAD_REQUEST
-            )
-        }
+        val deviceRecord =
+            lookup.device ?: run {
+                log.debug("Device metadata for {} missing from lookup", deviceId)
+                event.error(Errors.INVALID_USER_CREDENTIALS)
+                throw CorsErrorResponseException(
+                    cors,
+                    OAuthErrorException.INVALID_GRANT,
+                    "Device metadata not found",
+                    Response.Status.BAD_REQUEST,
+                )
+            }
 
         if (deviceRecord.status != DeviceStatus.ACTIVE) {
             log.debug("Device {} status {} not active", deviceId, deviceRecord.status)
@@ -136,17 +143,18 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Device is disabled",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
         // Timestamp Verification
-        val ts = tsStr.toLongOrNull() ?: throw CorsErrorResponseException(
-            cors,
-            OAuthErrorException.INVALID_REQUEST,
-            "Invalid timestamp",
-            Response.Status.BAD_REQUEST
-        )
+        val ts =
+            tsStr.toLongOrNull() ?: throw CorsErrorResponseException(
+                cors,
+                OAuthErrorException.INVALID_REQUEST,
+                "Invalid timestamp",
+                Response.Status.BAD_REQUEST,
+            )
 
         val currentTime = Time.currentTimeMillis() / 1000
         log.debug("Timestamp check device={} provided={} current={}", deviceId, ts, currentTime)
@@ -156,7 +164,7 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Timestamp expired",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
@@ -170,43 +178,47 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Nonce replay detected",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
         // Signature Verification
         try {
-            val publicKeyJwk = lookup.publicJwk?.let { JsonSerialization.writeValueAsString(it) }
-                ?: requestPublicKey
-                ?: throw CorsErrorResponseException(
-                    cors,
-                    OAuthErrorException.INVALID_GRANT,
-                    "Device public key not found",
-                    Response.Status.BAD_REQUEST
-                )
+            val publicKeyJwk =
+                lookup.publicJwk?.let { JsonSerialization.writeValueAsString(it) }
+                    ?: requestPublicKey
+                    ?: throw CorsErrorResponseException(
+                        cors,
+                        OAuthErrorException.INVALID_GRANT,
+                        "Device public key not found",
+                        Response.Status.BAD_REQUEST,
+                    )
 
             log.debug("Verifying signature for device {} jkt={}", deviceId, deviceRecord.jkt)
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
-            val canonicalString = DeviceSignaturePayload(
-                deviceId = deviceId,
-                publicKey = publicKeyJwk,
-                ts = tsStr,
-                nonce = nonce
-            ).toCanonicalJson()
+            val canonicalString =
+                DeviceSignaturePayload(
+                    deviceId = deviceId,
+                    publicKey = publicKeyJwk,
+                    ts = tsStr,
+                    nonce = nonce,
+                ).toCanonicalJson()
             val data = canonicalString.toByteArray(Charsets.UTF_8)
 
-            val signatureBytes = try {
-                Base64.getDecoder().decode(sig)
-            } catch (_: IllegalArgumentException) {
-                Base64.getUrlDecoder().decode(sig)
-            }
+            val signatureBytes =
+                try {
+                    Base64.getDecoder().decode(sig)
+                } catch (_: IllegalArgumentException) {
+                    Base64.getUrlDecoder().decode(sig)
+                }
 
-            val key = KeyWrapper().apply {
-                setPublicKey(publicKey)
-                algorithm = Algorithm.ES256
-            }
+            val key =
+                KeyWrapper().apply {
+                    setPublicKey(publicKey)
+                    algorithm = Algorithm.ES256
+                }
 
             val verifier = ECDSASignatureVerifierContext(key)
             if (!verifier.verify(data, signatureBytes)) {
@@ -215,10 +227,9 @@ class DeviceKeyGrantType(
                     cors,
                     OAuthErrorException.INVALID_GRANT,
                     "Invalid signature",
-                    Response.Status.BAD_REQUEST
+                    Response.Status.BAD_REQUEST,
                 )
             }
-
         } catch (e: Exception) {
             log.error("Signature verification failed", e)
             event.error(Errors.INVALID_USER_CREDENTIALS)
@@ -226,23 +237,28 @@ class DeviceKeyGrantType(
                 cors,
                 OAuthErrorException.INVALID_GRANT,
                 "Signature verification failed",
-                Response.Status.BAD_REQUEST
+                Response.Status.BAD_REQUEST,
             )
         }
 
         log.debug("Signature verified for device {} bound to user {}", deviceId, user.id)
         // Create Session
         // TODO Do we really wanna create a session if the same device_id + public_key is used?
-        val userSession = session
-            .sessions()
-            .createUserSession(
-                UUID.randomUUID().toString(),
-                realm, user,
-                user.username ?: user.id, session.context.connection.remoteAddr,
-                "device-grant", false,
-                null, null,
-            UserSessionModel.SessionPersistenceState.PERSISTENT
-        )
+        val userSession =
+            session
+                .sessions()
+                .createUserSession(
+                    UUID.randomUUID().toString(),
+                    realm,
+                    user,
+                    user.username ?: user.id,
+                    session.context.connection.remoteAddr,
+                    "device-grant",
+                    false,
+                    null,
+                    null,
+                    UserSessionModel.SessionPersistenceState.PERSISTENT,
+                )
 
         log.debug("Created user session {} for grant user {}", userSession.id, user.id)
 
@@ -260,24 +276,26 @@ class DeviceKeyGrantType(
         val scopeParam = params.getFirst("scope")
         clientSessionCtx.setAttribute(Constants.GRANT_TYPE, context.grantType)
         log.debug("Minting access token for user={} client={} device={}", user.id, client.clientId, deviceId)
-        val accessToken = tokenManager.createClientAccessToken(
-            session,
-            realm,
-            client,
-            user,
-            userSession,
-            clientSessionCtx
-        )
+        val accessToken =
+            tokenManager.createClientAccessToken(
+                session,
+                realm,
+                client,
+                user,
+                userSession,
+                clientSessionCtx,
+            )
         accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
         accessToken.setOtherClaims("device_id", deviceId)
         accessToken.setConfirmation(
             AccessToken.Confirmation().apply {
                 keyThumbprint = deviceRecord.jkt
-            }
+            },
         )
-        val responseBuilder = tokenManager
-            .responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
-            .accessToken(accessToken)
+        val responseBuilder =
+            tokenManager
+                .responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
+                .accessToken(accessToken)
         if (TokenUtil.isOIDCRequest(scopeParam)) {
             responseBuilder.generateIDToken().generateAccessTokenHash()
         }

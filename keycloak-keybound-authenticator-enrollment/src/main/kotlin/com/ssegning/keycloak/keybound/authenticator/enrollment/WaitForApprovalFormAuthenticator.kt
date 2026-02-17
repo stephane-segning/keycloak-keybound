@@ -15,7 +15,9 @@ import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
-class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : AbstractAuthenticator() {
+class WaitForApprovalFormAuthenticator(
+    private val apiGateway: ApiGateway,
+) : AbstractAuthenticator() {
     companion object {
         private val log = LoggerFactory.getLogger(WaitForApprovalFormAuthenticator::class.java)
         private const val POLLING_INTERVAL_MS = 2000
@@ -25,7 +27,11 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
 
     override fun requiresUser() = true
 
-    override fun configuredFor(session: KeycloakSession, realm: RealmModel, user: UserModel?): Boolean {
+    override fun configuredFor(
+        session: KeycloakSession,
+        realm: RealmModel,
+        user: UserModel?,
+    ): Boolean {
         if (user == null) {
             return false
         }
@@ -48,19 +54,22 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
         val pollingToken = createPollingToken(context, requestId)
         val pollingUrl = "/realms/${context.realm.name}/device-approval/status"
 
-        val form = context.form()
-            .setAttribute("pollingUrl", pollingUrl)
-            .setAttribute("pollingToken", pollingToken)
-            .setAttribute("pollingInterval", POLLING_INTERVAL_MS)
+        val form =
+            context
+                .form()
+                .setAttribute("pollingUrl", pollingUrl)
+                .setAttribute("pollingToken", pollingToken)
+                .setAttribute("pollingInterval", POLLING_INTERVAL_MS)
 
         context.challenge(form.createForm("approval-wait.ftl"))
     }
 
     override fun action(context: AuthenticationFlowContext) {
-        val submittedStatus = context.httpRequest.decodedFormParameters
-            .getFirst(APPROVAL_STATUS_FORM_FIELD)
-            ?.trim()
-            ?.uppercase()
+        val submittedStatus =
+            context.httpRequest.decodedFormParameters
+                .getFirst(APPROVAL_STATUS_FORM_FIELD)
+                ?.trim()
+                ?.uppercase()
         when (submittedStatus) {
             "DENIED" -> {
                 log.info("Approval wait flow submitted with denied status from browser")
@@ -94,31 +103,34 @@ class WaitForApprovalFormAuthenticator(private val apiGateway: ApiGateway) : Abs
         }
     }
 
-    private fun createPollingToken(context: AuthenticationFlowContext, requestId: String): String {
+    private fun createPollingToken(
+        context: AuthenticationFlowContext,
+        requestId: String,
+    ): String {
         val authSession = context.authenticationSession
         val nowSeconds = System.currentTimeMillis() / 1000
-        val claims = ApprovalPollingTokenClaims(
-            realm = context.realm.name,
-            client_id = authSession.client.clientId,
-            aud = APPROVAL_AUDIENCE,
-            sid = authSession.parentSession.id,
-            sub = context.user?.id,
-            tab_id = authSession.tabId,
-            request_id = requestId,
-            iat = nowSeconds,
-            nbf = nowSeconds,
-            jti = "${authSession.parentSession.id}:$requestId",
-            exp = nowSeconds + 300
-        )
+        val claims =
+            ApprovalPollingTokenClaims(
+                realm = context.realm.name,
+                client_id = authSession.client.clientId,
+                aud = APPROVAL_AUDIENCE,
+                sid = authSession.parentSession.id,
+                sub = context.user?.id,
+                tab_id = authSession.tabId,
+                request_id = requestId,
+                iat = nowSeconds,
+                nbf = nowSeconds,
+                jti = "${authSession.parentSession.id}:$requestId",
+                exp = nowSeconds + 300,
+            )
 
         return JWSBuilder()
             .jsonContent(
-                claims
-            )
-            .sign(
+                claims,
+            ).sign(
                 ServerAsymmetricSignatureSignerContext(
-                    context.session.keys().getActiveKey(context.realm, KeyUse.SIG, Algorithm.RS256)
-                )
+                    context.session.keys().getActiveKey(context.realm, KeyUse.SIG, Algorithm.RS256),
+                ),
             )
     }
 }

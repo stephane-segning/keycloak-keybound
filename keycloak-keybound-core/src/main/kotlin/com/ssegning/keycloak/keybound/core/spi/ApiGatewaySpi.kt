@@ -11,8 +11,7 @@ open class ApiGatewaySpi : Spi {
 
     override fun getProviderClass(): Class<out Provider> = ApiGateway::class.java
 
-    override fun getProviderFactoryClass(): Class<out ProviderFactory<out ApiGateway>> =
-        ApiGatewayProviderFactory::class.java
+    override fun getProviderFactoryClass(): Class<out ProviderFactory<out ApiGateway>> = ApiGatewayProviderFactory::class.java
 
     override fun isEnabled(): Boolean = true
 }

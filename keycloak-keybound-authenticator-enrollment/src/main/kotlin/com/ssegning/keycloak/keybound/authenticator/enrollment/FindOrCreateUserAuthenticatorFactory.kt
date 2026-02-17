@@ -7,8 +7,10 @@ import org.keycloak.models.AuthenticationExecutionModel
 import org.keycloak.models.KeycloakSession
 
 open class FindOrCreateUserAuthenticatorFactory : AbstractAuthenticatorFactory() {
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway): Authenticator =
-        FindOrCreateUserAuthenticator()
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ): Authenticator = FindOrCreateUserAuthenticator()
 
     override fun getId() = ID
 
@@ -16,11 +18,12 @@ open class FindOrCreateUserAuthenticatorFactory : AbstractAuthenticatorFactory()
 
     override fun getHelpText() = "Finds or creates a user using the verified phone number from the OTP step."
 
-    override fun getRequirementChoices() = arrayOf(
-        AuthenticationExecutionModel.Requirement.REQUIRED,
-        AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-        AuthenticationExecutionModel.Requirement.DISABLED
-    )
+    override fun getRequirementChoices() =
+        arrayOf(
+            AuthenticationExecutionModel.Requirement.REQUIRED,
+            AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+            AuthenticationExecutionModel.Requirement.DISABLED,
+        )
 
     companion object {
         const val ID = "find-or-create-user"

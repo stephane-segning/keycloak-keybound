@@ -7,7 +7,6 @@ import org.keycloak.authentication.AuthenticationFlowError
 import org.slf4j.LoggerFactory
 
 class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
-
     companion object {
         private val log = LoggerFactory.getLogger(CollectPhoneFormAuthenticator::class.java)
         private const val PHONE_FORM_TEMPLATE = "enroll-collect-phone.ftl"
@@ -17,9 +16,11 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
     override fun authenticate(context: AuthenticationFlowContext) {
         log.debug("Presenting phone collection form")
         val existingPhone = context.authenticationSession.getAuthNote(KeyboundFlowNotes.PHONE_E164_NOTE_NAME)
-        val challenge = context.form()
-            .setAttribute(PHONE_FORM_FIELD, existingPhone)
-            .createForm(PHONE_FORM_TEMPLATE)
+        val challenge =
+            context
+                .form()
+                .setAttribute(PHONE_FORM_FIELD, existingPhone)
+                .createForm(PHONE_FORM_TEMPLATE)
         context.challenge(challenge)
     }
 
@@ -29,10 +30,12 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
 
         if (phoneNumber.isNullOrBlank() || !isValidE164(phoneNumber)) {
             log.debug("Invalid phone number submitted {}", maskPhone(phoneNumber))
-            val challenge = context.form()
-                .setError("invalidPhoneNumber")
-                .setAttribute(PHONE_FORM_FIELD, phoneNumber)
-                .createForm(PHONE_FORM_TEMPLATE)
+            val challenge =
+                context
+                    .form()
+                    .setError("invalidPhoneNumber")
+                    .setAttribute(PHONE_FORM_FIELD, phoneNumber)
+                    .createForm(PHONE_FORM_TEMPLATE)
             context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge)
             return
         }
@@ -47,12 +50,14 @@ class CollectPhoneFormAuthenticator : AbstractAuthenticator() {
         context.success()
     }
 
-    private fun isValidE164(phoneNumber: String): Boolean = try {
-        PHONE_NUMBER_UTILS.parse(phoneNumber, "")
-            .let {
-                PHONE_NUMBER_UTILS.isValidNumber(it)
-            }
-    } catch (e: Exception) {
-        false
-    }
+    private fun isValidE164(phoneNumber: String): Boolean =
+        try {
+            PHONE_NUMBER_UTILS
+                .parse(phoneNumber, "")
+                .let {
+                    PHONE_NUMBER_UTILS.isValidNumber(it)
+                }
+        } catch (e: Exception) {
+            false
+        }
 }

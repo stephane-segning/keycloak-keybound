@@ -11,15 +11,19 @@ import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeFactory
 import org.keycloak.provider.ServerInfoAwareProviderFactory
 
-abstract class AbstractGrantType<T : OAuth2GrantTypeBase> : OAuth2GrantTypeFactory, ServerInfoAwareProviderFactory {
-    abstract fun create(session: KeycloakSession, apiGateway: ApiGateway): T
+abstract class AbstractGrantType<T : OAuth2GrantTypeBase> :
+    OAuth2GrantTypeFactory,
+    ServerInfoAwareProviderFactory {
+    abstract fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ): T
 
     override fun create(session: KeycloakSession): T = create(session, session.getApi())
 
     override fun init(config: Config.Scope) = noop()
 
-    override fun postInit(factory: KeycloakSessionFactory) =
-        noop()
+    override fun postInit(factory: KeycloakSessionFactory) = noop()
 
     override fun close() = noop()
 

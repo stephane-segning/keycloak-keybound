@@ -4,5 +4,5 @@ data class PhoneResolveOrCreateResult(
     val phoneNumber: String,
     val userId: String,
     val username: String,
-    val created: Boolean
+    val created: Boolean,
 )

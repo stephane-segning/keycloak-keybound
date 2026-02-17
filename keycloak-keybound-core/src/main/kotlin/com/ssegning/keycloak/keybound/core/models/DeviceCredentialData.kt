@@ -10,5 +10,5 @@ data class DeviceCredentialData(
     @param:JsonProperty("device_model")
     val deviceModel: String,
     @param:JsonProperty("created_at")
-    val createdAt: Long
+    val createdAt: Long,
 )

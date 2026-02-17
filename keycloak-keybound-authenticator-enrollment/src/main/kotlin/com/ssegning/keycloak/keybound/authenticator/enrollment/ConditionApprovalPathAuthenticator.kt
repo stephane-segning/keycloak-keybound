@@ -8,7 +8,9 @@ import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
 import org.slf4j.LoggerFactory
 
-class ConditionApprovalPathAuthenticator : AbstractAuthenticator(), ConditionalAuthenticator {
+class ConditionApprovalPathAuthenticator :
+    AbstractAuthenticator(),
+    ConditionalAuthenticator {
     companion object {
         private val log = LoggerFactory.getLogger(ConditionApprovalPathAuthenticator::class.java)
         val SINGLETON = ConditionApprovalPathAuthenticator()
@@ -25,5 +27,9 @@ class ConditionApprovalPathAuthenticator : AbstractAuthenticator(), ConditionalA
         // No action needed
     }
 
-    override fun configuredFor(session: KeycloakSession, realm: RealmModel, user: UserModel?): Boolean = true
+    override fun configuredFor(
+        session: KeycloakSession,
+        realm: RealmModel,
+        user: UserModel?,
+    ): Boolean = true
 }

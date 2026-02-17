@@ -13,15 +13,19 @@ import org.keycloak.models.KeycloakSessionFactory
 import org.keycloak.provider.ProviderConfigProperty
 import org.keycloak.provider.ServerInfoAwareProviderFactory
 
-abstract class AbstractAuthenticatorFactory : AuthenticatorFactory, ServerInfoAwareProviderFactory {
+abstract class AbstractAuthenticatorFactory :
+    AuthenticatorFactory,
+    ServerInfoAwareProviderFactory {
     override fun create(session: KeycloakSession) = create(session, session.getApi())
 
-    abstract fun create(session: KeycloakSession, apiGateway: ApiGateway): Authenticator
+    abstract fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ): Authenticator
 
     override fun init(config: Config.Scope) = noop()
 
-    override fun postInit(factory: KeycloakSessionFactory) =
-        noop()
+    override fun postInit(factory: KeycloakSessionFactory) = noop()
 
     override fun close() = noop()
 
@@ -38,9 +42,10 @@ abstract class AbstractAuthenticatorFactory : AuthenticatorFactory, ServerInfoAw
     override fun isUserSetupAllowed() = true
 
     companion object {
-        val REQUIREMENT_CHOICES = arrayOf(
-            AuthenticationExecutionModel.Requirement.REQUIRED
-        )
+        val REQUIREMENT_CHOICES =
+            arrayOf(
+                AuthenticationExecutionModel.Requirement.REQUIRED,
+            )
 
         val PROPERTIES = listOf<ProviderConfigProperty>()
     }

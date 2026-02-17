@@ -8,12 +8,13 @@ private val PHONE_UTIL = PhoneNumberUtil.getInstance()
 fun maskPhone(phone: String?): String {
     if (phone.isNullOrBlank()) return MASK
     val normalized = phone.trim()
-    val e164 = try {
-        val parsed = PHONE_UTIL.parse(normalized, "")
-        PHONE_UTIL.format(parsed, PhoneNumberUtil.PhoneNumberFormat.E164)
-    } catch (_: Exception) {
-        normalized
-    }
+    val e164 =
+        try {
+            val parsed = PHONE_UTIL.parse(normalized, "")
+            PHONE_UTIL.format(parsed, PhoneNumberUtil.PhoneNumberFormat.E164)
+        } catch (_: Exception) {
+            normalized
+        }
     return maskNumberLike(e164)
 }
 
@@ -24,11 +25,12 @@ fun maskEmail(email: String?): String {
 
     val local = maskEmailLocal(parts[0])
     val domainParts = parts[1].split(".", limit = 2)
-    val domain = when {
-        domainParts.isEmpty() -> MASK
-        domainParts.size == 1 -> maskDomainLabel(domainParts[0])
-        else -> "${maskDomainLabel(domainParts[0])}.${domainParts[1]}"
-    }
+    val domain =
+        when {
+            domainParts.isEmpty() -> MASK
+            domainParts.size == 1 -> maskDomainLabel(domainParts[0])
+            else -> "${maskDomainLabel(domainParts[0])}.${domainParts[1]}"
+        }
     return "$local@$domain"
 }
 
@@ -41,7 +43,10 @@ fun maskGeneric(value: String?): String {
     return "$prefix$MASK$suffix"
 }
 
-fun maskForAttribute(attributeName: String, attributeValue: String?): String {
+fun maskForAttribute(
+    attributeName: String,
+    attributeValue: String?,
+): String {
     val normalized = attributeName.lowercase()
     return when {
         normalized.contains("phone") -> maskPhone(attributeValue)

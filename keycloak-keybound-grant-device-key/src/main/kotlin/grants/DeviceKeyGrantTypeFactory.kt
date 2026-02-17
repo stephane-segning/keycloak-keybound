@@ -7,7 +7,10 @@ import org.keycloak.models.KeycloakSession
 open class DeviceKeyGrantTypeFactory : AbstractGrantType<DeviceKeyGrantType>() {
     override fun getShortcut() = DEVICE_KEY_GRANT_SHORTCUT
 
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway) = DeviceKeyGrantType(apiGateway)
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ) = DeviceKeyGrantType(apiGateway)
 
     override fun getId() = DEVICE_KEY_GRANT_ID
 

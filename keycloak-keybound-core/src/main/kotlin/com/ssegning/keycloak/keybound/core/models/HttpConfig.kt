@@ -8,7 +8,7 @@ class HttpConfig(
     val telemetryEnabled: Boolean,
     val actor: String,
     val signatureSecret: String?,
-    val signatureVersion: String
+    val signatureVersion: String,
 ) {
     // Cache resolved per-realm base URLs to avoid repeated env/property lookups.
     private val realmBaseUrls = ConcurrentHashMap<String, String>()
@@ -24,7 +24,7 @@ class HttpConfig(
             readScopedValue(HTTP_BASE_PATH_KEY, realmName)
                 ?: readScopedValue(HTTP_BASE_PATH_KEY, null)
                 ?: throw IllegalStateException(
-                    "Missing backend base URL for realm '$realmName'. Set ${HTTP_BASE_PATH_KEY}_$realmName or $HTTP_BASE_PATH_KEY."
+                    "Missing backend base URL for realm '$realmName'. Set ${HTTP_BASE_PATH_KEY}_$realmName or $HTTP_BASE_PATH_KEY.",
                 )
         }
     }
@@ -41,7 +41,10 @@ class HttpConfig(
         const val DEFAULT_BACKEND_BASE_URL = "https://backend.example.com"
 
         // Lookup order: realm-scoped env -> global env -> realm-scoped JVM prop -> global JVM prop.
-        private fun readScopedValue(baseName: String, realmName: String?): String? {
+        private fun readScopedValue(
+            baseName: String,
+            realmName: String?,
+        ): String? {
             val scopedName = realmName?.takeIf { it.isNotBlank() }?.let { "${baseName}_$it" }
 
             return when {
@@ -59,10 +62,11 @@ class HttpConfig(
         // - only then uses a neutral placeholder to keep provider bootstrap alive
         fun fromEnv(context: KeycloakContext): HttpConfig {
             val realmName = context.realm?.name
-            val baseUrl = readScopedValue(HTTP_BASE_PATH_KEY, realmName)
-                ?: readScopedValue(HTTP_BASE_PATH_KEY, null)
-                ?: discoverAnyScopedBaseUrl()
-                ?: DEFAULT_BACKEND_BASE_URL
+            val baseUrl =
+                readScopedValue(HTTP_BASE_PATH_KEY, realmName)
+                    ?: readScopedValue(HTTP_BASE_PATH_KEY, null)
+                    ?: discoverAnyScopedBaseUrl()
+                    ?: DEFAULT_BACKEND_BASE_URL
             val telemetryEnabled = readScopedValue(HTTP_TELEMETRY_ENABLED_KEY, realmName)?.toBooleanStrictOrNull() ?: true
             val actor = readScopedValue(HTTP_ACTOR_KEY, realmName) ?: "keycloak"
             val signatureSecret = readScopedValue(HTTP_SIGNATURE_SECRET_KEY, realmName)
@@ -73,25 +77,31 @@ class HttpConfig(
                 telemetryEnabled = telemetryEnabled,
                 actor = actor,
                 signatureSecret = signatureSecret,
-                signatureVersion = signatureVersion
+                signatureVersion = signatureVersion,
             )
         }
 
         // Best-effort discovery used only during bootstrap when realm is not available yet.
         private fun discoverAnyScopedBaseUrl(): String? {
-            val envScoped = System.getenv().entries
-                .firstOrNull { (key, value) ->
-                    key.startsWith("${HTTP_BASE_PATH_KEY}_") && value.isNotBlank()
-                }?.value
+            val envScoped =
+                System
+                    .getenv()
+                    .entries
+                    .firstOrNull { (key, value) ->
+                        key.startsWith("${HTTP_BASE_PATH_KEY}_") && value.isNotBlank()
+                    }?.value
 
             if (!envScoped.isNullOrBlank()) {
                 return envScoped
             }
 
-            return System.getProperties().entries
+            return System
+                .getProperties()
+                .entries
                 .firstOrNull { (key, value) ->
                     key.toString().startsWith("${HTTP_BASE_PATH_KEY}_") && value.toString().isNotBlank()
-                }?.value?.toString()
+                }?.value
+                ?.toString()
         }
     }
 }

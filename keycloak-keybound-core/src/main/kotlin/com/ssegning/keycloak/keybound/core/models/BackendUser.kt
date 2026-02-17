@@ -1,6 +1,6 @@
 package com.ssegning.keycloak.keybound.core.models
 
-import java.time.OffsetDateTime
+import kotlin.time.Instant
 
 data class BackendUser(
     val userId: String,
@@ -12,5 +12,5 @@ data class BackendUser(
     val enabled: Boolean = true,
     val emailVerified: Boolean = false,
     val attributes: Map<String, String> = emptyMap(),
-    val createdAt: OffsetDateTime? = null
+    val createdAt: Instant? = null,
 )

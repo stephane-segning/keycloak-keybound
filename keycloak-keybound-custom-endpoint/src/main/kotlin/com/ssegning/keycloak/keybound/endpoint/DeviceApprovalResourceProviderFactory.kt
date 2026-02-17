@@ -4,15 +4,15 @@ import com.ssegning.keycloak.keybound.core.endpoint.AbstractRealmResourceProvide
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import org.keycloak.models.KeycloakSession
 
-open class DeviceApprovalResourceProviderFactory :
-    AbstractRealmResourceProviderFactory<DeviceApprovalResourceProvider>() {
-
+open class DeviceApprovalResourceProviderFactory : AbstractRealmResourceProviderFactory<DeviceApprovalResourceProvider>() {
     companion object {
         const val ID = "device-approval"
     }
 
-    override fun create(session: KeycloakSession, apiGateway: ApiGateway) =
-        DeviceApprovalResourceProvider(session, apiGateway)
+    override fun create(
+        session: KeycloakSession,
+        apiGateway: ApiGateway,
+    ) = DeviceApprovalResourceProvider(session, apiGateway)
 
     override fun getId() = ID
 }

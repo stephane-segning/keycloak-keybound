@@ -4,5 +4,5 @@ enum class ApprovalStatus {
     PENDING,
     APPROVED,
     DENIED,
-    EXPIRED
+    EXPIRED,
 }
