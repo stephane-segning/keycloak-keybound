@@ -52,7 +52,14 @@ Current implementation:
 - Track `last_seen_at` on every successful lookup/grant usage.
 - Allow user-managed labels while storing raw platform/model metadata separately.
 
-## 5) Stable JWK Serialization for Signatures
+## 5) Proof-of-work tuning for public-key login
+
+- Adjust `PUBLIC_LOGIN_POW_DIFFICULTY` per realm via environment overrides (e.g., `PUBLIC_LOGIN_POW_DIFFICULTY_{REALM}`) and align it with your latency budget. The value counts *leading zero hex nibbles* in the SHA-256 hash of the material described in `docs/SIGNING_AND_VERIFICATION.md`, so each increment multiplies the attack cost by four bits.
+- Typical production values sit between **4** (16 zero bits, `1 / 2^16` probability, ~65k hash attempts) and **8** (32 zero bits, `1 / 2^32`, ~4 billion attempts). Start at 4–5 for mobile devices and raise it toward 7–8 for highly sensitive realms or when the client population can tolerate the extra work.
+- Measure the actual PoW latency on representative devices before enforcing higher difficulties, and provide clear feedback in the UI when the client is solving a challenge so users understand the wait time.
+- Keep the TTL for `nonce` usage (default `NONCE_CACHE_TTL_{REALM}` → 300s) longer than the expected PoW solve time to avoid rejected submissions during retries.
+
+## 6) Stable JWK Serialization for Signatures
 
 - When embedding a JWK as a string within a signature payload (e.g., `DeviceSignaturePayload`), ensure the field order is deterministic.
 - Always sort JWK keys alphabetically (`crv`, `kty`, `x`, `y`) before serializing to JSON.

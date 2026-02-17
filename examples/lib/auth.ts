@@ -24,7 +24,6 @@ function toHex(bytes: Uint8Array): string {
 export interface PublicKeyLoginPayloadData {
     nonce: string;
     deviceId: string;
-    username: string;
     ts: string;
     publicKey: string;
 }
@@ -33,7 +32,6 @@ export function canonicalPublicKeyPayload(data: PublicKeyLoginPayloadData): stri
     return JSON.stringify({
         nonce: data.nonce,
         deviceId: data.deviceId,
-        username: data.username,
         ts: data.ts,
         publicKey: data.publicKey,
     });
@@ -42,7 +40,6 @@ export function canonicalPublicKeyPayload(data: PublicKeyLoginPayloadData): stri
 export interface PowParams {
     realm: string;
     deviceId: string;
-    username: string;
     ts: string;
     nonce: string;
     difficulty: number;
@@ -57,7 +54,7 @@ export async function solvePowNonce(params: PowParams): Promise<string | undefin
     while (counter < 3_000_000) {
         const candidate = `pow_${counter.toString(16)}`;
         const material =
-            `${params.realm}:${params.deviceId}:${params.username}:${params.ts}:${params.nonce}:${candidate}`;
+            `${params.realm}:${params.deviceId}:${params.ts}:${params.nonce}:${candidate}`;
         const hashHex = toHex(await digestSha256(material));
         if (hashHex.startsWith('0'.repeat(params.difficulty))) {
             return candidate;
@@ -69,7 +66,6 @@ export async function solvePowNonce(params: PowParams): Promise<string | undefin
 }
 
 export function buildPublicKeyLoginBody(params: {
-    username: string;
     deviceId: string;
     publicKey: string;
     nonce: string;
@@ -79,7 +75,6 @@ export function buildPublicKeyLoginBody(params: {
     powNonce?: string;
 }): Record<string, string> {
     const body: Record<string, string> = {
-        username: params.username,
         device_id: params.deviceId,
         public_key: params.publicKey,
         nonce: params.nonce,

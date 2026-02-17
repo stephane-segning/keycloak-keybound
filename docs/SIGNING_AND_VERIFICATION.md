@@ -86,7 +86,6 @@ assert ECDSA_P256_VERIFY(publicKey, messageBytes, signatureBytes)
 type PublicKeyLoginSignaturePayload = {
   nonce: String
   deviceId: String
-  username: String
   ts: String          // unix epoch seconds serialized as string
   publicKey: String   // JSON string form of the EC public JWK
 }
@@ -98,9 +97,8 @@ Canonical JSON object order:
 
 1. `nonce`
 2. `deviceId`
-3. `username`
-4. `ts`
-5. `publicKey`
+3. `ts`
+4. `publicKey`
 
 Shared model:
 
@@ -112,7 +110,6 @@ Shared model:
 
 Required JSON fields:
 
-- `username`
 - `device_id`
 - `public_key`
 - `nonce`
@@ -138,17 +135,16 @@ Successful response:
 
 ```text
 input:
-  username, device_id, public_key, nonce, ts, sig
+  device_id, public_key, nonce, ts, sig
 
 assert abs(nowEpochSeconds - parseLong(ts)) <= ttl
 assert singleUseStore.putIfAbsent("public-key-login-replay:<realm>:<nonce>", ttl) == true
 if powDifficulty > 0:
-  assert SHA256("<realm>:<device_id>:<username>:<ts>:<nonce>:<pow_nonce>") has required leading zero nibbles
+  assert SHA256("<realm>:<device_id>:<ts>:<nonce>:<pow_nonce>") has required leading zero nibbles
 
 payload = PublicKeyLoginSignaturePayload(
   nonce=nonce,
   deviceId=device_id,
-  username=lowercase(username),
   ts=ts,
   publicKey=public_key
 )

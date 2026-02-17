@@ -7,19 +7,17 @@ describe('examples/lib/auth', () => {
         const payload = canonicalPublicKeyPayload({
             nonce: 'nce_123',
             deviceId: 'dev_abc',
-            username: 'alice',
             ts: '1739782800',
             publicKey: '{"crv":"P-256","kty":"EC","x":"x","y":"y"}',
         });
         assert.strictEqual(
             payload,
-            '{"nonce":"nce_123","deviceId":"dev_abc","username":"alice","ts":"1739782800","publicKey":"{\\"crv\\":\\"P-256\\",\\"kty\\":\\"EC\\",\\"x\\":\\"x\\",\\"y\\":\\"y\\"}"}'
+            '{"nonce":"nce_123","deviceId":"dev_abc","ts":"1739782800","publicKey":"{\\"crv\\":\\"P-256\\",\\"kty\\":\\"EC\\",\\"x\\":\\"x\\",\\"y\\":\\"y\\"}"}'
         );
     });
 
     it('builds body with optional fields', () => {
         const body = buildPublicKeyLoginBody({
-            username: 'bob',
             deviceId: 'dev_1',
             publicKey: 'jwk',
             nonce: 'nce',
@@ -29,7 +27,6 @@ describe('examples/lib/auth', () => {
             powNonce: 'pow',
         });
         assert.deepStrictEqual(body, {
-            username: 'bob',
             device_id: 'dev_1',
             public_key: 'jwk',
             nonce: 'nce',
@@ -44,7 +41,6 @@ describe('examples/lib/auth', () => {
         const nonce = await solvePowNonce({
             realm: 'test',
             deviceId: 'dev',
-            username: 'user',
             ts: Math.floor(Date.now() / 1000).toString(),
             nonce: 'nce',
             difficulty: 1,
@@ -56,7 +52,6 @@ describe('examples/lib/auth', () => {
         const nonce = await solvePowNonce({
             realm: 'test',
             deviceId: 'dev',
-            username: 'user',
             ts: '0',
             nonce: 'nce',
             difficulty: 0,

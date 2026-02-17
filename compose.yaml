@@ -8,6 +8,7 @@ x-keycloak-common-env: &keycloak-common-env
   BACKEND_HTTP_SIGNATURE_VERSION_e2e-testing: "1"
   BACKEND_HTTP_TELEMETRY_ENABLED_e2e-testing: "true"
   BACKEND_HTTP_ACTOR_e2e-testing: "keycloak-u-e2e-testing"
+  PUBLIC_KEY_LOGIN_POW_DIFFICULTY_e2e-testing: 4
 
   BACKEND_HTTP_AUTH_USERNAME: "admin"
   BACKEND_HTTP_AUTH_PASSWORD: "password"

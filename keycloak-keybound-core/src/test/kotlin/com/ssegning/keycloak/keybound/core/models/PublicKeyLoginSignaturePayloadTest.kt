@@ -10,13 +10,12 @@ class PublicKeyLoginSignaturePayloadTest {
             PublicKeyLoginSignaturePayload(
                 nonce = "nce_123",
                 deviceId = "dvc_456",
-                username = "alice",
                 ts = "1739782800",
                 publicKey = """{"kty":"EC","crv":"P-256","x":"x","y":"y"}""",
             )
 
         assertEquals(
-            """{"nonce":"nce_123","deviceId":"dvc_456","username":"alice","ts":"1739782800","publicKey":"{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"x\",\"y\":\"y\"}"}""",
+            """{"nonce":"nce_123","deviceId":"dvc_456","ts":"1739782800","publicKey":"{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"x\",\"y\":\"y\"}"}""",
             payload.toCanonicalJson(),
         )
     }

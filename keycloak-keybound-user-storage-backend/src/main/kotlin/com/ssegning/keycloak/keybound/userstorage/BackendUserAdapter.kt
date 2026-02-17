@@ -28,13 +28,15 @@ class BackendUserAdapter(
     private var user: BackendUser = backendUser
     private var createdTimestamp = backendUser.createdAt?.toEpochMilliseconds()
     private val keycloakStorageId = StorageId.keycloakId(componentModel, backendUser.userId)
+    private fun effectiveUsername(current: BackendUser = user): String = current.username.ifBlank { current.userId }
 
     override fun getId(): String = keycloakStorageId
 
-    override fun getUsername(): String = user.username
+    override fun getUsername(): String = effectiveUsername()
 
     override fun setUsername(username: String) {
-        persistUser(user.copy(username = username))
+        val normalized = username.trim().ifBlank { user.userId }
+        persistUser(user.copy(username = normalized))
     }
 
     override fun getFirstName(): String? = user.firstName
@@ -75,7 +77,7 @@ class BackendUserAdapter(
 
     override fun getFirstAttribute(name: String): String? =
         when (name) {
-            UserModel.USERNAME -> user.username
+            UserModel.USERNAME -> effectiveUsername()
             UserModel.FIRST_NAME -> user.firstName
             UserModel.LAST_NAME -> user.lastName
             UserModel.EMAIL -> user.email
@@ -92,7 +94,7 @@ class BackendUserAdapter(
 
     override fun getAttributes(): MutableMap<String, MutableList<String>> {
         val attributes = linkedMapOf<String, MutableList<String>>()
-        attributes[UserModel.USERNAME] = mutableListOf(user.username)
+        attributes[UserModel.USERNAME] = mutableListOf(effectiveUsername())
         user.firstName?.let { attributes[UserModel.FIRST_NAME] = mutableListOf(it) }
         user.lastName?.let { attributes[UserModel.LAST_NAME] = mutableListOf(it) }
         user.email?.let { attributes[UserModel.EMAIL] = mutableListOf(it) }
@@ -111,10 +113,7 @@ class BackendUserAdapter(
     ) {
         when (name) {
             UserModel.USERNAME -> {
-                if (value.isNullOrBlank()) {
-                    throw ModelException("Username cannot be null or blank")
-                }
-                persistUser(user.copy(username = value))
+                persistUser(user.copy(username = value?.trim().orEmpty().ifBlank { user.userId }))
             }
 
             UserModel.FIRST_NAME -> persistUser(user.copy(firstName = value))
@@ -179,7 +178,7 @@ class BackendUserAdapter(
             apiGateway.updateUser(
                 userId = user.userId,
                 realmName = realm.name,
-                username = updatedUser.username,
+                username = effectiveUsername(updatedUser),
                 firstName = updatedUser.firstName,
                 lastName = updatedUser.lastName,
                 email = updatedUser.email,

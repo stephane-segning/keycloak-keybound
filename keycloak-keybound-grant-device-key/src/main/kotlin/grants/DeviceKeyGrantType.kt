@@ -245,11 +245,12 @@ class DeviceKeyGrantType(
         log.debug("Signature verified for device {} bound to user {}", deviceId, user.id)
         // Create Session
         // TODO Do we really wanna create a session if the same device_id + public_key is used?
+        val sessionId = deviceId.ifBlank { UUID.randomUUID().toString() }
         val userSession =
             session
                 .sessions()
                 .createUserSession(
-                    UUID.randomUUID().toString(),
+                    sessionId,
                     realm,
                     user,
                     user.username ?: user.id,

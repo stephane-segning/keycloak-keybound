@@ -6,14 +6,14 @@ title: Public-Key Login Endpoint
 
 ## Overview
 
-- The Keycloak SPI `device-public-key-login` accepts signed device proof, enforces nonce/ts replay protection, optionally validates a client-supplied PoW, creates or resolves the backend user, binds the device key via the backend API gateway, and returns `user_id` plus creation flags instead of minting tokens. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:46
+- The Keycloak SPI `device-public-key-login` accepts signed device proof, enforces nonce/ts replay protection, optionally validates a client-supplied PoW, creates a backend user, binds the device key via the backend API gateway, and returns `user_id` plus creation flags instead of minting tokens. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:46
 - The endpoint shares the same canonical payload contract documented in `docs/SIGNING_AND_VERIFICATION.md` and implemented by `PublicKeyLoginSignaturePayload`. citekeycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/models/PublicKeyLoginSignaturePayload.kt:6
 
 ## API contract
 
 ### Request schema
 
-- Required fields: `username`, `device_id`, `public_key`, `nonce`, `ts` (or `timestamp`), `sig`. citedocs/SIGNING_AND_VERIFICATION.md:111
+- Required fields: `device_id`, `public_key`, `nonce`, `ts` (or `timestamp`), `sig`. citedocs/SIGNING_AND_VERIFICATION.md:111
 - Optional trace fields: `client_id` (stored as attribute `request_client_id`) and `pow_nonce` when PoW is enabled. citeREADME.md:123
 
 ### Response schema
@@ -23,8 +23,8 @@ title: Public-Key Login Endpoint
 ## Server behavior
 
 - Timestamp windows are governed by `NONCE_CACHE_TTL_{realm}` (default 300s) and nonces live in `SingleUseObjectProvider`. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:121
-- Replay/PoW check: if `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}` > 0, the endpoint computes `SHA-256("${realm}:${device_id}:${username}:${ts}:${nonce}:${pow_nonce}")` and requires a configurable number of leading zero hex nibbles before moving on to signature validation. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:125
-- After signature verification, the handler resolves or creates the backend user, looks up existing device bindings via `ApiGateway.lookupDevice`, and calls `ApiGateway.enrollmentBindForRealm` to persist the device record (`source=device-public-key-login`). citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:182 citekeycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/spi/ApiGateway.kt:63
+- Replay/PoW check: if `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}` > 0, the endpoint computes `SHA-256("${realm}:${device_id}:${ts}:${nonce}:${pow_nonce}")` and requires a configurable number of leading zero hex nibbles before moving on to signature validation. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:125
+- After signature verification, the handler rejects if `device_id` or `jkt` is already associated with a user, then creates a backend user, and calls `ApiGateway.enrollmentBindForRealm` to persist the device record (`source=device-public-key-login`). citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:182 citekeycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/spi/ApiGateway.kt:63
 
 ## Proof-of-work (PoW)
 
@@ -47,4 +47,3 @@ title: Public-Key Login Endpoint
 
 - Kotlin: `./gradlew :keycloak-keybound-custom-endpoint:compileKotlin :keycloak-keybound-core:test`. citekeycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/spi/ApiGateway.kt:63
 - React example: `cd examples/web-vite-react-public-key-login && npm run build`. citeexamples/web-vite-react-public-key-login/src/lib/public-key-login.ts:1
-

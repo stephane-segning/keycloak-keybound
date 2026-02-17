@@ -16,7 +16,6 @@ export type PublicKeyLoginResponse = {
 };
 
 export async function callPublicKeyLoginEndpoint(params: {
-    username: string;
     clientId?: string;
 }): Promise<PublicKeyLoginResponse> {
     const device = await loadDeviceRecord();
@@ -30,7 +29,6 @@ export async function callPublicKeyLoginEndpoint(params: {
     const powNonce = await solvePowNonce({
         realm: KEYCLOAK_REALM,
         deviceId: device.deviceId,
-        username: params.username,
         ts,
         nonce,
         difficulty: PUBLIC_LOGIN_POW_DIFFICULTY,
@@ -38,13 +36,11 @@ export async function callPublicKeyLoginEndpoint(params: {
     const payload = canonicalPublicKeyPayload({
         nonce,
         deviceId: device.deviceId,
-        username: params.username,
         ts,
         publicKey,
     });
     const sig = await signPayload(device.privateJwk, payload);
     const body = buildPublicKeyLoginBody({
-        username: params.username,
         deviceId: device.deviceId,
         publicKey,
         nonce,

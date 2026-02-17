@@ -11,6 +11,7 @@ import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
 import com.ssegning.keycloak.keybound.core.models.PublicKeyLoginSignaturePayload
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.Consumes
+import jakarta.ws.rs.OPTIONS
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.core.MediaType
@@ -24,7 +25,6 @@ import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.models.UserModel
-import org.keycloak.models.utils.KeycloakModelUtils
 import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
@@ -41,13 +41,15 @@ class PublicKeyLoginResource(
         private const val MAX_INPUT_LENGTH = 2048
         private const val NONCE_KEY_PREFIX = "public-key-login-replay"
         private const val SOURCE_ATTRIBUTE_VALUE = "device-public-key-login"
+        private const val CORS_ALLOW_ORIGIN = "*"
+        private const val CORS_ALLOW_METHODS = "POST, OPTIONS"
+        private const val CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Requested-With"
+        private const val CORS_ALLOW_CREDENTIALS = "true"
     }
 
     data class PublicKeyLoginRequest(
         @param:JsonProperty("client_id")
         val clientId: String? = null,
-        @param:JsonProperty("username")
-        val username: String? = null,
         @param:JsonProperty("device_id")
         val deviceId: String? = null,
         @param:JsonProperty("public_key")
@@ -73,7 +75,6 @@ class PublicKeyLoginResource(
 
         val realm = session.context.realm
         val clientId = request.clientId.normalize()
-        val usernameRaw = request.username.normalize()
         val deviceId = request.deviceId.normalize()
         val publicKeyJwk = request.publicKey.normalize()
         val nonce = request.nonce.normalize()
@@ -83,7 +84,6 @@ class PublicKeyLoginResource(
 
         val missing =
             listOfNotNull(
-                "username".takeIf { usernameRaw == null },
                 "device_id".takeIf { deviceId == null },
                 "public_key".takeIf { publicKeyJwk == null },
                 "nonce".takeIf { nonce == null },
@@ -94,7 +94,6 @@ class PublicKeyLoginResource(
             return badRequest("Missing required fields: ${missing.joinToString(", ")}")
         }
 
-        val usernameRawValue = usernameRaw ?: return badRequest("Missing required fields: username")
         val deviceIdValue = deviceId ?: return badRequest("Missing required fields: device_id")
         val publicKeyJwkValue = publicKeyJwk ?: return badRequest("Missing required fields: public_key")
         val nonceValue = nonce ?: return badRequest("Missing required fields: nonce")
@@ -102,14 +101,8 @@ class PublicKeyLoginResource(
         val sigValue = sig ?: return badRequest("Missing required fields: sig")
         val requestClientId = clientId
 
-        val normalizedUsername = KeycloakModelUtils.toLowerCaseSafe(usernameRawValue)
-        if (normalizedUsername.isBlank()) {
-            return badRequest("username cannot be blank")
-        }
-
         val fieldsToCheck =
             buildMap<String, String> {
-                put("username", normalizedUsername)
                 put("device_id", deviceIdValue)
                 put("public_key", publicKeyJwkValue)
                 put("nonce", nonceValue)
@@ -126,7 +119,7 @@ class PublicKeyLoginResource(
         val powDifficulty = resolvePowDifficulty(realm.name)
         if (powDifficulty > 0) {
             val powNonceValue = powNonce ?: return badRequest("Missing required fields: pow_nonce")
-            if (!verifyPow(realm.name, deviceIdValue, normalizedUsername, tsStrValue, nonceValue, powNonceValue, powDifficulty)) {
+            if (!verifyPow(realm.name, deviceIdValue, tsStrValue, nonceValue, powNonceValue, powDifficulty)) {
                 return unauthorized("Invalid proof-of-work")
             }
         }
@@ -167,7 +160,6 @@ class PublicKeyLoginResource(
             PublicKeyLoginSignaturePayload(
                 nonce = nonceValue,
                 deviceId = deviceIdValue,
-                username = normalizedUsername,
                 ts = tsStrValue,
                 publicKey = publicKeyJwkValue,
             ).toCanonicalJson()
@@ -183,15 +175,6 @@ class PublicKeyLoginResource(
             return unauthorized("Invalid signature")
         }
 
-        val userCreation = resolveOrCreateUser(realm, normalizedUsername)
-        if (userCreation.response != null) {
-            return userCreation.response
-        }
-        val user = userCreation.user ?: return internalError("Unable to resolve user")
-        val createdUser = userCreation.created
-
-        val backendUserId = resolveBackendUserId(user)
-
         val jkt =
             try {
                 computeJkt(publicKeyJwkValue)
@@ -205,24 +188,34 @@ class PublicKeyLoginResource(
                 return badRequest("Malformed public_key JWK")
             }
 
-        val lookupByDevice = apiGateway.lookupDevice(deviceId = deviceIdValue) ?: return badGateway("Device lookup failed")
-        val lookupByJkt = apiGateway.lookupDevice(jkt = jkt) ?: return badGateway("Device lookup failed")
+        // Some backends answer 404 for first-time lookups; treat null as "not found" at this pre-bind stage.
+        val lookupByDevice = apiGateway.lookupDevice(deviceId = deviceIdValue) ?: DeviceLookupResult(found = false)
+        val lookupByJkt = apiGateway.lookupDevice(jkt = jkt) ?: DeviceLookupResult(found = false)
 
-        if (isConflict(lookupByDevice, backendUserId) || isConflict(lookupByJkt, backendUserId)) {
-            return conflict("Device or key is already bound to another user")
+        if (lookupByDevice.found || lookupByJkt.found) {
+            return conflict("Device or key is already associated with a user")
         }
 
-        val alreadyBoundToSameUser = isBoundToSameUser(lookupByDevice, backendUserId) || isBoundToSameUser(lookupByJkt, backendUserId)
+        val userCreation =
+            createBackendUserAndResolve(
+                realm = realm,
+                deviceId = deviceIdValue,
+                nonce = nonceValue,
+            )
+        if (userCreation.response != null) {
+            return userCreation.response
+        }
+        val user = userCreation.user ?: return internalError("Unable to resolve user")
+        val createdUser = userCreation.created
+        val backendUserId = resolveBackendUserId(user)
 
         val credentialCreated =
-            if (alreadyBoundToSameUser) {
-                false
-            } else {
+            run {
                 val bound =
                     apiGateway.enrollmentBindForRealm(
                         realmName = realm.name,
                         userId = backendUserId,
-                        userHint = normalizedUsername,
+                        userHint = backendUserId,
                         deviceData =
                             DeviceDescriptor(
                                 deviceId = deviceIdValue,
@@ -253,9 +246,8 @@ class PublicKeyLoginResource(
             }
 
         log.debug(
-            "Public-key login succeeded client={} username={} keycloakUser={} backendUser={} created={} credentialCreated={}",
+            "Public-key login succeeded client={} keycloakUser={} backendUser={} created={} credentialCreated={}",
             requestClientId,
-            normalizedUsername,
             user.id,
             backendUserId,
             createdUser,
@@ -268,8 +260,17 @@ class PublicKeyLoginResource(
                     "created_user" to createdUser,
                     "credential_created" to credentialCreated,
                 ),
-            ).build()
+            )
+            .withCorsHeaders()
+            .build()
     }
+
+    @OPTIONS
+    @Produces(MediaType.APPLICATION_JSON)
+    fun options(): Response = Response
+        .ok()
+        .withCorsHeaders()
+        .build()
 
     private data class UserCreationResult(
         val user: UserModel? = null,
@@ -277,26 +278,22 @@ class PublicKeyLoginResource(
         val response: Response? = null,
     )
 
-    private fun resolveOrCreateUser(
+    private fun createBackendUserAndResolve(
         realm: RealmModel,
-        username: String,
+        deviceId: String,
+        nonce: String,
     ): UserCreationResult {
-        val existing = session.users().getUserByUsername(realm, username)
-        if (existing != null) {
-            return UserCreationResult(user = existing, created = false)
-        }
-
+        val technicalUsername = "kb_${sha256Base64Url("$deviceId:$nonce".toByteArray(Charsets.UTF_8)).take(32)}"
         val backendUser =
             apiGateway.createUser(
                 realmName = realm.name,
-                username = username,
+                username = technicalUsername,
             ) ?: return UserCreationResult(response = badGateway("Failed to create backend user"))
 
         val resolvedAfterCreate =
-            resolveUserByBackendIdOrUsername(
+            resolveUserByBackendId(
                 realm = realm,
                 backendUserId = backendUser.userId,
-                username = username,
             )
 
         if (resolvedAfterCreate == null) {
@@ -307,14 +304,12 @@ class PublicKeyLoginResource(
         return UserCreationResult(user = resolvedAfterCreate, created = true)
     }
 
-    private fun resolveUserByBackendIdOrUsername(
+    private fun resolveUserByBackendId(
         realm: RealmModel,
         backendUserId: String,
-        username: String,
     ): UserModel? =
         findSingleUserByAttribute(realm, "backend_user_id", backendUserId)
-            ?: session.users().getUserByUsername(realm, username)
-            ?: session.users().getUserByEmail(realm, username)
+            ?: session.users().getUserById(realm, backendUserId)
 
     private fun findSingleUserByAttribute(
         realm: RealmModel,
@@ -364,20 +359,6 @@ class PublicKeyLoginResource(
         return 0
     }
 
-    private fun isConflict(
-        lookup: DeviceLookupResult,
-        backendUserId: String,
-    ): Boolean {
-        if (!lookup.found) return false
-        val existingUserId = lookup.userId ?: return true
-        return existingUserId != backendUserId
-    }
-
-    private fun isBoundToSameUser(
-        lookup: DeviceLookupResult,
-        backendUserId: String,
-    ): Boolean = lookup.found && lookup.userId == backendUserId
-
     private fun decodeBase64OrBase64Url(value: String): ByteArray? =
         try {
             Base64.getUrlDecoder().decode(value)
@@ -400,13 +381,12 @@ class PublicKeyLoginResource(
     private fun verifyPow(
         realmName: String,
         deviceId: String,
-        username: String,
         ts: String,
         nonce: String,
         powNonce: String,
         difficulty: Int,
     ): Boolean {
-        val material = "$realmName:$deviceId:$username:$ts:$nonce:$powNonce"
+        val material = "$realmName:$deviceId:$ts:$nonce:$powNonce"
         val digest = MessageDigest.getInstance("SHA-256").digest(material.toByteArray(Charsets.UTF_8))
         return hasLeadingZeroNibbles(digest, difficulty)
     }
@@ -456,5 +436,13 @@ class PublicKeyLoginResource(
         Response
             .status(status)
             .entity(mapOf("error" to message))
+            .withCorsHeaders()
             .build()
+
+    private fun Response.ResponseBuilder.withCorsHeaders(): Response.ResponseBuilder =
+        this
+            .header("Access-Control-Allow-Origin", CORS_ALLOW_ORIGIN)
+            .header("Access-Control-Allow-Methods", CORS_ALLOW_METHODS)
+            .header("Access-Control-Allow-Headers", CORS_ALLOW_HEADERS)
+            .header("Access-Control-Allow-Credentials", CORS_ALLOW_CREDENTIALS)
 }

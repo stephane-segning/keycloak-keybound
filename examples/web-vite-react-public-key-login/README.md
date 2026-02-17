@@ -1,64 +1,27 @@
-# Web Vite React Example
+# Web Vite React Public-Key Login
 
-Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-backed device storage.
+Minimal web client dedicated to the `device-public-key-login` realm resource. It generates a local device key, solves optional PoW, sends the signed payload, and shows the backend-issued `user_id` plus binding status.
 
-## Stack
+## Highlights
 
-- Vite
-- React + TypeScript
-- React Router
-- Tailwind CSS v4 + DaisyUI v5 (installed locally)
-- TanStack DB + IndexedDB persistence through `idb-keyval`
-- Pure-JS device crypto with `@noble/curves` (no WebCrypto dependency)
-- Frontend ID generation with `@paralleldrive/cuid2` (`dvc_*`, `nce_*`, `stt_*`)
+- Pure-JS P-256 device key generation via `@noble/curves`.
+- IndexedDB device store backed by `@tanstack/db` + `idb-keyval`.
+- Single-screen Flow in `src/pages/public-key-login-page.tsx`.
+- Manual device binding plus `Generate access token` button driven by the stored user ID.
+- Tailwind + DaisyUI styling without additional routing or layout cruft.
 
-## Routes
+## Keycloak requirements
 
-- `/` landing hero + device dashboard
-- `/login` popup login and code exchange
-- `/callback` auth callback payload relay (debug fallback)
-- `/session` backend user-id binding
-- `/resource` protected resource call + approvals view proxied by resource server
-- `/resource` also includes a simple `start live` button that subscribes to resource-server WebSocket approvals stream (`/ws/approvals`)
-- `/public-login` manual public-key login call (new realm resource)
-
-## File Layout
-
-- `src/app/` app shell + routing
-- `src/pages/` route pages (kebab-case filenames)
-- `src/hooks/` app hooks
-- `src/lib/` auth, crypto, and persistence logic
-- `src/styles/` global Tailwind/DaisyUI stylesheet
-
-## Keycloak Config
-
-- Realm: `e2e-testing`
-- Client ID: `web-vite`
-- Redirect URI: `http://localhost:5173/popup-callback.html` (recommended for instant popup close)
-- Optional debug Redirect URI: `http://localhost:5173/callback`
-- Web origin: `http://localhost:5173`
-
-## Public-Key Login Demo
-
-- Navigate to `/public-login` to call `POST /realms/{realm}/device-public-key-login`.
-- Enter the username you want to resolve/create (e.g., `alice`) and optionally a `client_id`.
-- The page signs the payload with the locally stored device key and displays the endpoint response.
-
-## Environment Overrides
-
-- `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_REDIRECT_URI`
-- `VITE_RESOURCE_SERVER`
-- `VITE_RESOURCE_SERVER_SIGNED` (defaults to `http://localhost:18082`)
-- `VITE_PUBLIC_LOGIN_POW_DIFFICULTY` (default `0`; set `3-5` to enforce endpoint PoW)
+- Register the `device-public-key-login` provider in your realm.
+- Configure `KEYCLOAK_BASE_URL`, `REALM`, and optionally `CLIENT_ID` in `src/config.ts`.
+- Mirror any PoW difficulty set via `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}` by exporting the same number in `VITE_PUBLIC_LOGIN_POW_DIFFICULTY`.
 
 ## Run
 
 ```bash
+cd examples/web-vite-react-public-key-login
 npm install
 npm run dev
 ```
 
-## Related Docs
-
-- `docs/USAGE.md`
-- `docs/PLAN.md`
+The app runs on `http://localhost:5173` by default and immediately displays the public-key login experience.

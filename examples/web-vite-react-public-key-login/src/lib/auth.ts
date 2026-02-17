@@ -199,6 +199,13 @@ export function loadTokens(): TokenResponse | null {
     }
 }
 
+export async function requestDeviceKeyAccessToken(userId: string): Promise<TokenResponse> {
+    const tokens = await callCustomGrant(userId);
+    saveTokens(tokens);
+    saveGrantUserId(userId);
+    return tokens;
+}
+
 export function saveGrantUserId(userId: string | null | undefined) {
     if (!userId) return;
     // Explicitly store the subject used by the custom grant fallback path.
