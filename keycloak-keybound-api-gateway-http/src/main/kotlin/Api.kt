@@ -270,7 +270,7 @@ open class Api(
 
                     else -> DeviceStatus.DISABLED
                 },
-                createdAt = device.createdAt.atOffset(ZoneOffset.UTC),
+                createdAt = LocalDateTime.parse(device.createdAt).atOffset(ZoneOffset.UTC),
                 label = device.label
             )
         }
@@ -304,7 +304,7 @@ open class Api(
                             DeviceRecordStatus.ACTIVE -> DeviceStatus.ACTIVE
                             else -> DeviceStatus.DISABLED
                         },
-                        createdAt = it.createdAt.atOffset(ZoneOffset.UTC),
+                        createdAt = LocalDateTime.parse(it.createdAt).atOffset(ZoneOffset.UTC),
                         label = it.label
                     )
                 },
@@ -447,7 +447,7 @@ open class Api(
         enabled = enabled,
         emailVerified = emailVerified,
         attributes = attributes.orEmpty(),
-        createdAt = createdAt?.atOffset(ZoneOffset.UTC)
+        createdAt = createdAt?.let { LocalDateTime.parse(it).atOffset(ZoneOffset.UTC) }
     )
 
     override fun close() = noop()
