@@ -1,1 +1,2 @@
 com.ssegning.keycloak.keybound.endpoint.DeviceApprovalResourceProviderFactory
+com.ssegning.keycloak.keybound.endpoint.PublicKeyLoginResourceProviderFactory

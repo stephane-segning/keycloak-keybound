@@ -29,6 +29,7 @@ open class Api(
 ) : ApiGateway {
     companion object {
         private val log = LoggerFactory.getLogger(Api::class.java)
+        private const val PUBLIC_KEY_LOGIN_CLIENT_ID = "device-public-key-login"
     }
 
     private val circuitBreakers = CircuitBreakerRegistry.ofDefaults()
@@ -259,6 +260,44 @@ open class Api(
                     EnrollmentBindRequest(
                         realm = context.realm.name,
                         clientId = context.authenticationSession.client.clientId,
+                        userId = userId,
+                        userHint = userHint,
+                        deviceId = deviceData.deviceId,
+                        jkt = deviceData.jkt,
+                        publicJwk = publicJwk,
+                        attributes = attributes,
+                        proof = proof,
+                        createdAt = Clock.System.now(),
+                    ),
+                )
+            response.boundUserId == userId
+        } ?: false
+
+    override fun enrollmentBindForRealm(
+        realmName: String,
+        userId: String,
+        userHint: String?,
+        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
+        attributes: Map<String, String>?,
+        proof: Map<String, Any>?,
+    ): Boolean =
+        executeGuarded(
+            operation = "enrollment.bind.forClient",
+            errorMessage = "Failed to bind device ${deviceData.deviceId} for user $userId in realm=$realmName",
+        ) {
+            val publicJwk = deviceData.publicJwk ?: return@executeGuarded false
+            log.debug(
+                "Binding device {} for user {} realm={} via non-client endpoint path",
+                deviceData.deviceId,
+                userId,
+                realmName,
+            )
+
+            val response =
+                enrollmentApi.enrollmentBind(
+                    EnrollmentBindRequest(
+                        realm = realmName,
+                        clientId = PUBLIC_KEY_LOGIN_CLIENT_ID,
                         userId = userId,
                         userHint = userHint,
                         deviceId = deviceData.deviceId,

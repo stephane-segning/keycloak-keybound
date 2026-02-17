@@ -76,6 +76,92 @@ assert ECDSA_P256_VERIFY(publicKey, messageBytes, signatureBytes)
 - Enrollment verification: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt`
 - Device grant verification: `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt`
 
+## 1b) Public-Key Login Signature (Custom Endpoint)
+
+### Abstract Data Type
+
+`PublicKeyLoginSignaturePayload`
+
+```text
+type PublicKeyLoginSignaturePayload = {
+  nonce: String
+  deviceId: String
+  username: String
+  ts: String          // unix epoch seconds serialized as string
+  publicKey: String   // JSON string form of the EC public JWK
+}
+```
+
+### Canonical Serialization
+
+Canonical JSON object order:
+
+1. `nonce`
+2. `deviceId`
+3. `username`
+4. `ts`
+5. `publicKey`
+
+Shared model:
+
+- Keycloak: `keycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/models/PublicKeyLoginSignaturePayload.kt`
+
+### Endpoint Contract
+
+`POST /realms/{realm}/device-public-key-login`
+
+Required JSON fields:
+
+- `username`
+- `device_id`
+- `public_key`
+- `nonce`
+- `ts` (or alias `timestamp`)
+- `sig`
+
+Optional JSON fields:
+
+- `client_id` (accepted for traceability only; not used for enrollment binding)
+
+Successful response:
+
+```text
+{
+  "user_id": "<keycloak-user-id>",
+  "created_user": <boolean>,
+  "credential_created": <boolean>
+}
+```
+
+### Verification Pseudocode (Keycloak Custom Endpoint)
+
+```text
+input:
+  username, device_id, public_key, nonce, ts, sig
+
+assert abs(nowEpochSeconds - parseLong(ts)) <= ttl
+assert singleUseStore.putIfAbsent("public-key-login-replay:<realm>:<nonce>", ttl) == true
+
+payload = PublicKeyLoginSignaturePayload(
+  nonce=nonce,
+  deviceId=device_id,
+  username=lowercase(username),
+  ts=ts,
+  publicKey=public_key
+)
+canonical = payload.toCanonicalJson()
+messageBytes = UTF8(canonical)
+
+publicKey = PARSE_JWK_TO_PUBLIC_KEY(public_key)
+signatureBytes = BASE64_OR_BASE64URL_DECODE(sig)
+assert length(signatureBytes) == 64
+assert ECDSA_P256_VERIFY(publicKey, messageBytes, signatureBytes)
+```
+
+### Implementation
+
+- Verifier + user/device materialization: `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt`
+
 ## 2) HTTP Request Signature (Signed Resource Server Example)
 
 ### Abstract Data Type

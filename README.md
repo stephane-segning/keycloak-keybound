@@ -105,6 +105,40 @@ Keycloak's `providers/` directory.
 | `sig`        | Signature over the payload with the device key    |
 | Tokens       | Access token only (no refresh token issued)       |
 
+## Public-Key Login Endpoint
+
+Custom realm endpoint:
+
+- `POST /realms/{realm}/device-public-key-login`
+
+Required body fields:
+
+- `username`
+- `device_id`
+- `public_key`
+- `nonce`
+- `ts` (or `timestamp`)
+- `sig`
+
+Optional body fields:
+
+- `client_id` (accepted for traceability only; not used for enrollment binding)
+
+Example:
+
+```bash
+curl -X POST "http://localhost:9026/realms/e2e-testing/device-public-key-login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "alice",
+    "device_id": "dvc_123",
+    "public_key": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"...\",\"y\":\"...\"}",
+    "nonce": "nce_456",
+    "ts": "1739782800",
+    "sig": "<base64url-compact-es256-signature>"
+  }'
+```
+
 ## Examples & Recipes
 
 - `examples/nodejs-ts` – device enrollment + approval client in TypeScript. See its README.

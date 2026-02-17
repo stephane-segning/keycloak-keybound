@@ -63,6 +63,15 @@ interface ApiGateway : Provider {
         proof: Map<String, Any>? = null,
     ): Boolean
 
+    fun enrollmentBindForRealm(
+        realmName: String,
+        userId: String,
+        userHint: String?,
+        deviceData: DeviceDescriptor,
+        attributes: Map<String, String>? = null,
+        proof: Map<String, Any>? = null,
+    ): Boolean
+
     fun listUserDevices(
         userId: String,
         includeDisabled: Boolean = true,
