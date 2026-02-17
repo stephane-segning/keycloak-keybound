@@ -21,7 +21,7 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew clean build shadow
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: target-jar
           path: '*/build/libs/*.jar'
