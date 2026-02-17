@@ -1,3 +1,5 @@
+import {canonicalDeviceSignaturePayload} from '@examples-lib/auth';
+
 export class DeviceSignaturePayload {
     readonly deviceId: string;
     readonly publicKey: string;
@@ -12,37 +14,11 @@ export class DeviceSignaturePayload {
     }
 
     toCanonicalJson(): string {
-        return JSON.stringify({
+        return canonicalDeviceSignaturePayload({
             deviceId: this.deviceId,
             publicKey: this.publicKey,
             ts: this.ts,
             nonce: this.nonce,
-        });
-    }
-}
-
-export class PublicKeyLoginPayload {
-    readonly nonce: string;
-    readonly deviceId: string;
-    readonly username: string;
-    readonly ts: string;
-    readonly publicKey: string;
-
-    constructor(nonce: string, deviceId: string, username: string, ts: string, publicKey: string) {
-        this.nonce = nonce;
-        this.deviceId = deviceId;
-        this.username = username;
-        this.ts = ts;
-        this.publicKey = publicKey;
-    }
-
-    toCanonicalJson(): string {
-        return JSON.stringify({
-            nonce: this.nonce,
-            deviceId: this.deviceId,
-            username: this.username,
-            ts: this.ts,
-            publicKey: this.publicKey,
         });
     }
 }

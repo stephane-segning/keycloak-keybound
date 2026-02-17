@@ -7,7 +7,13 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@examples-lib/*": ["../lib/*"]
+    }
+    ,
+    "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src", "../lib"]
 }

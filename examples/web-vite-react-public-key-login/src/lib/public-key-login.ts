@@ -3,8 +3,11 @@ import {KEYCLOAK_BASE_URL, KEYCLOAK_REALM, PUBLIC_LOGIN_POW_DIFFICULTY} from '..
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
 import {signPayload, stringifyPublicJwk} from './crypto';
-import {PublicKeyLoginPayload} from './canonical-payloads';
-import {solvePow} from './pow';
+import {
+    buildPublicKeyLoginBody,
+    canonicalPublicKeyPayload,
+    solvePowNonce,
+} from '@examples-lib/auth';
 
 export type PublicKeyLoginResponse = {
     user_id: string;
@@ -24,7 +27,7 @@ export async function callPublicKeyLoginEndpoint(params: {
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
-    const powNonce = await solvePow({
+    const powNonce = await solvePowNonce({
         realm: KEYCLOAK_REALM,
         deviceId: device.deviceId,
         username: params.username,
@@ -32,23 +35,24 @@ export async function callPublicKeyLoginEndpoint(params: {
         nonce,
         difficulty: PUBLIC_LOGIN_POW_DIFFICULTY,
     });
-    const payload = new PublicKeyLoginPayload(nonce, device.deviceId, params.username, ts, publicKey);
-    const sig = await signPayload(device.privateJwk, payload.toCanonicalJson());
-
-    const body: Record<string, string> = {
+    const payload = canonicalPublicKeyPayload({
+        nonce,
+        deviceId: device.deviceId,
         username: params.username,
-        device_id: device.deviceId,
-        public_key: publicKey,
+        ts,
+        publicKey,
+    });
+    const sig = await signPayload(device.privateJwk, payload);
+    const body = buildPublicKeyLoginBody({
+        username: params.username,
+        deviceId: device.deviceId,
+        publicKey,
         nonce,
         ts,
         sig,
-    };
-    if (params.clientId) {
-        body.client_id = params.clientId;
-    }
-    if (powNonce) {
-        body.pow_nonce = powNonce;
-    }
+        clientId: params.clientId,
+        powNonce,
+    });
 
     try {
         const response = await axios.post<PublicKeyLoginResponse>(

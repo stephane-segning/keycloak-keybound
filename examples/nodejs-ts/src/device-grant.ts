@@ -20,6 +20,7 @@ import {
     sha256Base64Url,
     tokenEndpoint,
 } from './lib.js';
+import {canonicalDeviceSignaturePayload} from '../../lib/auth';
 
 const KEYCLOAK_BASE_URL = env('KEYCLOAK_BASE_URL', 'http://localhost:9026');
 const REALM = env('REALM', 'ssegning-keybound-wh-01');
@@ -53,7 +54,7 @@ async function main() {
     const codeChallenge = sha256Base64Url(codeVerifier);
 
     const publicKeyJwk = publicJwkStringForKeycloak(publicJwk);
-    const signaturePayload = JSON.stringify({
+    const signaturePayload = canonicalDeviceSignaturePayload({
         deviceId,
         publicKey: publicKeyJwk,
         ts,
@@ -104,7 +105,7 @@ async function main() {
 
     const grantTs = Math.floor(Date.now() / 1000).toString();
     const grantNonce = randomBase64Url(16);
-    const grantSignaturePayload = JSON.stringify({
+    const grantSignaturePayload = canonicalDeviceSignaturePayload({
         deviceId,
         publicKey: publicKeyJwk,
         ts: grantTs,

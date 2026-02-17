@@ -1,3 +1,5 @@
+import {canonicalDeviceSignaturePayload} from '@examples-lib/auth';
+
 export class DeviceSignaturePayload {
     readonly deviceId: string;
     readonly publicKey: string;
@@ -12,7 +14,7 @@ export class DeviceSignaturePayload {
     }
 
     toCanonicalJson(): string {
-        return JSON.stringify({
+        return canonicalDeviceSignaturePayload({
             deviceId: this.deviceId,
             publicKey: this.publicKey,
             ts: this.ts,
