@@ -1,18 +1,17 @@
 openapi: 3.1.0
 info:
-  title: Keycloak Backend Device Enrollment & Approval API
+  title: Keycloak Backend Device Enrollment API
   version: 0.2.0
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers the streamlined device enrollment workflow that supports the device-public-key-login
-    endpoint, approval polling, and device lookup helpers used by the remaining grant flow.
+    endpoint and device lookup helpers used by the remaining grant flow.
 servers:
   - url: https://backend.example.com
     description: Backend base URL
 
 tags:
   - name: enrollment
-  - name: approvals
   - name: users
   - name: devices
 
@@ -51,33 +50,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /v1/approvals/{request_id}:
-    get:
-      tags: [ approvals ]
-      summary: Get approval request status
-      security:
-        - KCSignature: [ ]
-      description: |
-        Keycloak polls this endpoint server-to-server, then serves a KC-local polling endpoint to the browser.
-      operationId: getApproval
-      parameters:
-        - name: request_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApprovalStatusResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -191,7 +163,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/users:search:
+  /v1/users/search:
     post:
       tags: [ users ]
       summary: Search users by fields and attributes
@@ -337,26 +309,6 @@ components:
         device_record_id:
           type: string
         bound_user_id:
-          type: string
-
-    QueryApprovalStatus:
-      type: string
-      enum: [ PENDING, APPROVED, DENIED, EXPIRED ]
-
-    ApprovalStatusResponse:
-      type: object
-      required: [ request_id, status ]
-      properties:
-        request_id:
-          type: string
-        status:
-          $ref: '#/components/schemas/QueryApprovalStatus'
-        decided_at:
-          type: string
-          format: date-time
-        decided_by_device_id:
-          type: string
-        message:
           type: string
 
     DeviceDescriptor:

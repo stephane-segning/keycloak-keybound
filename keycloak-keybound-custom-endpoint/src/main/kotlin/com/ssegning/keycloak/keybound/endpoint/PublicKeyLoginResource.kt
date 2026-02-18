@@ -100,7 +100,7 @@ class PublicKeyLoginResource(
         val sigValue = sig ?: return badRequest("Missing required fields: sig")
 
         val fieldsToCheck =
-            buildMap<String, String> {
+            buildMap {
                 put("device_id", deviceIdValue)
                 put("public_key", publicKeyJwkValue)
                 put("nonce", nonceValue)

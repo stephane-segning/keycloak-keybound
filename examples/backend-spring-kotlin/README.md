@@ -6,7 +6,7 @@ This service implements `openapi/backend.open-api.yml` for local development.
 
 - No security
 - In-memory persistence
-- Full endpoint coverage for enrollment, approvals, users, devices, sms
+- Full endpoint coverage for enrollment, users, and devices
 
 ## Run
 

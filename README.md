@@ -46,8 +46,8 @@ Threats it helps with (depending on your tenant policy and flow configuration):
 | Module                                       | Role                                                                                                    |
 |----------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for token issuance without refresh tokens. |
-| `keycloak-keybound-custom-endpoint`          | Exposes the `device-public-key-login` realm endpoint plus approval polling helpers for browser flows.   |
-| `keycloak-keybound-api-gateway-http`         | Bridges to backend enrollment, approval, device, and user APIs for telemetry and synchronization.        |
+| `keycloak-keybound-custom-endpoint`          | Exposes the `device-public-key-login` realm endpoint for client-signed device authentication.         |
+| `keycloak-keybound-api-gateway-http`         | Bridges to backend enrollment, device, and user APIs for telemetry and synchronization.                 |
 | `keycloak-keybound-user-storage-backend`     | User Storage SPI backed by backend APIs for externalized user CRUD/search.                              |
 
 ## Installation
@@ -143,7 +143,7 @@ curl -X POST "http://localhost:9026/realms/e2e-testing/device-public-key-login" 
 
 ## Examples & Recipes
 
-- `examples/nodejs-ts` – device enrollment + approval client in TypeScript. See its README.
+- `examples/nodejs-ts` – device enrollment client in TypeScript. See its README.
 - `examples/web-vite-react` – frontend flows with React + Pinia via Keycloak adapter.
 - `examples/backend-spring-kotlin` – server-side validation of the device grant.
 - `examples/resource-server-spring-kotlin` – resource protection sample using issued claims.

@@ -35,8 +35,6 @@ Current implementation:
 - Generate backend IDs with explicit prefixes:
   - `usr_*` for users
   - `dvc_*` for device record IDs
-  - `apr_*` for approvals
-  - `sms_*` for SMS challenge hashes
 
 Current implementation:
 - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt`

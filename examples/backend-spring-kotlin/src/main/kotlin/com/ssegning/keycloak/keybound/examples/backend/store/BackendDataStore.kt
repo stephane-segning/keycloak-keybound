@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 import java.security.SecureRandom
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -19,9 +18,6 @@ class BackendDataStore {
     private val devicesById = ConcurrentHashMap<String, StoredDevice>()
     private val devicesByJkt = ConcurrentHashMap<String, StoredDevice>()
 
-    private val approvals = ConcurrentHashMap<String, StoredApproval>()
-
-    private val smsChallenges = ConcurrentHashMap<String, StoredSmsChallenge>()
     private val userIdCounter = AtomicLong()
     private val secureRandom = SecureRandom()
 
@@ -224,23 +220,6 @@ class BackendDataStore {
             .boundUserId(user)
     }
 
-    fun listUserDevices(userId: String, includeDisabled: Boolean): List<DeviceRecord> {
-        return devicesById.values.asSequence()
-            .filter { it.userId == userId }
-            .filter { includeDisabled || it.status == DeviceRecord.StatusEnum.ACTIVE }
-            .map { it.toRecord() }
-            .toList()
-    }
-
-    fun disableDevice(userId: String, deviceId: String): DeviceRecord? {
-        val stored = devicesById[deviceId] ?: return null
-        if (stored.userId != userId) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found for user")
-        }
-        stored.status = DeviceRecord.StatusEnum.REVOKED
-        return stored.toRecord()
-    }
-
     fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResponse {
         val stored = deviceId?.let { devicesById[it] } ?: jkt?.let { devicesByJkt[it] }
         return if (stored != null) {
@@ -278,152 +257,8 @@ class BackendDataStore {
                     deviceId = it.value.deviceId,
                     userId = it.value.userId
                 )
-            },
-            approvals = approvals.values.map(StoredApproval::toSnapshot),
-            smsChallenges = smsChallenges.values.map {
-                SmsChallengeSnapshot(
-                    hash = it.hash,
-                    otp = it.otp,
-                    expiresAt = it.expiresAt.toString()
-                )
             }
         )
-    }
-
-    fun sendSms(request: SmsSendRequest): SmsSendResponse {
-        val hash = nextPrefixedId("sms")
-        val otp = (100000..999999).random().toString()
-        smsChallenges[hash] = StoredSmsChallenge(hash, otp, OffsetDateTime.now().plusSeconds(300))
-        return SmsSendResponse(hash)
-            .ttlSeconds(300)
-            .status("queued")
-    }
-
-    fun confirmSms(request: SmsConfirmRequest): SmsConfirmResponse {
-        val stored = smsChallenges[request.hash]
-            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown hash")
-
-        if (stored.expiresAt.isBefore(OffsetDateTime.now())) {
-            smsChallenges.remove(request.hash)
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP expired")
-        }
-
-        return if (stored.otp == request.otp) {
-            smsChallenges.remove(request.hash)
-            SmsConfirmResponse(true)
-        } else {
-            SmsConfirmResponse(false).reason("invalid_otp")
-        }
-    }
-
-    fun resolveUserByPhone(request: PhoneResolveRequest): PhoneResolveResponse {
-        val normalizedPhone = request.phoneNumber.trim()
-        val matchedUser = findSingleUserByPhone(request.realm, normalizedPhone)
-        val hasActiveDevices = matchedUser?.let { hasActiveDeviceCredentials(it.userId) } == true
-        val enrollmentPath = if (matchedUser != null && hasActiveDevices) EnrollmentPath.APPROVAL else EnrollmentPath.OTP
-
-        return PhoneResolveResponse()
-            .phoneNumber(normalizedPhone)
-            .userExists(matchedUser != null)
-            .hasDeviceCredentials(hasActiveDevices)
-            .enrollmentPath(enrollmentPath)
-            .userId(matchedUser?.userId)
-            .username(matchedUser?.username)
-    }
-
-    fun resolveOrCreateUserByPhone(request: PhoneResolveOrCreateRequest): PhoneResolveOrCreateResponse {
-        val normalizedPhone = request.phoneNumber.trim()
-        val existingUser = findSingleUserByPhone(request.realm, normalizedPhone)
-        if (existingUser != null) {
-            return PhoneResolveOrCreateResponse()
-                .phoneNumber(normalizedPhone)
-                .userId(existingUser.userId)
-                .username(existingUser.username)
-                .created(false)
-        }
-
-        val createdUser = createUser(
-            UserUpsertRequest()
-                .realm(request.realm)
-                .username(normalizedPhone)
-                .enabled(true)
-                .attributes(mapOf("phone_e164" to normalizedPhone))
-        )
-
-        return PhoneResolveOrCreateResponse()
-            .phoneNumber(normalizedPhone)
-            .userId(createdUser.userId)
-            .username(createdUser.username)
-            .created(true)
-    }
-
-    fun createApproval(request: ApprovalCreateRequest): ApprovalCreateResponse {
-        val requestId = nextPrefixedId("apr")
-        val created = StoredApproval(
-            requestId = requestId,
-            userId = request.userId,
-            deviceId = request.newDevice.deviceId,
-            status = ApprovalStatus.PENDING
-        )
-        approvals[requestId] = created
-        return ApprovalCreateResponse()
-            .requestId(requestId)
-            .status(ApprovalCreateResponse.StatusEnum.PENDING)
-    }
-
-    fun getApproval(requestId: String): ApprovalStatusResponse? {
-        val stored = approvals[requestId] ?: return null
-        return stored.toApprovalStatusResponse()
-    }
-
-    fun listUserApprovals(
-        userId: String,
-        statuses: Collection<String>? = null
-    ): UserApprovalsResponse {
-        if (!users.containsKey(userId) && approvals.values.none { it.userId == userId }) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
-        }
-
-        val statusFilter = statuses
-            ?.mapNotNull { raw -> ApprovalStatus.entries.firstOrNull { it.name == raw } }
-            ?.toSet()
-            ?: emptySet()
-
-        val records = approvals.values.asSequence()
-            .filter { it.userId == userId }
-            .filter { statusFilter.isEmpty() || it.status in statusFilter }
-            .sortedByDescending { it.createdAt }
-            .map { it.toUserApprovalRecord() }
-            .toList()
-
-        return UserApprovalsResponse()
-            .userId(userId)
-            .approvals(records)
-    }
-
-    fun decideApproval(requestId: String, request: ApprovalDecisionRequest): ApprovalStatusResponse? {
-        val stored = approvals[requestId] ?: return null
-        if (stored.status != ApprovalStatus.PENDING) {
-            return stored.toApprovalStatusResponse()
-        }
-
-        stored.status = when (request.decision) {
-            ApprovalDecisionRequest.DecisionEnum.APPROVE -> ApprovalStatus.APPROVED
-            ApprovalDecisionRequest.DecisionEnum.DENY -> ApprovalStatus.DENIED
-        }
-        stored.decidedAt = OffsetDateTime.now()
-        stored.decidedByDeviceId = request.decidedByDeviceId
-        stored.message = request.message
-
-        return stored.toApprovalStatusResponse()
-    }
-
-    fun cancelApproval(requestId: String): Boolean {
-        val stored = approvals[requestId] ?: return false
-        stored.status = ApprovalStatus.EXPIRED
-        stored.decidedAt = OffsetDateTime.now()
-        stored.message = "cancelled"
-        return true
     }
 
     private fun usernameKey(realm: String, key: String) = "$realm|${key.lowercase()}"
@@ -526,53 +361,6 @@ class BackendDataStore {
             .label(label)
     }
 
-    private data class StoredSmsChallenge(
-        val hash: String,
-        val otp: String,
-        val expiresAt: OffsetDateTime
-    )
-
-    private data class StoredApproval(
-        val requestId: String,
-        val userId: String,
-        val deviceId: String,
-        var status: ApprovalStatus,
-        val createdAt: OffsetDateTime = OffsetDateTime.now(),
-        var decidedAt: OffsetDateTime? = null,
-        var decidedByDeviceId: String? = null,
-        var message: String? = null
-    ) {
-        fun toSnapshot(): ApprovalSnapshot = ApprovalSnapshot(
-            requestId = requestId,
-            userId = userId,
-            deviceId = deviceId,
-            status = status.name
-        )
-
-        fun toUserApprovalRecord(): UserApprovalRecord = UserApprovalRecord()
-            .requestId(requestId)
-            .userId(userId)
-            .deviceId(deviceId)
-            .status(UserApprovalRecord.StatusEnum.valueOf(status.name))
-            .createdAt(createdAt.toLocalDateTime())
-            .decidedAt(decidedAt?.toLocalDateTime())
-            .decidedByDeviceId(decidedByDeviceId)
-            .message(message)
-
-        fun toApprovalStatusResponse(): ApprovalStatusResponse = ApprovalStatusResponse()
-            .requestId(requestId)
-            .status(ApprovalStatusResponse.StatusEnum.valueOf(status.name))
-            .decidedAt(decidedAt?.toLocalDateTime())
-            .decidedByDeviceId(decidedByDeviceId)
-            .message(message)
-    }
-
-    private enum class ApprovalStatus {
-        PENDING,
-        APPROVED,
-        DENIED,
-        EXPIRED
-    }
 }
 
 data class BackendStoreSnapshot(
@@ -580,9 +368,7 @@ data class BackendStoreSnapshot(
     val usernameIndex: List<KeyValueSnapshot>,
     val emailIndex: List<KeyValueSnapshot>,
     val devices: List<DeviceSnapshot>,
-    val devicesByJkt: List<DeviceJktSnapshot>,
-    val approvals: List<ApprovalSnapshot>,
-    val smsChallenges: List<SmsChallengeSnapshot>
+    val devicesByJkt: List<DeviceJktSnapshot>
 )
 
 data class KeyValueSnapshot(
@@ -600,22 +386,9 @@ data class DeviceSnapshot(
     val deviceModel: String
 )
 
-data class ApprovalSnapshot(
-    val requestId: String,
-    val userId: String,
-    val deviceId: String,
-    val status: String
-)
-
 data class DeviceJktSnapshot(
     val jkt: String,
     val recordId: String,
     val deviceId: String,
     val userId: String
-)
-
-data class SmsChallengeSnapshot(
-    val hash: String,
-    val otp: String,
-    val expiresAt: String
 )

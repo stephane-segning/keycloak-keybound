@@ -200,12 +200,10 @@
     <div class="container hero-inner">
         <p class="hero-kicker">Keybound</p>
         <h1 class="hero-title">Backend Store Dashboard</h1>
-        <p class="hero-subtitle">Flat snapshot of live in-memory state for users, devices, approvals, indexes, and SMS challenges.</p>
+        <p class="hero-subtitle">Flat snapshot of live in-memory state for users, devices, and indexes.</p>
         <div class="hero-meta">
             <span class="pill" id="pill-users">users ${users?size}</span>
             <span class="pill" id="pill-devices">devices ${devices?size}</span>
-            <span class="pill" id="pill-approvals">approvals ${approvals?size}</span>
-            <span class="pill" id="pill-sms">sms ${smsChallenges?size}</span>
             <span class="pill live-disconnected" id="pill-live-status">live disconnected</span>
         </div>
     </div>
@@ -400,74 +398,6 @@
                     </table>
                 </div>
             </section>
-
-            <section class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">Approvals</h2>
-                    <span class="count" id="count-approvals">${approvals?size}</span>
-                </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Request ID</th>
-                            <th>User ID</th>
-                            <th>Device ID</th>
-                            <th>Status</th>
-                        </tr>
-                        </thead>
-                        <tbody id="tbody-approvals">
-                        <#if approvals?size == 0>
-                            <tr>
-                                <td colspan="4" class="empty">No entries</td>
-                            </tr>
-                        <#else>
-                            <#list approvals as approval>
-                                <tr>
-                                    <td class="mono">${approval.getRequestId()!''}</td>
-                                    <td class="mono">${approval.getUserId()!''}</td>
-                                    <td class="mono">${approval.getDeviceId()!''}</td>
-                                    <td>${approval.getStatus()!''}</td>
-                                </tr>
-                            </#list>
-                        </#if>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">SMS Challenges</h2>
-                    <span class="count" id="count-smsChallenges">${smsChallenges?size}</span>
-                </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Hash</th>
-                            <th>OTP</th>
-                            <th>Expires At</th>
-                        </tr>
-                        </thead>
-                        <tbody id="tbody-smsChallenges">
-                        <#if smsChallenges?size == 0>
-                            <tr>
-                                <td colspan="3" class="empty">No entries</td>
-                            </tr>
-                        <#else>
-                            <#list smsChallenges as challenge>
-                                <tr>
-                                    <td class="mono">${challenge.getHash()!''}</td>
-                                    <td class="mono">${challenge.getOtp()!''}</td>
-                                    <td>${challenge.getExpiresAt()!''}</td>
-                                </tr>
-                            </#list>
-                        </#if>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
         </div>
     </div>
 </main>
@@ -537,21 +467,15 @@
             var devicesByJkt = Array.isArray(snapshot.devicesByJkt) ? snapshot.devicesByJkt : [];
             var usernameIndex = Array.isArray(snapshot.usernameIndex) ? snapshot.usernameIndex : [];
             var emailIndex = Array.isArray(snapshot.emailIndex) ? snapshot.emailIndex : [];
-            var approvals = Array.isArray(snapshot.approvals) ? snapshot.approvals : [];
-            var smsChallenges = Array.isArray(snapshot.smsChallenges) ? snapshot.smsChallenges : [];
 
             setCount("count-users", users.length);
             setCount("count-devices", devices.length);
             setCount("count-devicesByJkt", devicesByJkt.length);
             setCount("count-usernameIndex", usernameIndex.length);
             setCount("count-emailIndex", emailIndex.length);
-            setCount("count-approvals", approvals.length);
-            setCount("count-smsChallenges", smsChallenges.length);
 
             setPill("pill-users", "users", users.length);
             setPill("pill-devices", "devices", devices.length);
-            setPill("pill-approvals", "approvals", approvals.length);
-            setPill("pill-sms", "sms", smsChallenges.length);
 
             renderBody(
                 "tbody-users",
@@ -620,30 +544,6 @@
                 2
             );
 
-            renderBody(
-                "tbody-approvals",
-                approvals.map(function (approval) {
-                    return "<tr>" +
-                        "<td>" + mono(approval.requestId) + "</td>" +
-                        "<td>" + mono(approval.userId) + "</td>" +
-                        "<td>" + mono(approval.deviceId) + "</td>" +
-                        "<td>" + text(approval.status) + "</td>" +
-                        "</tr>";
-                }),
-                4
-            );
-
-            renderBody(
-                "tbody-smsChallenges",
-                smsChallenges.map(function (challenge) {
-                    return "<tr>" +
-                        "<td>" + mono(challenge.hash) + "</td>" +
-                        "<td>" + mono(challenge.otp) + "</td>" +
-                        "<td>" + text(challenge.expiresAt) + "</td>" +
-                        "</tr>";
-                }),
-                3
-            );
         }
 
         function connect() {

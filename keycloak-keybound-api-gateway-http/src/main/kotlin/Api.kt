@@ -1,6 +1,5 @@
 package com.ssegning.keycloak.keybound.api
 
-import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
@@ -14,13 +13,11 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
 import io.github.resilience4j.retry.Retry
 import io.github.resilience4j.retry.RetryRegistry
-import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
 
 open class Api(
     val devicesApi: DevicesApi,
-    val approvalsApi: ApprovalsApi,
     val enrollmentApi: EnrollmentApi,
     val usersApi: UsersApi,
 ) : ApiGateway {
@@ -31,22 +28,6 @@ open class Api(
 
     private val circuitBreakers = CircuitBreakerRegistry.ofDefaults()
     private val retries = RetryRegistry.ofDefaults()
-
-    override fun checkApprovalStatus(requestId: String): ApprovalStatus? =
-        executeGuarded(
-            operation = "approval.checkStatus",
-            errorMessage = "Failed to check approval status for request $requestId",
-        ) {
-            log.debug("Checking approval status for request {}", requestId)
-            val response = approvalsApi.getApproval(requestId)
-            log.debug("Approval request {} reported status {}", requestId, response.status)
-            when (response.status) {
-                QueryApprovalStatus.PENDING -> ApprovalStatus.PENDING
-                QueryApprovalStatus.APPROVED -> ApprovalStatus.APPROVED
-                QueryApprovalStatus.DENIED -> ApprovalStatus.DENIED
-                QueryApprovalStatus.EXPIRED -> ApprovalStatus.EXPIRED
-            }
-        }
 
     override fun enrollmentBindForRealm(
         realmName: String,

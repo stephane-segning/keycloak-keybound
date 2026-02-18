@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.*
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.ssegning.keycloak.keybound.api.openapi.client.handler.ApprovalsApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
@@ -50,7 +49,6 @@ open class ApiFactory : ApiGatewayProviderFactory {
 
         return Api(
             DevicesApi(basePath = baseUrl, client = client),
-            ApprovalsApi(basePath = baseUrl, client = client),
             EnrollmentApi(basePath = baseUrl, client = client),
             UsersApi(basePath = baseUrl, client = client),
         )

@@ -33,8 +33,8 @@ class SecurityConfig {
         http
             .csrf { it.disable() }
             .cors(Customizer.withDefaults())
-            .authorizeHttpRequests {
-                it.requestMatchers("/health", "/ws/**").permitAll()
+                .authorizeHttpRequests {
+                it.requestMatchers("/health").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

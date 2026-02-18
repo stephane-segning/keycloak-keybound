@@ -18,19 +18,15 @@ class StoreDashboardController(private val store: BackendDataStore) {
     fun dashboard(model: Model): String {
         val snapshot = store.snapshot()
         log.info(
-            "Serving store dashboard with {} users, {} devices, {} approvals, {} sms challenges",
+            "Serving store dashboard with {} users and {} devices",
             snapshot.users.size,
-            snapshot.devices.size,
-            snapshot.approvals.size,
-            snapshot.smsChallenges.size
+            snapshot.devices.size
         )
         model.addAttribute("users", snapshot.users)
         model.addAttribute("usernameIndex", snapshot.usernameIndex)
         model.addAttribute("emailIndex", snapshot.emailIndex)
         model.addAttribute("devices", snapshot.devices)
         model.addAttribute("devicesByJkt", snapshot.devicesByJkt)
-        model.addAttribute("approvals", snapshot.approvals)
-        model.addAttribute("smsChallenges", snapshot.smsChallenges)
         return "store-dashboard"
     }
 }
