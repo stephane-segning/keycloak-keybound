@@ -42,7 +42,7 @@ tasks.withType<Test> {
 }
 
 openApiGenerate {
-    generatorName.set("spring")
+    generatorName.set("kotlin-spring")
     library.set("spring-boot")
     inputSpec.set(file("${projectDir.parentFile.parentFile}/openapi/backend.open-api.yml").absolutePath)
     outputDir.set(layout.buildDirectory.dir("generated").get().asFile.absolutePath)
@@ -51,15 +51,15 @@ openApiGenerate {
     invokerPackage.set("com.ssegning.keycloak.keybound.examples.backend.invoker")
     configOptions.set(
         mapOf(
+            "documentationProvider" to "none",
             "interfaceOnly" to "true",
-            "dateLibrary" to "java8-localdatetime",
             "useTags" to "true"
         )
     )
 }
 
-sourceSets["main"].java {
-    srcDir(layout.buildDirectory.dir("generated/src/main/java"))
+sourceSets["main"].kotlin {
+    srcDir(layout.buildDirectory.dir("generated/src/main/kotlin"))
 }
 
 tasks.named("compileKotlin") {

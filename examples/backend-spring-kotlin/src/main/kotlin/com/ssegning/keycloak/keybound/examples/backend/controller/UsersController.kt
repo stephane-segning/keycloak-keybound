@@ -21,7 +21,7 @@ class UsersController(private val store: BackendDataStore) : UsersApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(user)
     }
 
-    override fun deleteUser(userId: String): ResponseEntity<Void> {
+    override fun deleteUser(userId: String): ResponseEntity<Unit> {
         log.info("Deleting user {}", userId)
         if (!store.deleteUser(userId)) {
             log.warn("User {} not found to delete", userId)
@@ -41,9 +41,7 @@ class UsersController(private val store: BackendDataStore) : UsersApi {
     override fun searchUsers(userSearchRequest: UserSearchRequest): ResponseEntity<UserSearchResponse> {
         log.info("Searching users with criteria {}", userSearchRequest)
         val results = store.searchUsers(userSearchRequest)
-        val response = UserSearchResponse()
-            .users(results)
-            .totalCount(results.size)
+        val response = UserSearchResponse(results, results.size)
         log.debug("Search returned {} users", results.size)
         return ResponseEntity.ok(response)
     }

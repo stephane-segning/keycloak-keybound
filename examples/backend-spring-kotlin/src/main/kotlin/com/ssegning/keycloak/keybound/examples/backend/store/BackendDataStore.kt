@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 import java.security.SecureRandom
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -35,7 +37,7 @@ class BackendDataStore {
         }
 
         val userId = nextUserId()
-        val attributes = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
+        val attributes = canonicalizeAttributes(request.attributes ?: emptyMap())
         val stored = StoredUser(
             userId = userId,
             realm = realm,
@@ -82,7 +84,7 @@ class BackendDataStore {
             emailIndex[newEmailKey] = userId
         }
 
-        val attributes = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
+        val attributes = canonicalizeAttributes(request.attributes ?: emptyMap())
         val updated = existing.copy(
             realm = realm,
             username = username,
@@ -117,7 +119,7 @@ class BackendDataStore {
                     listOfNotNull(stored.username, stored.firstName, stored.lastName, stored.email).joinToString(" ")
                 if (!haystack.contains(search, ignoreCase = true)) return@filter false
             }
-            val attributeFilters = canonicalizeAttributes(request.attributes.orElse(null) ?: emptyMap())
+            val attributeFilters = canonicalizeAttributes(request.attributes ?: emptyMap())
             attributeFilters.forEach { (k, v) ->
                 val storedValue = stored.attributes[k]
                     ?: if (k == "phone_e164") stored.attributes["phone_number"] else null
@@ -137,7 +139,7 @@ class BackendDataStore {
         val jkt = request.jkt
         val user = request.userId
         val now = LocalDateTime.now()
-        val attributes = request.attributes.orElse(null) ?: emptyMap()
+        val attributes = request.attributes ?: emptyMap()
         val deviceOs = attributes["device_os"]?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "device_os is required")
@@ -158,10 +160,7 @@ class BackendDataStore {
             existingByDeviceId.deviceOs = deviceOs
             existingByDeviceId.deviceModel = deviceModel
             existingByDeviceId.label = label
-            return EnrollmentBindResponse()
-                .status(EnrollmentBindResponseStatus.ALREADY_BOUND)
-                .deviceRecordId(existingByDeviceId.recordId)
-                .boundUserId(user)
+            return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, existingByDeviceId.recordId, user)
         }
 
         val existingByJkt = devicesByJkt[jkt]
@@ -173,10 +172,7 @@ class BackendDataStore {
             existingByJkt.deviceOs = deviceOs
             existingByJkt.deviceModel = deviceModel
             existingByJkt.label = label
-            return EnrollmentBindResponse()
-                .status(EnrollmentBindResponseStatus.ALREADY_BOUND)
-                .deviceRecordId(existingByJkt.recordId)
-                .boundUserId(user)
+            return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, existingByJkt.recordId, user)
         }
 
         val stored = StoredDevice(
@@ -184,8 +180,8 @@ class BackendDataStore {
             deviceId = deviceId,
             jkt = jkt,
             userId = user,
-            publicJwk = request.publicJwk ?: emptyMap(),
-            status = DeviceRecordStatus.ACTIVE,
+            publicJwk = request.publicJwk,
+            status = DeviceRecordStatus.aCTIVE,
             createdAt = now,
             lastSeenAt = now,
             deviceOs = deviceOs,
@@ -195,23 +191,16 @@ class BackendDataStore {
         devicesById[deviceId] = stored
         devicesByJkt[jkt] = stored
 
-        return EnrollmentBindResponse()
-            .status(EnrollmentBindResponseStatus.BOUND)
-            .deviceRecordId(stored.recordId)
-            .boundUserId(user)
+        return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, stored.recordId, user)
     }
 
     fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResponse {
         val stored = deviceId?.let { devicesById[it] } ?: jkt?.let { devicesByJkt[it] }
         return if (stored != null) {
             stored.lastSeenAt = LocalDateTime.now()
-            DeviceLookupResponse()
-                .found(true)
-                .userId(stored.userId)
-                .device(stored.toRecord())
-                .publicJwk(stored.publicJwk)
+            DeviceLookupResponse(true, stored.userId, stored.toRecord(), stored.publicJwk)
         } else {
-            DeviceLookupResponse().found(false)
+            DeviceLookupResponse(false)
         }
     }
 
@@ -286,24 +275,25 @@ class BackendDataStore {
         val emailVerified: Boolean,
         val attributes: Map<String, String>
     ) {
-        fun toRecord(): UserRecord = UserRecord()
-            .userId(userId)
-            .realm(realm)
-            .username(username)
-            .firstName(firstName)
-            .lastName(lastName)
-            .email(email)
-            .enabled(enabled)
-            .emailVerified(emailVerified)
-            .createdAt(LocalDateTime.now())
-            .attributes(attributes)
+        fun toRecord(): UserRecord = UserRecord(
+            userId = userId,
+            realm = realm,
+            username = username,
+            firstName = firstName,
+            lastName = lastName,
+            email = email,
+            enabled = enabled,
+            emailVerified = emailVerified,
+            createdAt = OffsetDateTime.now(),
+            attributes = attributes,
+        )
     }
 
     private data class StoredDevice(
         val recordId: String,
         val deviceId: String,
         val jkt: String,
-        var publicJwk: Map<String, Any?>,
+        var publicJwk: Map<String, Any>,
         val userId: String,
         var status: DeviceRecordStatus,
         val createdAt: LocalDateTime,
@@ -312,12 +302,14 @@ class BackendDataStore {
         var deviceModel: String,
         var label: String? = null
     ) {
-        fun toRecord(): DeviceRecord = DeviceRecord()
-            .deviceId(deviceId)
-            .jkt(jkt)
-            .createdAt(createdAt)
-            .lastSeenAt(lastSeenAt)
-            .label(label)
+        fun toRecord(): DeviceRecord = DeviceRecord(
+            deviceId,
+            jkt,
+            status,
+            createdAt.atOffset(ZoneOffset.UTC),
+            lastSeenAt.atOffset(ZoneOffset.UTC),
+            label
+        )
     }
 
 }

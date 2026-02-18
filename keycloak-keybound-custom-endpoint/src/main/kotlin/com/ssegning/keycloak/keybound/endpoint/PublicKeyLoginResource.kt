@@ -13,6 +13,7 @@ import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.OPTIONS
 import jakarta.ws.rs.POST
+import jakarta.ws.rs.Path
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
@@ -43,8 +44,10 @@ class PublicKeyLoginResource(
         private const val SOURCE_ATTRIBUTE_VALUE = "device-public-key-login"
         private const val CORS_ALLOW_ORIGIN = "*"
         private const val CORS_ALLOW_METHODS = "POST, OPTIONS"
-        private const val CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Requested-With"
-        private const val CORS_ALLOW_CREDENTIALS = "true"
+        private const val CORS_ALLOW_HEADERS =
+            "Content-Type, Authorization, X-Requested-With, x-public-key, x-signature, x-signature-timestamp"
+        // Keep this endpoint usable cross-origin with wildcard origin; credentials would require echoing Origin.
+        private const val CORS_ALLOW_CREDENTIALS = "false"
     }
 
     data class PublicKeyLoginRequest(
@@ -66,6 +69,7 @@ class PublicKeyLoginResource(
     )
 
     @POST
+    @Path("")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     fun login(request: PublicKeyLoginRequest?): Response {
@@ -263,6 +267,7 @@ class PublicKeyLoginResource(
     }
 
     @OPTIONS
+    @Path("")
     @Produces(MediaType.APPLICATION_JSON)
     fun options(): Response =
         Response
