@@ -3,7 +3,7 @@ x-keycloak-common-env: &keycloak-common-env
   NONCE_CACHE_TTL_ssegning-keybound-wh-01: "60"
 
   # Dev-only credentials. Do not reuse in production; wire secrets via a vault or env injection.
-  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://app:3000/kc"
+  BACKEND_HTTP_BASE_PATH_e2e-testing: "http://api-backend-example:18080"
   BACKEND_HTTP_SIGNATURE_SECRET_e2e-testing: "some-very-long-secret"
   BACKEND_HTTP_SIGNATURE_VERSION_e2e-testing: "1"
   BACKEND_HTTP_TELEMETRY_ENABLED_e2e-testing: "true"
