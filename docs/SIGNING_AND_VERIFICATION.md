@@ -319,14 +319,12 @@ return status
 
 ### Implementations
 
-- Signer: implement the approval/polling UI within your login theme (see `keycloak-keybound-theme/src/main/resources/theme/base/login/resources/js/approval-wait.js` for the polling behavior).
+- Signer: implement the approval/polling UI within your login theme or frontend; replicate the polling behavior described in this document when awaiting an approval token.
 - Verifier: `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt`
 
 ### Browser Polling Failure Mapping
 
-`approval-wait.js` treats polling `401` as terminal `UNAUTHORIZED` and submits that status back into the login flow. This avoids misclassifying token/session mismatches as expiration.
-
-- `keycloak-keybound-theme/src/main/resources/theme/base/login/resources/js/approval-wait.js`
+Your polling client should treat `401` as terminal `UNAUTHORIZED` and submit that status back into the flow. That prevents token/session mismatches from being mistaken for expiration.
 
 ## Contract Change Rules
 

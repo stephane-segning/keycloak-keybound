@@ -11,7 +11,7 @@ per-device keys with a clear, auditable security contract.
 
 - **Device-bound security** – issue `device_key` credentials, enforce challenge-response flows, and attach auth logic
   directly to Keycloak authenticators.
-- **Full plugin surface** – credential provider, protocol mapper, grant handler, theme, API gateway extensions, and
+- **Full plugin surface** – credential provider, protocol mapper, grant handler, API gateway extensions, and
   optional user storage.
 - **Batteries included** – published docker compose stack, runnable examples (Node.js, Vite, Kotlin), and detailed docs
   for every module.
@@ -48,7 +48,6 @@ Threats it helps with (depending on your tenant policy and flow configuration):
 | `keycloak-keybound-credentials-device-key`   | Stores, validates, and rotates device keys within Keycloak credential API.                              |
 | `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for token issuance without refresh tokens. |
 | `keycloak-keybound-protocol-mapper`          | Maps device metadata into access tokens so downstream services can make policy decisions.               |
-| `keycloak-keybound-theme`                    | Skin for login flows that surfaces device status to users.                                              |
 | `keycloak-keybound-api-gateway-http`         | Custom endpoint for verifying device signatures from external services.                                 |
 | `keycloak-keybound-user-storage-backend`     | User Storage SPI backed by backend APIs for externalized user CRUD/search.                              |
 

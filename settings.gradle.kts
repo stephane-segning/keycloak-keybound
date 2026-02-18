@@ -3,7 +3,6 @@ plugins {
 }
 rootProject.name = "keycloak-keybound"
 
-include("keycloak-keybound-theme")
 include("keycloak-keybound-grant-device-key")
 include("keycloak-keybound-core")
 include("keycloak-keybound-credentials-device-key")

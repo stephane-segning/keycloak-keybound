@@ -30,14 +30,12 @@ x-keycloak-common-extra: &keycloak-common-extra
       /opt/keycloak/bin/kc.sh start-dev --log-level=debug --import-realm # Start Keycloak in dev mode and import the realm
   volumes:
     - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
-    - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-api-gateway-http
-    - ./keycloak-keybound-core/build/libs:/tmp/libs-core
+    - ./keycloak-keybound-core/build/libs:/tmp/libs-core:ro
     - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-credentials-device-key
     - ./keycloak-keybound-custom-endpoint/build/libs:/tmp/libs-custom-endpoint
     - ./keycloak-keybound-grant-device-key/build/libs:/tmp/libs-grant-device-key
     - ./keycloak-keybound-protocol-mapper/build/libs:/tmp/libs-protocol-mapper
-    - ./keycloak-keybound-theme/build/libs:/tmp/libs-theme
     - ./keycloak-keybound-user-storage-backend/build/libs:/tmp/libs-user-storage-backend
 
 services:
