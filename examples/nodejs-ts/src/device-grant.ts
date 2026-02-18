@@ -1,47 +1,24 @@
 import crypto from 'node:crypto';
-import http from 'node:http';
-import {
-    allowInsecureRequests,
-    authorizationCodeGrant,
-    buildAuthorizationUrl,
-    discovery,
-    fetchUserInfo,
-    skipSubjectCheck,
-} from 'openid-client';
-import {
-    base64url,
-    derToRawEcdsaSignature,
-    env,
-    issuerUrl,
-    printBashExports,
-    toFormUrlEncoded,
-    publicJwkStringForKeycloak,
-    randomBase64Url,
-    sha256Base64Url,
-    tokenEndpoint,
-} from './lib.js';
-import {canonicalDeviceSignaturePayload} from '../../lib/auth';
+import {base64url, derToRawEcdsaSignature, env, printBashExports, randomBase64Url} from './lib.js';
 
 const KEYCLOAK_BASE_URL = env('KEYCLOAK_BASE_URL', 'http://localhost:9026');
-const REALM = env('REALM', 'ssegning-keybound-wh-01');
-const CLIENT_ID = env('CLIENT_ID', 'node-cli');
-const REDIRECT_URI = env('REDIRECT_URI', 'http://localhost:3005/callback');
+const REALM = env('REALM', 'e2e-testing');
+const DEVICE_LOGIN_ENDPOINT = `${KEYCLOAK_BASE_URL.replace(/\/$/, '')}/realms/${encodeURIComponent(REALM)}/device-public-key-login`;
 
-type PublicJwk = { kty: 'EC'; crv: 'P-256'; x: string; y: string };
-const DEVICE_KEY_GRANT_TYPE = 'urn:ssegning:params:oauth:grant-type:device_key';
+const DEVICE_OS_DEFAULT = 'ios';
+const DEVICE_MODEL_DEFAULT = 'simulator';
+const POW_DIFFICULTY =
+    Number(
+        env(
+            `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_${REALM}`,
+            env('PUBLIC_KEY_LOGIN_POW_DIFFICULTY', '4')
+        )
+    );
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
-    const userHint = args.userHint ?? 'test';
-    const bash = args.bash ?? false;
-
-    const issuer = issuerUrl(KEYCLOAK_BASE_URL, REALM);
-    const config = await discovery(new URL(issuer), CLIENT_ID, undefined, undefined, {
-        execute: [allowInsecureRequests],
-    });
-
     const {publicKey, privateKey} = crypto.generateKeyPairSync('ec', {namedCurve: 'prime256v1'});
-    const publicJwk = publicKey.export({format: 'jwk'}) as PublicJwk;
+    const publicJwk = publicKey.export({format: 'jwk'}) as {kty: 'EC'; crv: 'P-256'; x: string; y: string};
     if (publicJwk.kty !== 'EC' || publicJwk.crv !== 'P-256' || !publicJwk.x || !publicJwk.y) {
         throw new Error('Unexpected public JWK');
     }
@@ -49,139 +26,60 @@ async function main() {
     const deviceId = args.deviceId ?? `dev_${randomBase64Url(12)}`;
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = randomBase64Url(16);
-    const state = randomBase64Url(16);
-    const codeVerifier = randomBase64Url(32);
-    const codeChallenge = sha256Base64Url(codeVerifier);
-
-    const publicKeyJwk = publicJwkStringForKeycloak(publicJwk);
-    const signaturePayload = canonicalDeviceSignaturePayload({
-        deviceId,
-        publicKey: publicKeyJwk,
-        ts,
-        nonce,
-    });
+    const signaturePayload = canonicalDeviceSignaturePayload({deviceId, publicKey: stringifyPublicJwk(publicJwk), ts, nonce});
     const sig = signPayload(signaturePayload, privateKey);
 
-    const authUrl = buildAuthorizationUrl(config, {
-        scope: 'openid profile email',
-        response_type: 'code',
-        redirect_uri: REDIRECT_URI,
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-        state,
-        user_hint: userHint,
+    const body: Record<string, string> = {
         device_id: deviceId,
-        public_key: publicKeyJwk,
-        ts,
+        public_key: signaturePayloadPublicKey(publicJwk),
         nonce,
+        ts,
         sig,
-        action: args.action ?? 'login',
-        aud: args.aud ?? CLIENT_ID,
-        device_os: args.deviceOs ?? 'ios',
-        device_model: args.deviceModel ?? 'simulator',
+        device_os: args.deviceOs ?? DEVICE_OS_DEFAULT,
+        device_model: args.deviceModel ?? DEVICE_MODEL_DEFAULT,
+    };
+    if (args.clientId) {
+        body.client_id = args.clientId;
+    }
+    if (args.deviceAppVersion) {
+        body.device_app_version = args.deviceAppVersion;
+    }
+    if (args.powNonce) {
+        body.pow_nonce = args.powNonce;
+    }
+
+    if (POW_DIFFICULTY > 0 && !body.pow_nonce) {
+        console.log(`Solving PoW difficulty ${POW_DIFFICULTY} for realm ${REALM}...`);
+        const powNonce = solvePowNonce(POW_DIFFICULTY, REALM, deviceId, ts, nonce);
+        body.pow_nonce = powNonce;
+    }
+
+    console.log('Calling device-public-key-login with payload:', body);
+    const response = await fetch(DEVICE_LOGIN_ENDPOINT, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
     });
 
-    process.stdout.write(`Open this URL in your browser:\n${authUrl}\n\n`);
-
-    const callbackUrl = await waitForCallback(new URL(REDIRECT_URI), state);
-    const tokenSet = await authorizationCodeGrant(
-        config,
-        new URL(callbackUrl),
-        {pkceCodeVerifier: codeVerifier, expectedState: state, expectedNonce: nonce}
-    );
-
-    const accessToken = (tokenSet as any).access_token as string | undefined;
-    if (!accessToken) {
-        throw new Error('Missing access_token');
+    const responseBody = await response.text();
+    let parsed: Record<string, unknown> | null = null;
+    try {
+        parsed = JSON.parse(responseBody);
+    } catch {
+        parsed = null;
     }
 
-    const userInfo = await fetchUserInfo(config, accessToken, skipSubjectCheck);
-    const grantUserId =
-        args.grantUserId ??
-        ((userInfo as any).sub as string | undefined);
-    if (!grantUserId) {
-        throw new Error('UserInfo did not include sub; cannot call custom grant without user_id');
+    if (!response.ok) {
+        const message = parsed?.error as string | undefined ?? response.statusText;
+        throw new Error(`Device login failed (${response.status}): ${message}`);
     }
 
-    const grantTs = Math.floor(Date.now() / 1000).toString();
-    const grantNonce = randomBase64Url(16);
-    const grantSignaturePayload = canonicalDeviceSignaturePayload({
-        deviceId,
-        publicKey: publicKeyJwk,
-        ts: grantTs,
-        nonce: grantNonce,
+    console.log('Device login succeeded:', parsed ?? responseBody);
+    printBashExports('KC_DEVICE_', {
+        device_id: deviceId,
+        public_key: signaturePayloadPublicKey(publicJwk),
+        user_id: parsed?.user_id ?? '',
     });
-    const grantSig = signPayload(grantSignaturePayload, privateKey);
-    const customGrantToken = await callCustomGrant({
-        issuer,
-        clientId: CLIENT_ID,
-        userId: grantUserId,
-        deviceId,
-        publicKey: publicKeyJwk,
-        ts: grantTs,
-        nonce: grantNonce,
-        sig: grantSig,
-    });
-
-    process.stdout.write(`Auth Code token response:\n${JSON.stringify(tokenSet, null, 2)}\n\n`);
-    process.stdout.write(`UserInfo:\n${JSON.stringify(userInfo, null, 2)}\n\n`);
-    process.stdout.write(`Custom grant token response:\n${JSON.stringify(customGrantToken, null, 2)}\n\n`);
-
-    if (bash) {
-        printBashExports('KC_DEVICE_', {
-            issuer,
-            user_hint: userHint,
-            user_id: grantUserId,
-            device_id: deviceId,
-            public_key: publicKeyJwk,
-            auth_code_access_token: (tokenSet as any).access_token,
-            auth_code_refresh_token: (tokenSet as any).refresh_token,
-            auth_code_id_token: (tokenSet as any).id_token,
-            auth_code_token_type: (tokenSet as any).token_type,
-            auth_code_expires_in: (tokenSet as any).expires_in,
-            custom_grant_access_token: (customGrantToken as any).access_token,
-            custom_grant_id_token: (customGrantToken as any).id_token,
-            custom_grant_token_type: (customGrantToken as any).token_type,
-            custom_grant_expires_in: (customGrantToken as any).expires_in,
-            sub: (userInfo as any).sub,
-        });
-    }
-}
-
-function parseArgs(argv: string[]): {
-    userHint?: string;
-    deviceId?: string;
-    deviceOs?: string;
-    deviceModel?: string;
-    action?: string;
-    aud?: string;
-    grantUserId?: string;
-    bash?: boolean;
-} {
-    const out: {
-        userHint?: string;
-        deviceId?: string;
-        deviceOs?: string;
-        deviceModel?: string;
-        action?: string;
-        aud?: string;
-        grantUserId?: string;
-        bash?: boolean;
-    } = {};
-
-    for (let i = 0; i < argv.length; i++) {
-        const arg = argv[i];
-        if (arg === '--username' || arg === '--user-hint') out.userHint = argv[++i];
-        else if (arg === '--device-id') out.deviceId = argv[++i];
-        else if (arg === '--device-os') out.deviceOs = argv[++i];
-        else if (arg === '--device-model') out.deviceModel = argv[++i];
-        else if (arg === '--action') out.action = argv[++i];
-        else if (arg === '--aud') out.aud = argv[++i];
-        else if (arg === '--grant-user-id') out.grantUserId = argv[++i];
-        else if (arg === '--bash') out.bash = true;
-    }
-
-    return out;
 }
 
 function signPayload(payload: string, privateKey: crypto.KeyObject): string {
@@ -190,79 +88,58 @@ function signPayload(payload: string, privateKey: crypto.KeyObject): string {
     return base64url(rawSignature);
 }
 
-async function callCustomGrant(params: {
-    issuer: string;
-    clientId: string;
-    userId: string;
-    deviceId: string;
-    publicKey: string;
-    ts: string;
-    nonce: string;
-    sig: string;
-}): Promise<Record<string, unknown>> {
-    const response = await fetch(tokenEndpoint(params.issuer), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: toFormUrlEncoded({
-            grant_type: DEVICE_KEY_GRANT_TYPE,
-            client_id: params.clientId,
-            user_id: params.userId,
-            device_id: params.deviceId,
-            public_key: params.publicKey,
-            ts: params.ts,
-            nonce: params.nonce,
-            sig: params.sig,
-        }),
+function canonicalDeviceSignaturePayload(data: {deviceId: string; publicKey: string; ts: string; nonce: string}): string {
+    return JSON.stringify({
+        nonce: data.nonce,
+        deviceId: data.deviceId,
+        ts: data.ts,
+        publicKey: data.publicKey,
     });
-
-    const responseText = await response.text();
-    let json: Record<string, unknown> | null = null;
-    try {
-        json = JSON.parse(responseText) as Record<string, unknown>;
-    } catch {
-        // Keep plain text for error surfacing below.
-    }
-
-    if (!response.ok) {
-        const message = typeof json?.error_description === 'string'
-            ? json.error_description
-            : responseText;
-        throw new Error(`Custom grant failed (${response.status}): ${message}`);
-    }
-
-    if (!json || typeof json.access_token !== 'string') {
-        throw new Error('Custom grant succeeded but response has no access_token');
-    }
-    return json;
 }
 
-function waitForCallback(redirectUri: URL, expectedState: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer((req, res) => {
-            try {
-                const callbackUrl = new URL(req.url ?? '/', redirectUri);
-                const state = callbackUrl.searchParams.get('state');
-                if (state !== expectedState) {
-                    res.statusCode = 400;
-                    res.setHeader('Content-Type', 'text/plain');
-                    res.end('Invalid state');
-                    return;
-                }
+function stringifyPublicJwk(jwk: {kty: string; crv: string; x: string; y: string}): string {
+    return `{"crv":"${jwk.crv}","kty":"${jwk.kty}","x":"${jwk.x}","y":"${jwk.y}"}`;
+}
 
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'text/plain');
-                res.end('OK. You can close this tab.');
-                server.close();
-                resolve(callbackUrl.toString());
-            } catch (error) {
-                server.close();
-                reject(error);
-            }
-        });
+function signaturePayloadPublicKey(jwk: {crv: string; kty: string; x: string; y: string}): string {
+    return stringifyPublicJwk(jwk);
+}
 
-        const port = Number(redirectUri.port || 80);
-        server.listen(port, redirectUri.hostname);
-    });
+function solvePowNonce(
+    difficulty: number,
+    realm: string,
+    deviceId: string,
+    ts: string,
+    nonce: string,
+): string {
+    const target = '0'.repeat(difficulty);
+    let counter = 0;
+
+    while (counter < 3_000_000) {
+        const candidate = `pow_${counter.toString(16)}`;
+        const material = `${realm}:${deviceId}:${ts}:${nonce}:${candidate}`;
+        const hashHex = crypto.createHash('sha256').update(material).digest('hex');
+        if (hashHex.startsWith(target)) {
+            return candidate;
+        }
+        counter++;
+    }
+
+    throw new Error(`PoW solver exhausted for difficulty ${difficulty} (${counter} attempts)`);
+}
+
+function parseArgs(argv: string[]): {deviceId?: string; clientId?: string; deviceOs?: string; deviceModel?: string; deviceAppVersion?: string; powNonce?: string} {
+    const out: {deviceId?: string; clientId?: string; deviceOs?: string; deviceModel?: string; deviceAppVersion?: string; powNonce?: string} = {};
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if (arg === '--device-id') out.deviceId = argv[++i];
+        else if (arg === '--client-id') out.clientId = argv[++i];
+        else if (arg === '--device-os') out.deviceOs = argv[++i];
+        else if (arg === '--device-model') out.deviceModel = argv[++i];
+        else if (arg === '--device-app-version') out.deviceAppVersion = argv[++i];
+        else if (arg === '--pow-nonce') out.powNonce = argv[++i];
+    }
+    return out;
 }
 
 main().catch((error) => {

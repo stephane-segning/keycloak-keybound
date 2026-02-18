@@ -1,11 +1,14 @@
-import {FormEvent, useCallback, useMemo, useState} from 'react';
+import {FormEvent, useCallback, useEffect, useMemo, useState} from 'react';
 import {useDeviceStorage} from '../hooks/use-device-storage';
 import {
     PublicKeyLoginResponse,
     callPublicKeyLoginEndpoint,
 } from '../lib/public-key-login';
 import {requestDeviceKeyAccessToken, TokenResponse} from '../lib/auth';
-import {PUBLIC_LOGIN_POW_DIFFICULTY} from '../config';
+import {PUBLIC_LOGIN_POW_DIFFICULTY, RESOURCE_SERVER} from '../config';
+import {fetchBackendUserRecord, lookupBackendDevice} from '../lib/backend';
+import {fetchProtectedResource} from '../lib/resource-approvals';
+import {fetchResourceHealth} from '../lib/resource-client';
 
 const STATUS_IDLE = 'idle';
 
@@ -18,6 +21,15 @@ export const PublicKeyLoginPage = () => {
     const [token, setToken] = useState<TokenResponse | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [tokenPending, setTokenPending] = useState(false);
+    const [backendLoading, setBackendLoading] = useState(false);
+    const [backendUserResult, setBackendUserResult] = useState<Record<string, unknown> | null>(null);
+    const [backendDeviceResult, setBackendDeviceResult] = useState<Record<string, unknown> | null>(null);
+    const [backendError, setBackendError] = useState<string | null>(null);
+    const [backendDeviceError, setBackendDeviceError] = useState<string | null>(null);
+    const [resourceLoading, setResourceLoading] = useState(false);
+    const [resourceGetResult, setResourceGetResult] = useState<Record<string, unknown> | null>(null);
+    const [resourceHealth, setResourceHealth] = useState<Record<string, unknown> | null>(null);
+    const [resourceError, setResourceError] = useState<string | null>(null);
     const storedUserId = device?.userId;
     const handleGenerateToken = useCallback(async () => {
         if (!storedUserId) return;
@@ -33,6 +45,104 @@ export const PublicKeyLoginPage = () => {
             setTokenPending(false);
         }
     }, [storedUserId]);
+
+    useEffect(() => {
+        if (!storedUserId) {
+            setBackendUserResult(null);
+            setBackendDeviceResult(null);
+            setBackendError(null);
+            setBackendDeviceError(null);
+            setBackendLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setBackendLoading(true);
+        setBackendError(null);
+        setBackendDeviceError(null);
+
+        const loadBackend = async () => {
+            try {
+                const user = await fetchBackendUserRecord(storedUserId, token?.access_token);
+                if (!cancelled) {
+                    setBackendUserResult(user);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setBackendUserResult(null);
+                    setBackendError((err as Error).message ?? 'Backend user call failed');
+                }
+            }
+
+            if (!cancelled && device?.deviceId) {
+                try {
+                    const lookup = await lookupBackendDevice(device.deviceId, token?.access_token);
+                    if (!cancelled) {
+                        setBackendDeviceResult(lookup);
+                    }
+                } catch (err) {
+                    if (!cancelled) {
+                        setBackendDeviceResult(null);
+                        setBackendDeviceError((err as Error).message ?? 'Backend device lookup failed');
+                    }
+                }
+            } else if (!device?.deviceId) {
+                setBackendDeviceResult(null);
+            }
+        };
+
+        loadBackend().finally(() => {
+            if (!cancelled) {
+                setBackendLoading(false);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [storedUserId, device?.deviceId, token?.access_token]);
+
+    useEffect(() => {
+        if (!token?.access_token) {
+            setResourceGetResult(null);
+            setResourceHealth(null);
+            setResourceError(null);
+            setResourceLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setResourceLoading(true);
+        setResourceError(null);
+
+        const loadResource = async () => {
+            try {
+                const [getResult, healthResult] = await Promise.all([
+                    fetchProtectedResource(RESOURCE_SERVER, token.access_token),
+                    fetchResourceHealth(),
+                ]);
+                if (!cancelled) {
+                    setResourceGetResult(getResult);
+                    setResourceHealth(healthResult);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setResourceGetResult(null);
+                    setResourceHealth(null);
+                    setResourceError((err as Error).message ?? 'Resource server call failed');
+                }
+            } finally {
+                if (!cancelled) {
+                    setResourceLoading(false);
+                }
+            }
+        };
+
+        void loadResource();
+        return () => {
+            cancelled = true;
+        };
+    }, [token?.access_token]);
 
     const handleSubmit = useCallback(
         async (event: FormEvent<HTMLFormElement>) => {
@@ -126,6 +236,75 @@ export const PublicKeyLoginPage = () => {
                     </p>
                 )}
                 {tokenError && <p className="mt-2 text-sm text-error">{tokenError}</p>}
+            </div>
+            <div className="rounded border border-base-300 bg-base-100 p-6 shadow">
+                <p className="text-sm text-base-content/70">Backend example API</p>
+                {backendLoading ? (
+                    <p className="text-sm text-base-content/70">Loading backend data…</p>
+                ) : backendError ? (
+                    <p className="text-sm text-error">{backendError}</p>
+                ) : (
+                    <div className="space-y-3 text-sm">
+                        <div>
+                            <p className="text-xs text-base-content/70">User record</p>
+                            {backendUserResult ? (
+                                <pre className="mt-1 max-h-40 overflow-auto rounded border border-base-200 bg-base-100 p-2 text-[11px] text-base-content">
+                                    {JSON.stringify(backendUserResult, null, 2)}
+                                </pre>
+                            ) : (
+                                <p className="text-xs text-base-content/60">Link a user via public-key login to fetch this data.</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-xs text-base-content/70">Device lookup</p>
+                            {backendDeviceResult ? (
+                                <pre className="mt-1 max-h-40 overflow-auto rounded border border-base-200 bg-base-100 p-2 text-[11px] text-base-content">
+                                    {JSON.stringify(backendDeviceResult, null, 2)}
+                                </pre>
+                            ) : (
+                                <p className="text-xs text-base-content/60">
+                                    {device?.deviceId
+                                        ? 'Waiting for the backend to return details for this device.'
+                                        : 'A device is being created; complete a login to see this lookup.'}
+                                </p>
+                            )}
+                            {backendDeviceError && <p className="mt-1 text-xs text-error">{backendDeviceError}</p>}
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="rounded border border-base-300 bg-base-100 p-6 shadow">
+                <p className="text-sm text-base-content/70">Resource server API ({RESOURCE_SERVER})</p>
+                {resourceLoading ? (
+                    <p className="text-sm text-base-content/70">Calling resource server…</p>
+                ) : resourceError ? (
+                    <p className="text-sm text-error">{resourceError}</p>
+                ) : token ? (
+                    <div className="space-y-3 text-sm">
+                        <div>
+                            <p className="text-xs text-base-content/70">GET /get response</p>
+                            {resourceGetResult ? (
+                                <pre className="mt-1 max-h-40 overflow-auto rounded border border-base-200 bg-base-100 p-2 text-[11px] text-base-content">
+                                    {JSON.stringify(resourceGetResult, null, 2)}
+                                </pre>
+                            ) : (
+                                <p className="text-xs text-base-content/60">Awaiting resource response…</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-xs text-base-content/70">GET /health response</p>
+                            {resourceHealth ? (
+                                <pre className="mt-1 max-h-20 overflow-auto rounded border border-base-200 bg-base-100 p-2 text-[11px] text-base-content">
+                                    {JSON.stringify(resourceHealth, null, 2)}
+                                </pre>
+                            ) : (
+                                <p className="text-xs text-base-content/60">Health endpoint is public and called after a token is available.</p>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-base-content/60">Generate an access token to call the resource server.</p>
+                )}
             </div>
         </section>
     );
