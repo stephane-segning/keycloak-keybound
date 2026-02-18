@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment & Approval API
-  version: 0.1.12
+  version: 0.1.13
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
-    Covers device enrollment checks, device-user binding, approval workflow, and device registry queries.
+    Covers the streamlined device enrollment workflow that supports the device-public-key-login
+    endpoint, approval polling, and device lookup helpers used by the remaining grant flow.
 servers:
   - url: https://backend.example.com
     description: Backend base URL

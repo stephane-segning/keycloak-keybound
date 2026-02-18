@@ -4,15 +4,15 @@
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
 _Keycloak Keybound_ is a plugin suite that adds device-bound authentication to Keycloak (Quarkus). It brings together
-a device-key credential type, a protocol mapper, a custom grant, a custom endpoint, and examples so you can roll out
+a custom realm endpoint, a contract-driven grant, API gateway helpers, and optional backend storage so you can roll out
 per-device keys with a clear, auditable security contract.
 
 ## Highlights
 
-- **Device-bound security** – issue `device_key` credentials, enforce challenge-response flows, and attach auth logic
-  directly to Keycloak authenticators.
-- **Full plugin surface** – credential provider, protocol mapper, grant handler, API gateway extensions, and
-  optional user storage.
+- **Device-bound security** – rely on the `device-public-key-login` endpoint plus the custom grant to verify signed
+  device payloads instead of shipping extra authenticators.
+- **Simplified stack** – focused on the custom grant, public-key endpoint, API gateway helpers, and optional backend
+  storage rather than sprawling SPIs.
 - **Batteries included** – published docker compose stack, runnable examples (Node.js, Vite, Kotlin), and detailed docs
   for every module.
 - **Designed for production** – contract-driven grant, signature verification helpers, and workflows that respect
@@ -45,10 +45,9 @@ Threats it helps with (depending on your tenant policy and flow configuration):
 
 | Module                                       | Role                                                                                                    |
 |----------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `keycloak-keybound-credentials-device-key`   | Stores, validates, and rotates device keys within Keycloak credential API.                              |
 | `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for token issuance without refresh tokens. |
-| `keycloak-keybound-protocol-mapper`          | Maps device metadata into access tokens so downstream services can make policy decisions.               |
-| `keycloak-keybound-api-gateway-http`         | Custom endpoint for verifying device signatures from external services.                                 |
+| `keycloak-keybound-custom-endpoint`          | Exposes the `device-public-key-login` realm endpoint plus approval polling helpers for browser flows.   |
+| `keycloak-keybound-api-gateway-http`         | Bridges to backend enrollment, approval, device, and user APIs for telemetry and synchronization.        |
 | `keycloak-keybound-user-storage-backend`     | User Storage SPI backed by backend APIs for externalized user CRUD/search.                              |
 
 ## Installation
@@ -76,7 +75,7 @@ or keep them in a shared layer for custom container images.
    ```
 2. Open the admin console at `http://localhost:9026`, credentials stored in `compose.yaml`.
 3. Upload the provider JARs (via the admin console or drop them into `providers/` before boot).
-4. Register device credentials, wire the custom grant type into your clients, and configure your flows as needed.
+4. Point clients at the `device-public-key-login` endpoint, ensure the grant type is enabled, and bind the resulting user_id to its device metadata.
 
 ## Release Artifacts
 

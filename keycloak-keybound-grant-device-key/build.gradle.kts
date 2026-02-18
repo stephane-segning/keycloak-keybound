@@ -21,7 +21,6 @@ dependencies {
     implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
 
     implementation(project(":keycloak-keybound-core"))
-    implementation(project(":keycloak-keybound-credentials-device-key"))
 }
 
 tasks.test {

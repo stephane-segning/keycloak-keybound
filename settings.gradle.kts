@@ -5,8 +5,6 @@ rootProject.name = "keycloak-keybound"
 
 include("keycloak-keybound-grant-device-key")
 include("keycloak-keybound-core")
-include("keycloak-keybound-credentials-device-key")
 include("keycloak-keybound-api-gateway-http")
 include("keycloak-keybound-custom-endpoint")
-include("keycloak-keybound-protocol-mapper")
 include("keycloak-keybound-user-storage-backend")
