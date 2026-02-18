@@ -6,8 +6,6 @@ import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
 import com.ssegning.keycloak.keybound.api.openapi.client.model.*
 import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
-import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentPath
-import com.ssegning.keycloak.keybound.core.helper.maskPhone
 import com.ssegning.keycloak.keybound.core.helper.noop
 import com.ssegning.keycloak.keybound.core.models.*
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
@@ -19,7 +17,6 @@ import io.github.resilience4j.retry.RetryRegistry
 import org.keycloak.authentication.AuthenticationFlowContext
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
-import com.ssegning.keycloak.keybound.core.models.EnrollmentPath as CoreEnrollmentPath
 
 open class Api(
     val devicesApi: DevicesApi,
@@ -34,124 +31,6 @@ open class Api(
 
     private val circuitBreakers = CircuitBreakerRegistry.ofDefaults()
     private val retries = RetryRegistry.ofDefaults()
-
-    /**
-     * Sends an SMS with an OTP to the given phone number.
-     *
-     * This method makes a POST request to the backend endpoint `/v1/sms/send`.
-     * The request body contains the phone number and the OTP.
-     * The backend is expected to return a JSON object containing a hash, which is returned by this method.
-     */
-    override fun sendSmsAndGetHash(
-        context: AuthenticationFlowContext,
-        request: SmsRequest,
-        phoneNumber: String,
-    ): String {
-        val smsSendRequest =
-            SmsSendRequest(
-                realm = request.realm ?: context.realm?.name.orEmpty(),
-                clientId = request.clientId ?: context.authenticationSession.client.clientId,
-                phoneNumber = phoneNumber,
-                userId = context.user?.id,
-                sessionId = request.sessionId,
-                traceId = request.traceId,
-                metadata =
-                    request.metadata
-                        ?.mapNotNull { (key, value) ->
-                            key?.let { nonNullKey ->
-                                value?.let { nonNullValue -> nonNullKey to nonNullValue }
-                            }
-                        }?.toMap(),
-            )
-
-        log.debug(
-            "Sending SMS hash realm={} client={} phone={}",
-            smsSendRequest.realm,
-            smsSendRequest.clientId,
-            maskPhone(phoneNumber),
-        )
-
-        return enrollmentApi.sendSms(smsSendRequest).hash
-    }
-
-    /**
-     * Confirms the SMS code (OTP) using the hash received earlier.
-     *
-     * This method makes a POST request to the backend endpoint `/v1/sms/confirm`.
-     * The request body contains the hash and the OTP.
-     * The backend is expected to return `true` if the code is valid, and `false` otherwise.
-     */
-    override fun confirmSmsCode(
-        context: AuthenticationFlowContext,
-        request: SmsRequest,
-        phoneNumber: String,
-        code: String,
-        hash: String,
-    ): String {
-        val smsConfirmRequest = SmsConfirmRequest(hash = hash, otp = code)
-
-        log.debug("Confirming SMS hash={} phone={}", hash, maskPhone(phoneNumber))
-
-        return enrollmentApi.confirmSms(smsConfirmRequest).confirmed.toString()
-    }
-
-    override fun resolveUserByPhone(
-        context: AuthenticationFlowContext,
-        phoneNumber: String,
-        userHint: String?,
-    ): PhoneResolveResult? =
-        executeGuarded(
-            operation = "enrollment.resolveUserByPhone",
-            errorMessage = "Failed to resolve user by phone ${maskPhone(phoneNumber)}",
-        ) {
-            val response =
-                enrollmentApi.resolveUserByPhone(
-                    PhoneResolveRequest(
-                        realm = context.realm.name,
-                        clientId = context.authenticationSession.client.clientId,
-                        phoneNumber = phoneNumber,
-                        userHint = userHint,
-                    ),
-                )
-
-            PhoneResolveResult(
-                phoneNumber = response.phoneNumber,
-                userExists = response.userExists,
-                hasDeviceCredentials = response.hasDeviceCredentials,
-                enrollmentPath =
-                    when (response.enrollmentPath) {
-                        EnrollmentPath.APPROVAL -> CoreEnrollmentPath.APPROVAL
-                        EnrollmentPath.OTP -> CoreEnrollmentPath.OTP
-                    },
-                userId = response.userId,
-                username = response.username,
-            )
-        }
-
-    override fun resolveOrCreateUserByPhone(
-        context: AuthenticationFlowContext,
-        phoneNumber: String,
-    ): PhoneResolveOrCreateResult? =
-        executeGuarded(
-            operation = "enrollment.resolveOrCreateUserByPhone",
-            errorMessage = "Failed to resolve or create user by phone ${maskPhone(phoneNumber)}",
-        ) {
-            val response =
-                enrollmentApi.resolveOrCreateUserByPhone(
-                    PhoneResolveOrCreateRequest(
-                        realm = context.realm.name,
-                        clientId = context.authenticationSession.client.clientId,
-                        phoneNumber = phoneNumber,
-                    ),
-                )
-
-            PhoneResolveOrCreateResult(
-                phoneNumber = response.phoneNumber,
-                userId = response.userId,
-                username = response.username,
-                created = response.created,
-            )
-        }
 
     override fun checkApprovalStatus(requestId: String): ApprovalStatus? =
         executeGuarded(
@@ -168,110 +47,6 @@ open class Api(
                 QueryApprovalStatus.EXPIRED -> ApprovalStatus.EXPIRED
             }
         }
-
-    override fun createApprovalRequest(
-        context: AuthenticationFlowContext,
-        userId: String,
-        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
-    ): String? =
-        executeGuarded(
-            operation = "approval.createRequest",
-            errorMessage = "Failed to create approval request for user $userId",
-        ) {
-            log.debug("Creating approval request for user {} device {}", userId, deviceData.deviceId)
-            val response =
-                approvalsApi.createApproval(
-                    ApprovalCreateRequest(
-                        realm = context.realm.name,
-                        clientId = context.authenticationSession.client.clientId,
-                        userId = userId,
-                        newDevice =
-                            DeviceDescriptor(
-                                deviceId = deviceData.deviceId,
-                                jkt = deviceData.jkt,
-                                publicJwk = deviceData.publicJwk,
-                                platform = deviceData.platform,
-                                model = deviceData.model,
-                                appVersion = deviceData.appVersion,
-                            ),
-                    ),
-                )
-            response.requestId
-        }
-
-    override fun enrollmentPrecheck(
-        context: AuthenticationFlowContext,
-        userId: String,
-        userHint: String?,
-        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
-    ): EnrollmentPrecheckResult? =
-        executeGuarded(
-            operation = "enrollment.precheck",
-            errorMessage = "Failed to precheck device enrollment for user $userId",
-        ) {
-            log.debug(
-                "Performing enrollment precheck realm={} user={} device={}",
-                context.realm.name,
-                userId,
-                deviceData.deviceId,
-            )
-            val response =
-                enrollmentApi.enrollmentPrecheck(
-                    EnrollmentPrecheckRequest(
-                        realm = context.realm.name,
-                        clientId = context.authenticationSession.client.clientId,
-                        userHint = userHint ?: userId,
-                        deviceId = deviceData.deviceId,
-                        jkt = deviceData.jkt,
-                        publicJwk = deviceData.publicJwk,
-                    ),
-                )
-
-            EnrollmentPrecheckResult(
-                decision =
-                    when (response.decision) {
-                        EnrollmentPrecheckResponseDecision.ALLOW -> EnrollmentDecision.ALLOW
-                        EnrollmentPrecheckResponseDecision.REQUIRE_APPROVAL -> EnrollmentDecision.REQUIRE_APPROVAL
-                        EnrollmentPrecheckResponseDecision.REJECT -> EnrollmentDecision.REJECT
-                    },
-                reason = response.reason,
-                boundUserId = response.boundUserId,
-                retryAfterSeconds = response.retryAfterSeconds,
-            )
-        }
-
-    override fun enrollmentBind(
-        context: AuthenticationFlowContext,
-        userId: String,
-        userHint: String?,
-        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
-        attributes: Map<String, String>?,
-        proof: Map<String, Any>?,
-    ): Boolean =
-        executeGuarded(
-            operation = "enrollment.bind",
-            errorMessage = "Failed to bind device ${deviceData.deviceId} for user $userId",
-        ) {
-            val publicJwk = deviceData.publicJwk ?: return@executeGuarded false
-            log.debug("Binding device {} for user {} realm={}", deviceData.deviceId, userId, context.realm.name)
-
-            val response =
-                enrollmentApi.enrollmentBind(
-                    EnrollmentBindRequest(
-                        realm = context.realm.name,
-                        clientId = context.authenticationSession.client.clientId,
-                        userId = userId,
-                        userHint = userHint,
-                        deviceId = deviceData.deviceId,
-                        jkt = deviceData.jkt,
-                        publicJwk = publicJwk,
-                        attributes = attributes,
-                        proof = proof,
-                        createdAt = Clock.System.now(),
-                    ),
-                )
-            response.boundUserId == userId
-        } ?: false
 
     override fun enrollmentBindForRealm(
         realmName: String,
@@ -310,32 +85,6 @@ open class Api(
                 )
             response.boundUserId == userId
         } ?: false
-
-    override fun listUserDevices(
-        userId: String,
-        includeDisabled: Boolean,
-    ): List<DeviceRecord>? =
-        executeGuarded(
-            operation = "device.listByUser",
-            errorMessage = "Failed to list devices for user $userId",
-        ) {
-            log.debug("Listing devices for user {} includeDisabled={}", userId, includeDisabled)
-            devicesApi.listUserDevices(userId, includeDisabled).devices.map { device ->
-                DeviceRecord(
-                    deviceId = device.deviceId,
-                    jkt = device.jkt,
-                    status =
-                        when (device.status) {
-                            DeviceRecordStatus.ACTIVE ->
-                                DeviceStatus.ACTIVE
-
-                            else -> DeviceStatus.DISABLED
-                        },
-                    createdAt = device.createdAt,
-                    label = device.label,
-                )
-            }
-        }
 
     override fun lookupDevice(
         deviceId: String?,
@@ -379,19 +128,6 @@ open class Api(
             )
         }
     }
-
-    override fun disableDevice(
-        userId: String,
-        deviceId: String,
-    ): Boolean =
-        executeGuarded(
-            operation = "device.disable",
-            errorMessage = "Failed to disable device $deviceId for user $userId",
-        ) {
-            log.debug("Disabling device {} for user {}", deviceId, userId)
-            devicesApi.disableUserDevice(userId, deviceId)
-            true
-        } ?: false
 
     override fun createUser(
         realmName: String,

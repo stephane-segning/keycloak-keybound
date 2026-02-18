@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment & Approval API
-  version: 0.1.13
+  version: 0.2.0
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers the streamlined device enrollment workflow that supports the device-public-key-login
@@ -17,38 +17,6 @@ tags:
   - name: devices
 
 paths:
-  /v1/enrollments/precheck:
-    post:
-      tags: [ enrollment ]
-      summary: Pre-check whether a device key can be enrolled
-      security:
-        - KCSignature: [ ]
-      description: |
-        Keycloak calls this to detect duplicates and enforce policy before persisting.
-        Backend should check if device_id or jkt is already bound to a user, revoked, etc.
-      operationId: enrollmentPrecheck
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EnrollmentPrecheckRequest'
-      responses:
-        '200':
-          description: Policy decision
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EnrollmentPrecheckResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-
   /v1/enrollments/bind:
     post:
       tags: [ enrollment ]
@@ -86,42 +54,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/approvals:
-    post:
-      tags: [ approvals ]
-      summary: Create a new-device approval request
-      security:
-        - KCSignature: [ ]
-      description: |
-        Called when an existing user is adding a new device and your policy requires approval.
-        Backend should notify existing devices (push/poll feed) and return a request_id.
-      operationId: createApproval
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApprovalCreateRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApprovalCreateResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          description: Conflict (e.g., duplicate pending request)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /v1/approvals/{request_id}:
     get:
       tags: [ approvals ]
@@ -148,95 +80,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-    delete:
-      tags: [ approvals ]
-      summary: Cancel an approval request
-      security:
-        - KCSignature: [ ]
-      operationId: cancelApproval
-      parameters:
-        - name: request_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '204':
-          description: Cancelled
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /v1/approvals/{request_id}/decision:
-    post:
-      tags: [ approvals ]
-      summary: Decide an approval request
-      security:
-        - KCSignature: [ ]
-      description: |
-        Used by an approved device (or delegated UI) to approve or deny a pending approval request.
-      operationId: decideApproval
-      parameters:
-        - name: request_id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApprovalDecisionRequest'
-      responses:
-        '200':
-          description: Updated status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApprovalStatusResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /v1/users/{user_id}/approvals:
-    get:
-      tags: [ approvals ]
-      summary: List approval requests for a user
-      security:
-        - KCSignature: [ ]
-      description: |
-        Returns approval requests that belong to the specified user.
-      operationId: listUserApprovals
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/QueryApprovalStatus'
-      responses:
-        '200':
-          description: Approval list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserApprovalsResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /v1/users:
     post:
@@ -375,78 +218,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /v1/users/{user_id}/devices:
-    get:
-      tags: [ devices ]
-      summary: List devices for a user
-      security:
-        - KCSignature: [ ]
-      description: |
-        Optional convenience endpoint for Keycloak to consult user device registry.
-      operationId: listUserDevices
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: include_revoked
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-      responses:
-        '200':
-          description: Device list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserDevicesResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /v1/users/{user_id}/devices/{device_id}/disable:
-    post:
-      tags: [ devices ]
-      summary: Disable a device for a user
-      security:
-        - KCSignature: [ ]
-      description: |
-        Disables a device binding for the specified user.
-        In Keycloak semantics, disable/revoke are treated the same.
-      operationId: disableUserDevice
-      parameters:
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: device_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Device disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceRecord'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Device cannot be disabled in its current state
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /v1/devices/lookup:
     post:
       tags: [ devices ]
@@ -476,114 +247,6 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /v1/sms/send:
-    post:
-      tags: [ enrollment ]
-      summary: Send an OTP via SMS
-      security:
-        - KCSignature: [ ]
-      description: |
-        Called when a new device enrollment needs an OTP delivered to the user's phone.
-      operationId: sendSms
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SmsSendRequest'
-      responses:
-        '200':
-          description: OTP queued
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SmsSendResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /v1/sms/confirm:
-    post:
-      tags: [ enrollment ]
-      summary: Confirm an OTP
-      security:
-        - KCSignature: [ ]
-      description: |
-        Validates the OTP/hash pair that was previously issued to the user.
-      operationId: confirmSms
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SmsConfirmRequest'
-      responses:
-        '200':
-          description: Confirmation result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SmsConfirmResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /v1/enrollments/phone/resolve:
-    post:
-      tags: [ enrollment ]
-      summary: Resolve user by phone and recommended enrollment path
-      security:
-        - KCSignature: [ ]
-      description: |
-        Backend resolves whether the phone belongs to an existing user and whether the user has active devices.
-        This lets Keycloak keep routing logic minimal.
-      operationId: resolveUserByPhone
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PhoneResolveRequest'
-      responses:
-        '200':
-          description: Phone resolution and routing recommendation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PhoneResolveResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /v1/enrollments/phone/resolve-or-create:
-    post:
-      tags: [ enrollment ]
-      summary: Resolve existing user by phone or create one
-      security:
-        - KCSignature: [ ]
-      description: |
-        Used after OTP verification to offload user find/create behavior to backend.
-      operationId: resolveOrCreateUserByPhone
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PhoneResolveOrCreateRequest'
-      responses:
-        '200':
-          description: User resolved or created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PhoneResolveOrCreateResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     KCSignature:
@@ -627,62 +290,6 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
-    EnrollmentPrecheckRequest:
-      type: object
-      required: [ realm, client_id, device_id, jkt ]
-      properties:
-        realm:
-          type: string
-          examples:
-            - my-realm
-        client_id:
-          type: string
-          examples:
-            - mobile-app
-        user_hint:
-          type: string
-          description: Optional user identifier hint (phone/email) if known at precheck time
-          examples:
-            - "+491234567890"
-        device_id:
-          type: string
-          examples:
-            - "3f6a0f2b-1f2e-4c37-9f7e-10f1a7c2b0d1"
-        jkt:
-          type: string
-          description: JWK thumbprint (base64url)
-          examples:
-            - "7bYwzOQ8f0o6u9p..."
-        public_jwk:
-          type: object
-          description: Optional JWK for convenience; may be omitted at precheck
-          additionalProperties: true
-        proof_context:
-          type: object
-          additionalProperties: true
-          description: |
-            Free-form context: ip, user-agent, platform, etc.
-
-    EnrollmentPrecheckResponseDecision:
-      type: string
-      enum: [ ALLOW, REQUIRE_APPROVAL, REJECT ]
-
-    EnrollmentPrecheckResponse:
-      type: object
-      required: [ decision ]
-      properties:
-        decision:
-          $ref: '#/components/schemas/EnrollmentPrecheckResponseDecision'
-        reason:
-          type: string
-          examples:
-            - "device_already_bound"
-        bound_user_id:
-          type: string
-          description: If known, the user_id the device is already bound to
-        retry_after_seconds:
-          type: integer
-
     EnrollmentBindRequest:
       type: object
       required: [ realm, client_id, user_id, device_id, jkt, public_jwk ]
@@ -736,48 +343,6 @@ components:
       type: string
       enum: [ PENDING, APPROVED, DENIED, EXPIRED ]
 
-    ApprovalCreateRequest:
-      type: object
-      required: [ realm, client_id, user_id, new_device ]
-      properties:
-        realm:
-          type: string
-        client_id:
-          type: string
-        user_id:
-          type: string
-        new_device:
-          $ref: '#/components/schemas/DeviceDescriptor'
-        reason:
-          type: string
-          examples:
-            - add_new_device
-        expires_at:
-          type: string
-          format: date-time
-        context:
-          type: object
-          additionalProperties: true
-          description: ip, user agent, geo hints, etc.
-
-    ApprovalCreateResponseStatus:
-      type: string
-      enum: [ PENDING ]
-
-    ApprovalCreateResponse:
-      type: object
-      required: [ request_id, status ]
-      properties:
-        request_id:
-          type: string
-          examples:
-            - apr_01HZX8V9A3M1Y8S9R6W3B4KQ2P
-        status:
-          $ref: '#/components/schemas/ApprovalCreateResponseStatus'
-        expires_at:
-          type: string
-          format: date-time
-
     ApprovalStatusResponse:
       type: object
       required: [ request_id, status ]
@@ -793,59 +358,6 @@ components:
           type: string
         message:
           type: string
-
-    ApprovalDecisionRequestDecision:
-      type: string
-      enum: [ APPROVE, DENY ]
-
-    ApprovalDecisionRequest:
-      type: object
-      required: [ decision ]
-      properties:
-        decision:
-          $ref: '#/components/schemas/QueryApprovalStatus'
-        decided_by_device_id:
-          type: string
-        message:
-          type: string
-
-    UserApprovalRecordStatus:
-      type: string
-      enum: [ PENDING, APPROVED, DENIED, EXPIRED ]
-
-    UserApprovalRecord:
-      type: object
-      required: [ request_id, user_id, device_id, status, created_at ]
-      properties:
-        request_id:
-          type: string
-        user_id:
-          type: string
-        device_id:
-          type: string
-        status:
-          $ref: '#/components/schemas/UserApprovalRecordStatus'
-        created_at:
-          type: string
-          format: date-time
-        decided_at:
-          type: string
-          format: date-time
-        decided_by_device_id:
-          type: string
-        message:
-          type: string
-
-    UserApprovalsResponse:
-      type: object
-      required: [ user_id, approvals ]
-      properties:
-        user_id:
-          type: string
-        approvals:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserApprovalRecord'
 
     DeviceDescriptor:
       type: object
@@ -960,16 +472,6 @@ components:
         total_count:
           type: integer
 
-    UserDevicesResponse:
-      type: object
-      required: [ user_id, devices ]
-      properties:
-        user_id:
-          type: string
-        devices:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeviceRecord'
     DeviceRecordStatus:
       type: string
       enum: [ ACTIVE, REVOKED, SUSPENDED ]
@@ -1015,113 +517,6 @@ components:
         public_jwk:
           type: object
           additionalProperties: true
-
-    SmsSendRequest:
-      type: object
-      required: [ realm, client_id, phone_number ]
-      properties:
-        realm:
-          type: string
-        client_id:
-          type: string
-        user_id:
-          type: string
-        phone_number:
-          type: string
-        session_id:
-          type: string
-        trace_id:
-          type: string
-        metadata:
-          type: object
-          additionalProperties: true
-
-    SmsSendResponse:
-      type: object
-      required: [ hash ]
-      properties:
-        hash:
-          type: string
-        ttl_seconds:
-          type: integer
-        status:
-          type: string
-
-    SmsConfirmRequest:
-      type: object
-      required: [ hash, otp ]
-      properties:
-        hash:
-          type: string
-        otp:
-          type: string
-
-    SmsConfirmResponse:
-      type: object
-      required: [ confirmed ]
-      properties:
-        confirmed:
-          type: boolean
-        reason:
-          type: string
-
-    EnrollmentPath:
-      type: string
-      enum: [ APPROVAL, OTP ]
-
-    PhoneResolveRequest:
-      type: object
-      required: [ realm, client_id, phone_number ]
-      properties:
-        realm:
-          type: string
-        client_id:
-          type: string
-        phone_number:
-          type: string
-        user_hint:
-          type: string
-
-    PhoneResolveResponse:
-      type: object
-      required: [ phone_number, user_exists, has_device_credentials, enrollment_path ]
-      properties:
-        phone_number:
-          type: string
-        user_exists:
-          type: boolean
-        has_device_credentials:
-          type: boolean
-        enrollment_path:
-          $ref: '#/components/schemas/EnrollmentPath'
-        user_id:
-          type: string
-        username:
-          type: string
-
-    PhoneResolveOrCreateRequest:
-      type: object
-      required: [ realm, client_id, phone_number ]
-      properties:
-        realm:
-          type: string
-        client_id:
-          type: string
-        phone_number:
-          type: string
-
-    PhoneResolveOrCreateResponse:
-      type: object
-      required: [ phone_number, user_id, username, created ]
-      properties:
-        phone_number:
-          type: string
-        user_id:
-          type: string
-        username:
-          type: string
-        created:
-          type: boolean
 
     Error:
       type: object
