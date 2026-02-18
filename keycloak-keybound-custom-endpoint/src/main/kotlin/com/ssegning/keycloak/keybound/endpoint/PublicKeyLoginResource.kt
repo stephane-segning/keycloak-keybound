@@ -14,6 +14,7 @@ import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.OPTIONS
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.Path
+import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
@@ -26,7 +27,6 @@ import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.models.UserModel
-import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.util.*
@@ -42,6 +42,10 @@ class PublicKeyLoginResource(
         private const val MAX_INPUT_LENGTH = 2048
         private const val NONCE_KEY_PREFIX = "public-key-login-replay"
         private const val SOURCE_ATTRIBUTE_VALUE = "device-public-key-login"
+        private const val DEVICE_ID_ATTRIBUTE = "device_id"
+        private const val DEVICE_OS_ATTRIBUTE = "device_os"
+        private const val DEVICE_MODEL_ATTRIBUTE = "device_model"
+        private const val DEVICE_APP_VERSION_ATTRIBUTE = "device_app_version"
         private const val CORS_ALLOW_ORIGIN = "*"
         private const val CORS_ALLOW_METHODS = "POST, OPTIONS"
         private const val CORS_ALLOW_HEADERS =
@@ -66,6 +70,12 @@ class PublicKeyLoginResource(
         val sig: String? = null,
         @param:JsonProperty("pow_nonce")
         val powNonce: String? = null,
+        @param:JsonProperty("device_os")
+        val deviceOs: String? = null,
+        @param:JsonProperty("device_model")
+        val deviceModel: String? = null,
+        @param:JsonProperty("device_app_version")
+        val deviceAppVersion: String? = null,
     )
 
     @POST
@@ -84,6 +94,9 @@ class PublicKeyLoginResource(
         val tsStr = request.ts.normalize()
         val sig = request.sig.normalize()
         val powNonce = request.powNonce.normalize()
+        val deviceOs = request.deviceOs.normalize()
+        val deviceModel = request.deviceModel.normalize()
+        val deviceAppVersion = request.deviceAppVersion.normalize()
 
         val missing =
             listOfNotNull(
@@ -92,6 +105,8 @@ class PublicKeyLoginResource(
                 "nonce".takeIf { nonce == null },
                 "ts".takeIf { tsStr == null },
                 "sig".takeIf { sig == null },
+                "device_os".takeIf { deviceOs == null },
+                "device_model".takeIf { deviceModel == null },
             )
         if (missing.isNotEmpty()) {
             return badRequest("Missing required fields: ${missing.joinToString(", ")}")
@@ -102,6 +117,8 @@ class PublicKeyLoginResource(
         val nonceValue = nonce ?: return badRequest("Missing required fields: nonce")
         val tsStrValue = tsStr ?: return badRequest("Missing required fields: ts")
         val sigValue = sig ?: return badRequest("Missing required fields: sig")
+        val deviceOsValue = deviceOs ?: return badRequest("Missing required fields: device_os")
+        val deviceModelValue = deviceModel ?: return badRequest("Missing required fields: device_model")
 
         val fieldsToCheck =
             buildMap {
@@ -110,7 +127,10 @@ class PublicKeyLoginResource(
                 put("nonce", nonceValue)
                 put("ts", tsStrValue)
                 put("sig", sigValue)
+                put("device_os", deviceOsValue)
+                put("device_model", deviceModelValue)
                 powNonce?.let { put("pow_nonce", it) }
+                deviceAppVersion?.let { put("device_app_version", it) }
             }
         val oversizedField = fieldsToCheck.entries.firstOrNull { (_, value) -> value.length > MAX_INPUT_LENGTH }?.key
         if (oversizedField != null) {
@@ -200,18 +220,18 @@ class PublicKeyLoginResource(
             return conflict("Device or key is already associated with a user")
         }
 
-        val userCreation =
-            createBackendUserAndResolve(
+        val userResolution =
+            resolveOrCreateUser(
                 realm = realm,
                 deviceId = deviceIdValue,
                 nonce = nonceValue,
-            )
-        if (userCreation.response != null) {
-            return userCreation.response
-        }
-        val user = userCreation.user ?: return internalError("Unable to resolve user")
-        val createdUser = userCreation.created
-        val backendUserId = resolveBackendUserId(user)
+                deviceOs = deviceOsValue,
+                deviceModel = deviceModelValue,
+                deviceAppVersion = deviceAppVersion,
+            ) ?: return internalError("Unable to create user")
+        val user = userResolution.user
+        val createdUser = userResolution.created
+        val backendUserId = user.id
 
         val credentialCreated =
             run {
@@ -219,19 +239,22 @@ class PublicKeyLoginResource(
                     apiGateway.enrollmentBindForRealm(
                         realmName = realm.name,
                         userId = backendUserId,
-                        userHint = backendUserId,
+                        userHint = user.username ?: backendUserId,
                         deviceData =
                             DeviceDescriptor(
                                 deviceId = deviceIdValue,
                                 jkt = jkt,
                                 publicJwk = publicJwkMap,
-                                platform = null,
-                                model = null,
-                                appVersion = null,
+                                platform = deviceOsValue,
+                                model = deviceModelValue,
+                                appVersion = deviceAppVersion,
                             ),
                         attributes =
                             buildMap {
                                 put("source", SOURCE_ATTRIBUTE_VALUE)
+                                put(DEVICE_OS_ATTRIBUTE, deviceOsValue)
+                                put(DEVICE_MODEL_ATTRIBUTE, deviceModelValue)
+                                deviceAppVersion?.let { put(DEVICE_APP_VERSION_ATTRIBUTE, it) }
                             },
                         proof =
                             mapOf(
@@ -267,52 +290,67 @@ class PublicKeyLoginResource(
     }
 
     @OPTIONS
-    @Path("")
+    @Path("{path:.*}")
     @Produces(MediaType.APPLICATION_JSON)
-    fun options(): Response =
+    fun options(@PathParam("path") ignored: String?): Response =
         Response
             .ok()
             .withCorsHeaders()
             .build()
 
-    private data class UserCreationResult(
-        val user: UserModel? = null,
-        val created: Boolean = false,
-        val response: Response? = null,
+    private fun resolveTtlSeconds(realmName: String): Long {
+        val ttlFromEnv = "NONCE_CACHE_TTL_$realmName".getEnv()?.toLongOrNull()
+        if (ttlFromEnv != null && ttlFromEnv > 0L) {
+            return ttlFromEnv
+        }
+        return DEFAULT_TTL_SECONDS
+    }
+
+    private data class UserResolution(
+        val user: UserModel,
+        val created: Boolean,
     )
 
-    private fun createBackendUserAndResolve(
+    private fun resolveOrCreateUser(
         realm: RealmModel,
         deviceId: String,
         nonce: String,
-    ): UserCreationResult {
-        val technicalUsername = "kb_${sha256Base64Url("$deviceId:$nonce".toByteArray(Charsets.UTF_8)).take(32)}"
-        val backendUser =
-            apiGateway.createUser(
-                realmName = realm.name,
-                username = technicalUsername,
-            ) ?: return UserCreationResult(response = badGateway("Failed to create backend user"))
-
-        val resolvedAfterCreate =
-            resolveUserByBackendId(
-                realm = realm,
-                backendUserId = backendUser.userId,
-            )
-
-        if (resolvedAfterCreate == null) {
-            log.error("Backend user {} created but not resolvable in Keycloak realm {}", backendUser.userId, realm.name)
-            return UserCreationResult(response = internalError("Backend user created but unresolved in Keycloak"))
+        deviceOs: String,
+        deviceModel: String,
+        deviceAppVersion: String?,
+    ): UserResolution? {
+        val existingUser = findSingleUserByAttribute(realm, DEVICE_ID_ATTRIBUTE, deviceId)
+        if (existingUser != null) {
+            updateDeviceAttributes(existingUser, deviceId, deviceOs, deviceModel, deviceAppVersion)
+            return UserResolution(existingUser, created = false)
         }
 
-        return UserCreationResult(user = resolvedAfterCreate, created = true)
+        val username = generateTechnicalUsername(deviceId, nonce)
+        val newUser = session.users().addUser(realm, username) ?: run {
+            log.error("Failed to create Keycloak user for device {}", deviceId)
+            return null
+        }
+        newUser.isEnabled = true
+        updateDeviceAttributes(newUser, deviceId, deviceOs, deviceModel, deviceAppVersion)
+        return UserResolution(newUser, created = true)
     }
 
-    private fun resolveUserByBackendId(
-        realm: RealmModel,
-        backendUserId: String,
-    ): UserModel? =
-        findSingleUserByAttribute(realm, "backend_user_id", backendUserId)
-            ?: session.users().getUserById(realm, backendUserId)
+    private fun updateDeviceAttributes(
+        user: UserModel,
+        deviceId: String,
+        deviceOs: String,
+        deviceModel: String,
+        deviceAppVersion: String?,
+    ) {
+        user.setSingleAttribute(DEVICE_ID_ATTRIBUTE, deviceId)
+        user.setSingleAttribute(DEVICE_OS_ATTRIBUTE, deviceOs)
+        user.setSingleAttribute(DEVICE_MODEL_ATTRIBUTE, deviceModel)
+        if (deviceAppVersion != null) {
+            user.setSingleAttribute(DEVICE_APP_VERSION_ATTRIBUTE, deviceAppVersion)
+        } else {
+            user.removeAttribute(DEVICE_APP_VERSION_ATTRIBUTE)
+        }
+    }
 
     private fun findSingleUserByAttribute(
         realm: RealmModel,
@@ -343,21 +381,8 @@ class PublicKeyLoginResource(
         }
     }
 
-    private fun resolveBackendUserId(user: UserModel): String {
-        val backendAttributeId = user.getFirstAttribute("backend_user_id")?.trim()
-        if (!backendAttributeId.isNullOrBlank()) {
-            return backendAttributeId
-        }
-        return StorageId.externalId(user.id) ?: user.id
-    }
-
-    private fun resolveTtlSeconds(realmName: String): Long {
-        val ttlFromEnv = "NONCE_CACHE_TTL_$realmName".getEnv()?.toLongOrNull()
-        if (ttlFromEnv != null && ttlFromEnv > 0L) {
-            return ttlFromEnv
-        }
-        return DEFAULT_TTL_SECONDS
-    }
+    private fun generateTechnicalUsername(deviceId: String, nonce: String): String =
+        "kb_${sha256Base64Url("$deviceId:$nonce".toByteArray(Charsets.UTF_8)).take(32)}"
 
     private fun resolvePowDifficulty(realmName: String): Int {
         val fromEnv = "PUBLIC_KEY_LOGIN_POW_DIFFICULTY_$realmName".getEnv()?.toIntOrNull()

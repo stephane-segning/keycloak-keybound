@@ -43,12 +43,12 @@ Threats it helps with (depending on your tenant policy and flow configuration):
 
 ## Plugin Modules & Flow
 
-| Module                                       | Role                                                                                                    |
-|----------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for token issuance without refresh tokens. |
-| `keycloak-keybound-custom-endpoint`          | Exposes the `device-public-key-login` realm endpoint for client-signed device authentication.         |
-| `keycloak-keybound-api-gateway-http`         | Bridges to backend enrollment, device, and user APIs for telemetry and synchronization.                 |
-| `keycloak-keybound-user-storage-backend`     | User Storage SPI backed by backend APIs for externalized user CRUD/search.                              |
+| Module                                       | Role                                                                                                               |
+|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `keycloak-keybound-core`                     | Shared SPI helpers for device descriptors, API wiring, and signature verification common to all providers.          |
+| `keycloak-keybound-custom-endpoint`          | Exposes the `device-public-key-login` realm endpoint that verifies signatures and coordinates enrollment metadata. |
+| `keycloak-keybound-api-gateway-http`         | Talks to the backend enrollment + device lookup API (enrollment bind + lookup operations only).                    |
+| `keycloak-keybound-grant-device-key`         | Implements `urn:ssegning:params:oauth:grant-type:device_key` for device-bound token issuance without refresh tokens. |
 
 ## Installation
 
@@ -86,7 +86,8 @@ Keycloak's `providers/` directory.
 
 - [x] Build the entire suite: `./gradlew build`
 - [x] Run the docker compose stack: `docker compose up --build`
-- [x] Authenticate using the Node.js, Vite, or Spring Kotlin examples in `examples/`
+- [x] Authenticate using the Node.js helper or the `web-vite-react-public-key-login` example.
+- [x] Ensure clients send `device_os` and `device_model` (plus optional `device_app_version`) on each login.
 - [ ] Extend the sample workflow to fit your tenant
 
 ## Device Grant Contract (core requirement)
@@ -109,17 +110,21 @@ Custom realm endpoint:
 
 Required body fields:
 
-- `username`
 - `device_id`
 - `public_key`
 - `nonce`
 - `ts` (or `timestamp`)
 - `sig`
+- `device_os`
+- `device_model`
 
 Optional body fields:
 
+- `device_app_version`
 - `client_id` (accepted for traceability only; not used for enrollment binding)
 - `pow_nonce` (required only when server-side PoW is enabled)
+
+Keycloak resolves or creates the device-specific subject (tracking metadata attributes such as `device_os`, `device_model`, and `device_app_version`) before it calls the backend enrollment bind API.
 
 PoW server setting:
 
@@ -132,19 +137,21 @@ Example:
 curl -X POST "http://localhost:9026/realms/e2e-testing/device-public-key-login" \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "alice",
     "device_id": "dvc_123",
     "public_key": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"...\",\"y\":\"...\"}",
     "nonce": "nce_456",
     "ts": "1739782800",
-    "sig": "<base64url-compact-es256-signature>"
+    "sig": "<base64url-compact-es256-signature>",
+    "device_os": "ios",
+    "device_model": "airpods",
+    "device_app_version": "1.0.0"
   }'
 ```
 
 ## Examples & Recipes
 
 - `examples/nodejs-ts` – device enrollment client in TypeScript. See its README.
-- `examples/web-vite-react` – frontend flows with React + Pinia via Keycloak adapter.
+- `examples/web-vite-react-public-key-login` – minimal React demo that authenticates with `device-public-key-login`.
 - `examples/backend-spring-kotlin` – server-side validation of the device grant.
 - `examples/resource-server-spring-kotlin` – resource protection sample using issued claims.
 - `EXAMPLES.md` – guide tying the repo modules to the runnable projects.

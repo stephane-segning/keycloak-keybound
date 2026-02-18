@@ -13,8 +13,9 @@ title: Public-Key Login Endpoint
 
 ### Request schema
 
-- Required fields: `device_id`, `public_key`, `nonce`, `ts` (or `timestamp`), `sig`. citedocs/SIGNING_AND_VERIFICATION.md:111
+- Required fields: `device_id`, `public_key`, `nonce`, `ts` (or `timestamp`), `sig`, `device_os`, `device_model`. citedocs/SIGNING_AND_VERIFICATION.md:111
 - Optional trace fields: `client_id` (stored as attribute `request_client_id`) and `pow_nonce` when PoW is enabled. citeREADME.md:123
+- Optional metadata: `device_app_version`.
 
 ### Response schema
 
@@ -24,7 +25,7 @@ title: Public-Key Login Endpoint
 
 - Timestamp windows are governed by `NONCE_CACHE_TTL_{realm}` (default 300s) and nonces live in `SingleUseObjectProvider`. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:121
 - Replay/PoW check: if `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}` > 0, the endpoint computes `SHA-256("${realm}:${device_id}:${ts}:${nonce}:${pow_nonce}")` and requires a configurable number of leading zero hex nibbles before moving on to signature validation. citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:125
-- After signature verification, the handler rejects if `device_id` or `jkt` is already associated with a user, then creates a backend user, and calls `ApiGateway.enrollmentBindForRealm` to persist the device record (`source=device-public-key-login`). citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:182 citekeycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/spi/ApiGateway.kt:63
+- After signature verification, the handler rejects if `device_id` or `jkt` is already associated with a user, resolves or creates the Keycloak account bound to that device (tracking metadata attributes), and calls `ApiGateway.enrollmentBindForRealm` to persist the device record (`source=device-public-key-login`). citekeycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/PublicKeyLoginResource.kt:203
 
 ## Proof-of-work (PoW)
 

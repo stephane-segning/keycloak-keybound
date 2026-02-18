@@ -29,7 +29,7 @@ Canonical JSON object order:
 
 Producer and verifier both serialize this ADT before signature operations:
 
-- Frontend: `examples/web-vite-react/src/lib/canonical-payloads.ts`
+- Frontend: `examples/web-vite-react-public-key-login/src/lib/canonical-payloads.ts`
 - Keycloak: `keycloak-keybound-core/src/main/kotlin/com/ssegning/keycloak/keybound/core/models/DeviceSignaturePayload.kt`
 
 ### Signing Pseudocode (Frontend)
@@ -186,7 +186,7 @@ UPPER(method) + "\n" + path + "\n" + query + "\n" + timestamp
 
 Producer and verifier both build this ADT:
 
-- Frontend: `examples/web-vite-react/src/lib/canonical-payloads.ts`
+- Frontend: `examples/web-vite-react-public-key-login/src/lib/canonical-payloads.ts`
 - Backend example: `examples/resource-server-spring-kotlin-signed/src/main/kotlin/com/ssegning/keycloak/keybound/examples/resource/signed/RequestSignaturePayload.kt`
 
 ### Signing Pseudocode (Frontend)

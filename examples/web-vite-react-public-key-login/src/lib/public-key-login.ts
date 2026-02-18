@@ -3,6 +3,7 @@ import {KEYCLOAK_BASE_URL, KEYCLOAK_REALM, PUBLIC_LOGIN_POW_DIFFICULTY} from '..
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
 import {signPayload, stringifyPublicJwk} from './crypto';
+import {resolveDeviceAppVersion, resolveDeviceModel, resolveDevicePlatform} from './browser-runtime';
 import {
     buildPublicKeyLoginBody,
     canonicalPublicKeyPayload,
@@ -48,6 +49,9 @@ export async function callPublicKeyLoginEndpoint(params: {
         sig,
         clientId: params.clientId,
         powNonce,
+        deviceOs: resolveDevicePlatform(),
+        deviceModel: resolveDeviceModel(),
+        deviceAppVersion: resolveDeviceAppVersion(),
     });
 
     try {

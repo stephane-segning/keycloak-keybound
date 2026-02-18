@@ -12,11 +12,11 @@ This document captures implementation recommendations for device-bound enrollmen
   - `stt_*` for OAuth `state`
 
 Current implementation:
-- `examples/web-vite-react/src/lib/crypto.ts`
-- `examples/web-vite-react/src/lib/id.ts`
-- `examples/web-vite-react/src/hooks/use-device-storage.ts`
-- `examples/web-vite-react/src/pages/login-page.tsx`
-- `examples/web-vite-react/src/lib/auth.ts`
+- `examples/web-vite-react-public-key-login/src/lib/crypto.ts`
+- `examples/web-vite-react-public-key-login/src/lib/id.ts`
+- `examples/web-vite-react-public-key-login/src/lib/device-db.ts`
+- `examples/web-vite-react-public-key-login/src/pages/public-key-login-page.tsx`
+- `examples/web-vite-react-public-key-login/src/lib/auth.ts`
 
 ## 2) Make `device_os` required
 
@@ -38,7 +38,6 @@ Current implementation:
 
 Current implementation:
 - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt`
-- `examples/backend-spring-kotlin/src/main/resources/templates/store-dashboard.ftl`
 
 ## 4) Recommended production hardening
 

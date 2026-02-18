@@ -53,6 +53,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+
   /v1/users:
     post:
       tags: [ users ]
@@ -313,7 +314,7 @@ components:
 
     DeviceDescriptor:
       type: object
-      required: [ device_id, jkt ]
+      required: [ device_id, jkt, platform, model ]
       properties:
         device_id:
           type: string
@@ -358,6 +359,10 @@ components:
           type: object
           additionalProperties:
             type: string
+        custom:
+          type: object
+          additionalProperties:
+            type: [ string, "null" ]
 
     UserUpsertRequest:
       type: object
@@ -381,6 +386,10 @@ components:
           type: object
           additionalProperties:
             type: string
+        custom:
+          type: object
+          additionalProperties:
+            type: [ string, "null" ]
 
     UserSearchRequest:
       type: object
@@ -424,6 +433,7 @@ components:
         total_count:
           type: integer
 
+
     DeviceRecordStatus:
       type: string
       enum: [ ACTIVE, REVOKED, SUSPENDED ]
@@ -444,6 +454,12 @@ components:
         last_seen_at:
           type: string
           format: date-time
+        device_os:
+          type: string
+        device_model:
+          type: string
+        device_app_version:
+          type: string
         label:
           type: string
 

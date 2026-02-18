@@ -38,6 +38,7 @@ class BackendDataStore {
 
         val userId = nextUserId()
         val attributes = canonicalizeAttributes(request.attributes ?: emptyMap())
+        val custom = request.custom
         val stored = StoredUser(
             userId = userId,
             realm = realm,
@@ -47,7 +48,8 @@ class BackendDataStore {
             email = request.email?.lowercase(),
             enabled = request.enabled ?: true,
             emailVerified = request.emailVerified ?: false,
-            attributes = attributes
+            attributes = attributes,
+            custom = custom,
         )
 
         users[userId] = stored
@@ -85,6 +87,7 @@ class BackendDataStore {
         }
 
         val attributes = canonicalizeAttributes(request.attributes ?: emptyMap())
+        val custom = request.custom ?: existing.custom
         val updated = existing.copy(
             realm = realm,
             username = username,
@@ -93,7 +96,8 @@ class BackendDataStore {
             email = email,
             enabled = request.enabled ?: existing.enabled,
             emailVerified = request.emailVerified ?: existing.emailVerified,
-            attributes = attributes
+            attributes = attributes,
+            custom = custom,
         )
         users[userId] = updated
         return updated.toRecord()
@@ -137,20 +141,19 @@ class BackendDataStore {
     fun bindDevice(request: EnrollmentBindRequest): EnrollmentBindResponse {
         val deviceId = request.deviceId
         val jkt = request.jkt
-        val user = request.userId
+        val userId = request.userId
         val now = LocalDateTime.now()
         val attributes = request.attributes ?: emptyMap()
-        val deviceOs = attributes["device_os"]?.trim()
-            ?.takeIf { it.isNotBlank() }
+        val deviceOs = attributes["device_os"]?.trim()?.takeIf { it.isNotBlank() }
             ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "device_os is required")
-        val deviceModel = attributes["device_model"]?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: "unknown-model"
+        val deviceModel = attributes["device_model"]?.trim()?.takeIf { it.isNotBlank() }
+            ?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "device_model is required")
+        val deviceAppVersion = attributes["device_app_version"]?.trim()?.takeIf { it.isNotBlank() }
         val label = "$deviceOs / $deviceModel"
 
         val existingByDeviceId = devicesById[deviceId]
         if (existingByDeviceId != null) {
-            if (existingByDeviceId.userId != user) {
+            if (existingByDeviceId.userId != userId) {
                 throw ResponseStatusException(HttpStatus.CONFLICT, "Device already bound to another user")
             }
             if (existingByDeviceId.jkt != jkt) {
@@ -159,39 +162,54 @@ class BackendDataStore {
             existingByDeviceId.lastSeenAt = now
             existingByDeviceId.deviceOs = deviceOs
             existingByDeviceId.deviceModel = deviceModel
+            existingByDeviceId.deviceAppVersion = deviceAppVersion
             existingByDeviceId.label = label
-            return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, existingByDeviceId.recordId, user)
+            return EnrollmentBindResponse(
+                EnrollmentBindResponseStatus.aLREADYBOUND,
+                existingByDeviceId.recordId,
+                userId,
+            )
         }
 
         val existingByJkt = devicesByJkt[jkt]
         if (existingByJkt != null) {
-            if (existingByJkt.userId != user || existingByJkt.deviceId != deviceId) {
+            if (existingByJkt.userId != userId || existingByJkt.deviceId != deviceId) {
                 throw ResponseStatusException(HttpStatus.CONFLICT, "Device key already bound")
             }
             existingByJkt.lastSeenAt = now
             existingByJkt.deviceOs = deviceOs
             existingByJkt.deviceModel = deviceModel
+            existingByJkt.deviceAppVersion = deviceAppVersion
             existingByJkt.label = label
-            return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, existingByJkt.recordId, user)
+            return EnrollmentBindResponse(
+                EnrollmentBindResponseStatus.aLREADYBOUND,
+                existingByJkt.recordId,
+                userId,
+            )
         }
 
         val stored = StoredDevice(
             recordId = nextPrefixedId("dvc"),
             deviceId = deviceId,
             jkt = jkt,
-            userId = user,
+            userId = userId,
             publicJwk = request.publicJwk,
             status = DeviceRecordStatus.aCTIVE,
             createdAt = now,
             lastSeenAt = now,
             deviceOs = deviceOs,
             deviceModel = deviceModel,
-            label = label
+            deviceAppVersion = deviceAppVersion,
+            label = label,
         )
         devicesById[deviceId] = stored
         devicesByJkt[jkt] = stored
 
-        return EnrollmentBindResponse(EnrollmentBindResponseStatus.aLREADYBOUND, stored.recordId, user)
+        return EnrollmentBindResponse(
+            EnrollmentBindResponseStatus.aLREADYBOUND,
+            stored.recordId,
+            userId,
+        )
     }
 
     fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResponse {
@@ -202,33 +220,6 @@ class BackendDataStore {
         } else {
             DeviceLookupResponse(false)
         }
-    }
-
-    fun snapshot(): BackendStoreSnapshot {
-        return BackendStoreSnapshot(
-            users = users.values.map(StoredUser::toRecord),
-            usernameIndex = usernameIndex.entries.map { KeyValueSnapshot(it.key, it.value) },
-            emailIndex = emailIndex.entries.map { KeyValueSnapshot(it.key, it.value) },
-            devices = devicesById.values.map {
-                DeviceSnapshot(
-                    recordId = it.recordId,
-                    deviceId = it.deviceId,
-                    userId = it.userId,
-                    status = it.status.name,
-                    jkt = it.jkt,
-                    deviceOs = it.deviceOs,
-                    deviceModel = it.deviceModel
-                )
-            },
-            devicesByJkt = devicesByJkt.entries.map {
-                DeviceJktSnapshot(
-                    jkt = it.key,
-                    recordId = it.value.recordId,
-                    deviceId = it.value.deviceId,
-                    userId = it.value.userId
-                )
-            }
-        )
     }
 
     private fun usernameKey(realm: String, key: String) = "$realm|${key.lowercase()}"
@@ -273,7 +264,8 @@ class BackendDataStore {
         val email: String?,
         val enabled: Boolean,
         val emailVerified: Boolean,
-        val attributes: Map<String, String>
+        val attributes: Map<String, String>,
+        val custom: Map<String, String>? = null,
     ) {
         fun toRecord(): UserRecord = UserRecord(
             userId = userId,
@@ -286,6 +278,7 @@ class BackendDataStore {
             emailVerified = emailVerified,
             createdAt = OffsetDateTime.now(),
             attributes = attributes,
+            custom = custom,
         )
     }
 
@@ -293,14 +286,15 @@ class BackendDataStore {
         val recordId: String,
         val deviceId: String,
         val jkt: String,
-        var publicJwk: Map<String, Any>,
+        var publicJwk: Map<String, Any>?,
         val userId: String,
         var status: DeviceRecordStatus,
         val createdAt: LocalDateTime,
         var lastSeenAt: LocalDateTime,
         var deviceOs: String,
         var deviceModel: String,
-        var label: String? = null
+        var deviceAppVersion: String? = null,
+        var label: String? = null,
     ) {
         fun toRecord(): DeviceRecord = DeviceRecord(
             deviceId,
@@ -308,38 +302,7 @@ class BackendDataStore {
             status,
             createdAt.atOffset(ZoneOffset.UTC),
             lastSeenAt.atOffset(ZoneOffset.UTC),
-            label
+            label,
         )
     }
-
 }
-
-data class BackendStoreSnapshot(
-    val users: List<UserRecord>,
-    val usernameIndex: List<KeyValueSnapshot>,
-    val emailIndex: List<KeyValueSnapshot>,
-    val devices: List<DeviceSnapshot>,
-    val devicesByJkt: List<DeviceJktSnapshot>
-)
-
-data class KeyValueSnapshot(
-    val key: String,
-    val value: String
-)
-
-data class DeviceSnapshot(
-    val recordId: String,
-    val deviceId: String,
-    val userId: String,
-    val status: String,
-    val jkt: String,
-    val deviceOs: String,
-    val deviceModel: String
-)
-
-data class DeviceJktSnapshot(
-    val jkt: String,
-    val recordId: String,
-    val deviceId: String,
-    val userId: String
-)

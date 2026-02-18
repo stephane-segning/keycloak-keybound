@@ -12,5 +12,6 @@ data class BackendUser(
     val enabled: Boolean = true,
     val emailVerified: Boolean = false,
     val attributes: Map<String, String> = emptyMap(),
+    val custom: Map<String, String?>? = null,
     val createdAt: Instant? = null,
 )

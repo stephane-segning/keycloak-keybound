@@ -290,6 +290,16 @@ class DeviceKeyGrantType(
             )
         accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
         accessToken.setOtherClaims("device_id", deviceId)
+        val backendCustom =
+            backendUserId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { apiGateway.getUser(it)?.custom }
+                ?.filterKeys { it.isNotBlank() }
+        if (!backendCustom.isNullOrEmpty()) {
+            backendCustom.forEach { (key, value) ->
+                accessToken.setOtherClaims("cus.${key.trim()}", value)
+            }
+        }
         accessToken.setConfirmation(
             AccessToken.Confirmation().apply {
                 keyThumbprint = deviceRecord.jkt

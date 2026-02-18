@@ -38,6 +38,14 @@ export const resolveDevicePlatform = (): string => {
     return nav.userAgentData?.platform || nav.platform || "web";
 };
 
+export const resolveDeviceModel = (): string => {
+    const nav = window.navigator as Navigator & { userAgentData?: { model?: string } };
+    return nav.userAgentData?.model || nav.platform || "web";
+};
+
+export const resolveDeviceAppVersion = (): string | undefined =>
+    import.meta.env.VITE_DEVICE_APP_VERSION ?? undefined;
+
 export const postAuthCallbackToParent = (payload: AuthCallbackPayload, closeDelayMs: number = 50): "opener" | "parent" | "none" => {
     if (window.opener && !window.opener.closed) {
         window.opener.postMessage(payload, getCurrentOrigin());

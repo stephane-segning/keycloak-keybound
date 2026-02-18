@@ -30,6 +30,7 @@ interface ApiGateway : Provider {
         enabled: Boolean? = null,
         emailVerified: Boolean? = null,
         attributes: Map<String, String>? = null,
+        custom: Map<String, String>? = null,
     ): BackendUser?
 
     fun getUser(userId: String): BackendUser?
@@ -44,6 +45,7 @@ interface ApiGateway : Provider {
         enabled: Boolean? = null,
         emailVerified: Boolean? = null,
         attributes: Map<String, String>? = null,
+        custom: Map<String, String>? = null,
     ): BackendUser?
 
     fun deleteUser(userId: String): Boolean
@@ -52,4 +54,5 @@ interface ApiGateway : Provider {
         realmName: String,
         criteria: BackendUserSearchCriteria = BackendUserSearchCriteria(),
     ): List<BackendUser>?
+
 }

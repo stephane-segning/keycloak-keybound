@@ -25,6 +25,9 @@ describe('examples/lib/auth', () => {
             sig: 'sig',
             clientId: 'frontend',
             powNonce: 'pow',
+            deviceOs: 'ios',
+            deviceModel: 'phone',
+            deviceAppVersion: '1.0.0',
         });
         assert.deepStrictEqual(body, {
             device_id: 'dev_1',
@@ -32,8 +35,11 @@ describe('examples/lib/auth', () => {
             nonce: 'nce',
             ts: '123',
             sig: 'sig',
+            device_os: 'ios',
+            device_model: 'phone',
             client_id: 'frontend',
             pow_nonce: 'pow',
+            device_app_version: '1.0.0',
         });
     });
 

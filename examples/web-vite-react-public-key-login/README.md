@@ -15,6 +15,7 @@ Minimal web client dedicated to the `device-public-key-login` realm resource. It
 - Register the `device-public-key-login` provider in your realm.
 - Configure `KEYCLOAK_BASE_URL`, `REALM`, and optionally `CLIENT_ID` in `src/config.ts`.
 - Mirror any PoW difficulty set via `PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm}` by exporting the same number in `VITE_PUBLIC_LOGIN_POW_DIFFICULTY`.
+- The client automatically includes `device_os`, `device_model`, and optional `device_app_version` metadata (you can override the latter with `VITE_DEVICE_APP_VERSION`).
 
 ## Run
 

@@ -3,11 +3,19 @@ package com.ssegning.keycloak.keybound.api
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.DevicesApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.EnrollmentApi
 import com.ssegning.keycloak.keybound.api.openapi.client.handler.UsersApi
-import com.ssegning.keycloak.keybound.api.openapi.client.model.*
-import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceDescriptor
+import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceLookupRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.DeviceRecordStatus
+import com.ssegning.keycloak.keybound.api.openapi.client.model.EnrollmentBindRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserRecord
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserSearchRequest
+import com.ssegning.keycloak.keybound.api.openapi.client.model.UserUpsertRequest
 import com.ssegning.keycloak.keybound.core.helper.noop
-import com.ssegning.keycloak.keybound.core.models.*
+import com.ssegning.keycloak.keybound.core.models.BackendUser
+import com.ssegning.keycloak.keybound.core.models.BackendUserSearchCriteria
+import com.ssegning.keycloak.keybound.core.models.DeviceDescriptor
+import com.ssegning.keycloak.keybound.core.models.DeviceLookupResult
 import com.ssegning.keycloak.keybound.core.models.DeviceRecord
+import com.ssegning.keycloak.keybound.core.models.DeviceStatus
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
@@ -119,6 +127,7 @@ open class Api(
         enabled: Boolean?,
         emailVerified: Boolean?,
         attributes: Map<String, String>?,
+        custom: Map<String, String>?,
     ): BackendUser? =
         executeGuarded(
             operation = "user.create",
@@ -136,6 +145,7 @@ open class Api(
                         enabled = enabled,
                         emailVerified = emailVerified,
                         attributes = attributes,
+                        custom = custom,
                     ),
                 ).toBackendUser()
         }
@@ -159,6 +169,7 @@ open class Api(
         enabled: Boolean?,
         emailVerified: Boolean?,
         attributes: Map<String, String>?,
+        custom: Map<String, String>?,
     ): BackendUser? =
         executeGuarded(
             operation = "user.update",
@@ -178,6 +189,7 @@ open class Api(
                             enabled = enabled,
                             emailVerified = emailVerified,
                             attributes = attributes,
+                            custom = custom,
                         ),
                 ).toBackendUser()
         }
@@ -250,6 +262,7 @@ open class Api(
             enabled = enabled,
             emailVerified = emailVerified,
             attributes = attributes.orEmpty(),
+            custom = custom,
             createdAt = createdAt,
         )
 

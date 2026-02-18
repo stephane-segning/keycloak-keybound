@@ -21,8 +21,6 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-freemarker")
-    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.openapitools:jackson-databind-nullable:0.2.2")
     implementation("jakarta.validation:jakarta.validation-api:3.0.2")
@@ -32,7 +30,6 @@ dependencies {
     implementation("javax.annotation:javax.annotation-api:1.3.2")
     implementation("javax.servlet:javax.servlet-api:4.0.1")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

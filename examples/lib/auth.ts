@@ -73,6 +73,9 @@ export function buildPublicKeyLoginBody(params: {
     sig: string;
     clientId?: string;
     powNonce?: string;
+    deviceOs: string;
+    deviceModel: string;
+    deviceAppVersion?: string;
 }): Record<string, string> {
     const body: Record<string, string> = {
         device_id: params.deviceId,
@@ -80,9 +83,12 @@ export function buildPublicKeyLoginBody(params: {
         nonce: params.nonce,
         ts: params.ts,
         sig: params.sig,
+        device_os: params.deviceOs,
+        device_model: params.deviceModel,
     };
     if (params.clientId) body.client_id = params.clientId;
     if (params.powNonce) body.pow_nonce = params.powNonce;
+    if (params.deviceAppVersion) body.device_app_version = params.deviceAppVersion;
     return body;
 }
 
