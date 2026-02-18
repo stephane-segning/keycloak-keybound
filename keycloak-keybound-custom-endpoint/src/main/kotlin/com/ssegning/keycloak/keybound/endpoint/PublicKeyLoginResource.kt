@@ -50,6 +50,7 @@ class PublicKeyLoginResource(
         private const val CORS_ALLOW_METHODS = "POST, OPTIONS"
         private const val CORS_ALLOW_HEADERS =
             "Content-Type, Authorization, X-Requested-With, x-public-key, x-signature, x-signature-timestamp"
+
         // Keep this endpoint usable cross-origin with wildcard origin; credentials would require echoing Origin.
         private const val CORS_ALLOW_CREDENTIALS = "false"
     }
@@ -292,7 +293,9 @@ class PublicKeyLoginResource(
     @OPTIONS
     @Path("{path:.*}")
     @Produces(MediaType.APPLICATION_JSON)
-    fun options(@PathParam("path") ignored: String?): Response =
+    fun options(
+        @PathParam("path") ignored: String?,
+    ): Response =
         Response
             .ok()
             .withCorsHeaders()
@@ -326,10 +329,11 @@ class PublicKeyLoginResource(
         }
 
         val username = generateTechnicalUsername(deviceId, nonce)
-        val newUser = session.users().addUser(realm, username) ?: run {
-            log.error("Failed to create Keycloak user for device {}", deviceId)
-            return null
-        }
+        val newUser =
+            session.users().addUser(realm, username) ?: run {
+                log.error("Failed to create Keycloak user for device {}", deviceId)
+                return null
+            }
         newUser.isEnabled = true
         updateDeviceAttributes(newUser, deviceId, deviceOs, deviceModel, deviceAppVersion)
         return UserResolution(newUser, created = true)
@@ -381,8 +385,10 @@ class PublicKeyLoginResource(
         }
     }
 
-    private fun generateTechnicalUsername(deviceId: String, nonce: String): String =
-        "kb_${sha256Base64Url("$deviceId:$nonce".toByteArray(Charsets.UTF_8)).take(32)}"
+    private fun generateTechnicalUsername(
+        deviceId: String,
+        nonce: String,
+    ): String = "kb_${sha256Base64Url("$deviceId:$nonce".toByteArray(Charsets.UTF_8)).take(32)}"
 
     private fun resolvePowDifficulty(realmName: String): Int {
         val fromEnv = "PUBLIC_KEY_LOGIN_POW_DIFFICULTY_$realmName".getEnv()?.toIntOrNull()

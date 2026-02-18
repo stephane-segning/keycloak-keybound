@@ -54,5 +54,4 @@ interface ApiGateway : Provider {
         realmName: String,
         criteria: BackendUserSearchCriteria = BackendUserSearchCriteria(),
     ): List<BackendUser>?
-
 }
