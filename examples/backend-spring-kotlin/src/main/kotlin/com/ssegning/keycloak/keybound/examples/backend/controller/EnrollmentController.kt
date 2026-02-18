@@ -1,17 +1,20 @@
 package com.ssegning.keycloak.keybound.examples.backend.controller
 
 import com.ssegning.keycloak.keybound.examples.backend.api.EnrollmentApi
-import com.ssegning.keycloak.keybound.examples.backend.model.*
+import com.ssegning.keycloak.keybound.examples.backend.model.EnrollmentBindRequest
+import com.ssegning.keycloak.keybound.examples.backend.model.EnrollmentBindResponse
 import com.ssegning.keycloak.keybound.examples.backend.store.BackendDataStore
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class EnrollmentController(private val store: BackendDataStore) : EnrollmentApi {
+class EnrollmentController(
+    private val store: BackendDataStore,
+) : EnrollmentApi {
     override fun enrollmentBind(
         enrollmentBindRequest: EnrollmentBindRequest,
-        idempotencyKey: Any?
+        idempotencyKey: Any?,
     ): ResponseEntity<EnrollmentBindResponse> {
         log.info("Binding device {} to user {}", enrollmentBindRequest.deviceId, enrollmentBindRequest.userId)
         val response = store.bindDevice(enrollmentBindRequest)

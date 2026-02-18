@@ -132,25 +132,6 @@ class BackendDataStore {
         return filtered.map { it.toRecord() }.toList()
     }
 
-    fun precheck(request: EnrollmentPrecheckRequest): EnrollmentPrecheckResponse {
-        val deviceId = request.deviceId
-        val jkt = request.jkt
-
-        devicesById[deviceId]?.let { stored ->
-            return EnrollmentPrecheckResponse(EnrollmentPrecheckResponse.DecisionEnum.REJECT)
-                .reason("device_already_bound")
-                .boundUserId(stored.userId)
-        }
-
-        devicesByJkt[jkt]?.let { stored ->
-            return EnrollmentPrecheckResponse(EnrollmentPrecheckResponse.DecisionEnum.REJECT)
-                .reason("device_jkt_already_bound")
-                .boundUserId(stored.userId)
-        }
-
-        return EnrollmentPrecheckResponse(EnrollmentPrecheckResponse.DecisionEnum.ALLOW)
-    }
-
     fun bindDevice(request: EnrollmentBindRequest): EnrollmentBindResponse {
         val deviceId = request.deviceId
         val jkt = request.jkt
@@ -178,7 +159,7 @@ class BackendDataStore {
             existingByDeviceId.deviceModel = deviceModel
             existingByDeviceId.label = label
             return EnrollmentBindResponse()
-                .status(EnrollmentBindResponse.StatusEnum.ALREADY_BOUND)
+                .status(EnrollmentBindResponseStatus.ALREADY_BOUND)
                 .deviceRecordId(existingByDeviceId.recordId)
                 .boundUserId(user)
         }
@@ -193,7 +174,7 @@ class BackendDataStore {
             existingByJkt.deviceModel = deviceModel
             existingByJkt.label = label
             return EnrollmentBindResponse()
-                .status(EnrollmentBindResponse.StatusEnum.ALREADY_BOUND)
+                .status(EnrollmentBindResponseStatus.ALREADY_BOUND)
                 .deviceRecordId(existingByJkt.recordId)
                 .boundUserId(user)
         }
@@ -204,7 +185,7 @@ class BackendDataStore {
             jkt = jkt,
             userId = user,
             publicJwk = request.publicJwk ?: emptyMap(),
-            status = DeviceRecord.StatusEnum.ACTIVE,
+            status = DeviceRecordStatus.ACTIVE,
             createdAt = now,
             lastSeenAt = now,
             deviceOs = deviceOs,
@@ -215,7 +196,7 @@ class BackendDataStore {
         devicesByJkt[jkt] = stored
 
         return EnrollmentBindResponse()
-            .status(EnrollmentBindResponse.StatusEnum.BOUND)
+            .status(EnrollmentBindResponseStatus.BOUND)
             .deviceRecordId(stored.recordId)
             .boundUserId(user)
     }
@@ -275,27 +256,6 @@ class BackendDataStore {
         else -> attributeKey
     }
 
-    private fun hasActiveDeviceCredentials(userId: String): Boolean =
-        devicesById.values.any { it.userId == userId && it.status == DeviceRecord.StatusEnum.ACTIVE }
-
-    private fun findSingleUserByPhone(realm: String, phoneE164: String): StoredUser? {
-        val matches = users.values
-            .asSequence()
-            .filter { it.realm == realm }
-            .filter { candidate ->
-                candidate.attributes["phone_e164"] == phoneE164 ||
-                    candidate.attributes["phone_number"] == phoneE164 ||
-                candidate.username.equals(phoneE164, ignoreCase = true)
-            }
-            .toList()
-
-        if (matches.size > 1) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "Multiple users matched phone number")
-        }
-
-        return matches.firstOrNull()
-    }
-
     private fun nextUserId(): String = nextPrefixedId("usr")
 
     private fun nextPrefixedId(prefix: String): String = "${prefix}_${nextCuidLikeId()}"
@@ -345,7 +305,7 @@ class BackendDataStore {
         val jkt: String,
         var publicJwk: Map<String, Any?>,
         val userId: String,
-        var status: DeviceRecord.StatusEnum,
+        var status: DeviceRecordStatus,
         val createdAt: LocalDateTime,
         var lastSeenAt: LocalDateTime,
         var deviceOs: String,
@@ -355,7 +315,6 @@ class BackendDataStore {
         fun toRecord(): DeviceRecord = DeviceRecord()
             .deviceId(deviceId)
             .jkt(jkt)
-            .status(status)
             .createdAt(createdAt)
             .lastSeenAt(lastSeenAt)
             .label(label)

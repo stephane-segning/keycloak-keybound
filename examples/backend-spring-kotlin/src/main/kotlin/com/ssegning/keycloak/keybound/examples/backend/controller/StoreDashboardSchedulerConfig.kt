@@ -10,7 +10,7 @@ class StoreDashboardSchedulerConfig {
     fun storeDashboardScheduler(): ThreadPoolTaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = 2
-        scheduler.setThreadNamePrefix("store-dashboard-stream-")
+        scheduler.threadNamePrefix = "store-dashboard-stream-"
         scheduler.initialize()
         return scheduler
     }
