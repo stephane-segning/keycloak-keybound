@@ -25,9 +25,8 @@ Current implementation:
 - Use `device_os` (with `device_model`) to build user-visible device labels.
 
 Current implementation:
-- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/IngestSignedDeviceBlobAuthenticator.kt`
-- `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/PersistDeviceCredentialAuthenticator.kt`
 - `examples/backend-spring-kotlin/src/main/kotlin/com/ssegning/keycloak/keybound/examples/backend/store/BackendDataStore.kt`
+- Enforce `device_os` in your enrollment flow during ingest/bind to keep the metadata available for backend labels.
 
 ## 3) Uniqueness and prefixed backend IDs
 

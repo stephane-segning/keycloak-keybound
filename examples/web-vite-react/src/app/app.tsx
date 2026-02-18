@@ -1,7 +1,6 @@
 import {NavLink, Route, Routes} from 'react-router-dom';
 import {HomePage} from '../pages/home-page';
 import {LoginPage} from '../pages/login-page';
-import {CallbackPage} from '../pages/callback-page';
 import {ResourcePage} from '../pages/resource-page';
 import {SessionPage} from '../pages/session-page';
 
@@ -41,13 +40,12 @@ export const App = () => (
         </header>
 
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-            <Routes>
-                <Route path="/" element={<HomePage/>}/>
-                <Route path="/login" element={<LoginPage/>}/>
-                <Route path="/callback" element={<CallbackPage/>}/>
-                <Route path="/resource" element={<ResourcePage/>}/>
-                <Route path="/session" element={<SessionPage/>}/>
-            </Routes>
+                <Routes>
+                    <Route path="/" element={<HomePage/>}/>
+                    <Route path="/login" element={<LoginPage/>}/>
+                    <Route path="/resource" element={<ResourcePage/>}/>
+                    <Route path="/session" element={<SessionPage/>}/>
+                </Routes>
         </main>
     </div>
 );

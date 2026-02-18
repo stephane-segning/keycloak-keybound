@@ -15,8 +15,7 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 ## Routes
 
 - `/` landing hero + device dashboard
-- `/login` popup login and code exchange
-- `/callback` auth callback payload relay (debug fallback)
+- `/login` device-backed login using `device-public-key-login` + custom grant
 - `/session` backend user-id binding
 - `/resource` protected resource call + approvals view proxied by resource server
 - `/resource` also includes a simple `start live` button that subscribes to resource-server WebSocket approvals stream (`/ws/approvals`)
@@ -33,13 +32,12 @@ Public-key login sample with flat UI, local Tailwind tooling, and TanStack DB-ba
 
 - Realm: `e2e-testing`
 - Client ID: `web-vite`
-- Redirect URI: `http://localhost:5173/popup-callback.html` (recommended for instant popup close)
-- Optional debug Redirect URI: `http://localhost:5173/callback`
+- Custom login endpoint: `POST /realms/{realm}/device-public-key-login`
 - Web origin: `http://localhost:5173`
 
 ## Environment Overrides
 
-- `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_REDIRECT_URI`
+- `VITE_KEYCLOAK_BASE_URL`, `VITE_REALM`, `VITE_CLIENT_ID`, `VITE_PUBLIC_LOGIN_POW_DIFFICULTY`
 - `VITE_RESOURCE_SERVER`
 - `VITE_RESOURCE_SERVER_SIGNED` (defaults to `http://localhost:18082`)
 
@@ -52,5 +50,5 @@ npm run dev
 
 ## Related Docs
 
-- `docs/USAGE.md`
-- `docs/PLAN.md`
+- `docs/PUBLIC_KEY_LOGIN.md`
+- `docs/SIGNING_AND_VERIFICATION.md`

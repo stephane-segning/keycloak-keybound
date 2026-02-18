@@ -61,9 +61,6 @@ export const HomePage = () => {
                 <article className="border border-base-300 bg-base-100 p-5">
                     <h2 className="text-base font-semibold">routes</h2>
                     <div className="mt-4 flex flex-wrap gap-2">
-                        <Link className="btn btn-sm rounded-none border border-base-300 bg-base-100" to="/callback">
-                            callback payload
-                        </Link>
                         <Link className="btn btn-sm rounded-none border border-base-300 bg-base-100" to="/resource">
                             protected resource
                         </Link>

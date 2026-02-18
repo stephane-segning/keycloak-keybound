@@ -73,7 +73,7 @@ assert ECDSA_P256_VERIFY(publicKey, messageBytes, signatureBytes)
 
 ### Implementations
 
-- Enrollment verification: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/VerifySignedBlobAuthenticator.kt`
+- Enrollment verification: implement the verification logic in your chosen Keycloak flow.
 - Device grant verification: `keycloak-keybound-grant-device-key/src/main/kotlin/grants/DeviceKeyGrantType.kt`
 
 ## 1b) Public-Key Login Signature (Custom Endpoint)
@@ -319,7 +319,7 @@ return status
 
 ### Implementations
 
-- Signer: `keycloak-keybound-authenticator-enrollment/src/main/kotlin/com/ssegning/keycloak/keybound/authenticator/enrollment/WaitForApprovalFormAuthenticator.kt`
+- Signer: implement the approval/polling UI within your login theme (see `keycloak-keybound-theme/src/main/resources/theme/base/login/resources/js/approval-wait.js` for the polling behavior).
 - Verifier: `keycloak-keybound-custom-endpoint/src/main/kotlin/com/ssegning/keycloak/keybound/endpoint/DeviceApprovalResource.kt`
 
 ### Browser Polling Failure Mapping

@@ -3,8 +3,7 @@
 This example demonstrates:
 - OIDC Authorization Code flow with PKCE against Keycloak
 - calling the UserInfo endpoint
-- starting a custom public-key browser auth flow
-- then calling the custom grant type `urn:ssegning:params:oauth:grant-type:device_key`
+- calling the custom grant type `urn:ssegning:params:oauth:grant-type:device_key` after login
 - printing both token responses to bash exports
 
 Current custom grant contract:

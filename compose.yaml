@@ -32,7 +32,6 @@ x-keycloak-common-extra: &keycloak-common-extra
     - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-core:ro
     - ./keycloak-keybound-api-gateway-http/build/libs:/tmp/libs-api-gateway-http
-    - ./keycloak-keybound-authenticator-enrollment/build/libs:/tmp/libs-authenticator-enrollment
     - ./keycloak-keybound-core/build/libs:/tmp/libs-core
     - ./keycloak-keybound-credentials-device-key/build/libs:/tmp/libs-credentials-device-key
     - ./keycloak-keybound-custom-endpoint/build/libs:/tmp/libs-custom-endpoint
