@@ -33,6 +33,30 @@ title: Public-Key Login Endpoint
 - Frontend/Python clients can solve PoW by iterating `pow_nonce` until the hash presents the required zero nibbles; the React demo ships `examples/web-vite-react-public-key-login/src/lib/pow.ts`. citeexamples/web-vite-react-public-key-login/src/lib/pow.ts:1
 - The React client exposes the difficulty via `VITE_PUBLIC_LOGIN_POW_DIFFICULTY` and includes the solved nonce in the request payload. citeexamples/web-vite-react-public-key-login/src/config.ts:1 citeexamples/web-vite-react-public-key-login/src/lib/public-key-login.ts:27
 
+## DoS and Abuse Mitigation
+
+This endpoint is designed to be callable from untrusted clients (browsers/mobile), so treat it like an Internet-facing "public ingest" API.
+
+- Keep PoW enabled in production (`PUBLIC_KEY_LOGIN_POW_DIFFICULTY_{realm} > 0`) and tune it to your client latency budget. PoW makes *valid* attempts expensive for attackers while staying cheap for the server to verify.
+- Put Keycloak behind a reverse proxy / WAF and rate-limit requests to `POST /realms/*/device-public-key-login` (and usually `OPTIONS` too). Also enforce strict timeouts and a small request body limit.
+- Add automated blocking on abuse signals (e.g., too many 4xx/401/409 per IP per minute, too many requests missing `pow_nonce`, too many distinct `device_id` per IP).
+- Isolate blast radius: consider a dedicated Keycloak node/ingress for the enrollment endpoint so abuse doesn't starve admin/interactive auth.
+
+Example nginx rate limit:
+
+```nginx
+limit_req_zone $binary_remote_addr zone=pkl:10m rate=2r/s;
+
+location ~ ^/realms/[^/]+/device-public-key-login$ {
+  limit_req zone=pkl burst=10 nodelay;
+  client_max_body_size 8k;
+  client_body_timeout 5s;
+  client_header_timeout 5s;
+  proxy_read_timeout 10s;
+  proxy_pass http://keycloak;
+}
+```
+
 ## React example (`web-vite-react-public-key-login`)
 
 - Provides `/public-login`, copies the original Vite React stack, and adds a UI to call the new realm resource after solving PoW (`examples/web-vite-react-public-key-login/src/pages/public-key-login-page.tsx`). citeexamples/web-vite-react-public-key-login/src/pages/public-key-login-page.tsx:1

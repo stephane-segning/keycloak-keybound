@@ -60,3 +60,12 @@ Current implementation:
 - When embedding a JWK as a string within a signature payload (e.g., `DeviceSignaturePayload`), ensure the field order is deterministic.
 - Always sort JWK keys alphabetically (`crv`, `kty`, `x`, `y`) before serializing to JSON.
 - Use ordered map structures (e.g., `BTreeMap` in Rust, `TreeMap` in Java/Kotlin) or explicit key sorting in JavaScript to prevent signature mismatches caused by non-deterministic field ordering.
+
+## 7) Rate Limiting and Edge Hardening
+
+Assume `POST /realms/{realm}/device-public-key-login` is Internet-facing and implement defense-in-depth:
+
+- Keep PoW enabled and tune difficulty per realm.
+- Rate-limit the endpoint at the edge (reverse proxy / WAF) and cap request size/timeouts.
+- Add automated blocking for obvious abuse patterns (high error rates, missing PoW, high device_id churn per IP).
+- Consider isolating this endpoint behind a dedicated ingress / Keycloak node so abuse doesn't impact admin and interactive login traffic.
