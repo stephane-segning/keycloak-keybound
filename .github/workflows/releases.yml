@@ -15,9 +15,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v4
+        uses: gradle/actions/wrapper-validation@v5
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4.2.2
+        uses: gradle/actions/setup-gradle@v5
       - name: Build with Gradle
         run: ./gradlew clean build shadow
       - name: Archive artifacts
