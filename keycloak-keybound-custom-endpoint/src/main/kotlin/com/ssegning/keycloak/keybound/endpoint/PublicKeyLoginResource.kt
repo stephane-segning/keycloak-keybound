@@ -27,6 +27,7 @@ import org.keycloak.models.KeycloakSession
 import org.keycloak.models.RealmModel
 import org.keycloak.models.SingleUseObjectProvider
 import org.keycloak.models.UserModel
+import org.keycloak.storage.StorageId
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.util.*
@@ -239,7 +240,7 @@ class PublicKeyLoginResource(
                 val bound =
                     apiGateway.enrollmentBindForRealm(
                         realmName = realm.name,
-                        userId = backendUserId,
+                        userId = StorageId.externalId(backendUserId),
                         userHint = user.username ?: backendUserId,
                         deviceData =
                             DeviceDescriptor(

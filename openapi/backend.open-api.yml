@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Keycloak Backend Device Enrollment API
-  version: 0.2.0
+  version: 0.2.1
   description: |
     Server-to-server API implemented by the backend and called by Keycloak.
     Covers the streamlined device enrollment workflow that supports the device-public-key-login

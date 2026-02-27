@@ -41,7 +41,7 @@ open class Api(
         realmName: String,
         userId: String,
         userHint: String?,
-        deviceData: com.ssegning.keycloak.keybound.core.models.DeviceDescriptor,
+        deviceData: DeviceDescriptor,
         attributes: Map<String, String>?,
         proof: Map<String, Any>?,
     ): Boolean =
