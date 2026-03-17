@@ -140,7 +140,7 @@ jobs:
           fi
       - name: Create release with commit-based notes
         if: steps.release_check.outputs.release_exists == 'false'
-        uses: ncipollo/release-action@v1.20.0
+        uses: ncipollo/release-action@v1.21.0
         with:
           artifacts: 'dist/**/*.jar,openapi/*'
           draft: false
