@@ -29,6 +29,8 @@ dependencies {
     implementation("io.github.resilience4j", "resilience4j-circuitbreaker", "2.3.0")
     implementation("io.github.resilience4j", "resilience4j-retry", "2.3.0")
 
+    implementation("com.jayway.jsonpath:json-path:3.0.0")
+
     implementation("org.keycloak", "keycloak-services", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
@@ -62,6 +64,9 @@ shadowJarTask.configure {
         include(dependency("com.fasterxml.jackson.datatype:jackson-datatype-jsr310"))
         include(dependency("com.squareup.okhttp3:okhttp"))
         include(dependency("com.squareup.okio:okio-jvm"))
+        include(dependency("com.jayway.jsonpath:json-path"))
+        include(dependency("net.minidev:accessors-smart"))
+        include(dependency("net.minidev:json-smart"))
         include(dependency("io.github.resilience4j:resilience4j-circuitbreaker"))
         include(dependency("io.github.resilience4j:resilience4j-retry"))
         include(dependency("io.github.resilience4j:resilience4j-core"))

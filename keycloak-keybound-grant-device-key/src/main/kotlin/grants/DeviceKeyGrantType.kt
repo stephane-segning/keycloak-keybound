@@ -1,5 +1,8 @@
 package com.ssegning.keycloak.keybound.grants
 
+import com.jayway.jsonpath.Configuration
+import com.jayway.jsonpath.JsonPath
+import com.jayway.jsonpath.Option
 import com.ssegning.keycloak.keybound.core.models.DeviceSignaturePayload
 import com.ssegning.keycloak.keybound.core.models.DeviceStatus
 import com.ssegning.keycloak.keybound.core.spi.ApiGateway
@@ -26,6 +29,7 @@ import org.keycloak.storage.StorageId
 import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
+import java.io.Serializable
 import java.util.*
 import kotlin.math.abs
 
@@ -35,6 +39,9 @@ class DeviceKeyGrantType(
     companion object {
         private val log = LoggerFactory.getLogger(DeviceKeyGrantType::class.java)
         private const val TTL = 300L // 5 minutes
+        private val conf = Configuration.builder()
+            .options(Option.DEFAULT_PATH_LEAF_TO_NULL, Option.SUPPRESS_EXCEPTIONS)
+            .build()
     }
 
     override fun getEventType(): EventType = EventType.LOGIN
@@ -290,26 +297,32 @@ class DeviceKeyGrantType(
         accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
         accessToken.setOtherClaims("device_id", deviceId)
 
-        val fineractId = user.getFirstAttribute("fineractId")
-        if (fineractId != null) {
-            accessToken.setOtherClaims("fineract_client_id", fineractId)
-        }
+        log.info("All attribute: ${user.attributes}")
+        val parametersKyc = JsonPath
+            .using(conf)
+            .parse(user.attributes)
 
-        val savingsAccountId = user.getFirstAttribute("savingsAccountId")
-        if (savingsAccountId != null) {
-            accessToken.setOtherClaims("savings_account_id", savingsAccountId)
-        }
+        val parametersFirst: String? = parametersKyc.read("$.parameters[0]")
+        log.debug("Parameters First {}", parametersFirst)
 
-        val backendCustom =
-            backendUserId
-                .takeIf { it.isNotBlank() }
-                ?.let { apiGateway.getUser(it)?.custom }
-                ?.filterKeys { it.isNotBlank() }
-        if (!backendCustom.isNullOrEmpty()) {
-            backendCustom.forEach { (key, value) ->
-                accessToken.setOtherClaims("cus.${key.trim()}", value)
+        if (parametersFirst != null) {
+            val documentKyc = JsonPath
+                .using(conf)
+                .parse(parametersFirst)
+
+            val fineractId: Serializable? = documentKyc.read("$.fineractId.content")
+            log.debug("Fineract ID: {}", fineractId)
+            if (fineractId != null) {
+                accessToken.setOtherClaims("fineract_client_id", fineractId)
+            }
+
+            val savingsAccountId: Serializable? = documentKyc.read("$.savingsAccountId.content")
+            log.debug("Savings AccountId ID: {}", savingsAccountId)
+            if (savingsAccountId != null) {
+                accessToken.setOtherClaims("savings_account_id", savingsAccountId)
             }
         }
+
         accessToken.setConfirmation(
             AccessToken.Confirmation().apply {
                 keyThumbprint = deviceRecord.jkt

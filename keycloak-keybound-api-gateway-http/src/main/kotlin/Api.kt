@@ -251,8 +251,11 @@ open class Api(
         }
     }
 
-    private fun UserRecord.toBackendUser() =
-        BackendUser(
+    private fun UserRecord.toBackendUser(): BackendUser {
+        log.debug("Creating backend user {}", username)
+        log.debug("Attributes {}", attributes)
+        log.debug("Custom {}", custom)
+        return BackendUser(
             userId = userId,
             realm = realm,
             username = username,
@@ -265,6 +268,7 @@ open class Api(
             custom = custom,
             createdAt = createdAt,
         )
+    }
 
     override fun close() = noop()
 }

@@ -22,9 +22,9 @@ class BackendUserAdapter(
 ) : AbstractUserAdapter(session, realm, componentModel) {
     companion object {
         const val BACKEND_USER_ID_ATTRIBUTE = "backend_user_id"
+        val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)!!
     }
 
-    private val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)
     private var user: BackendUser = backendUser
     private var createdTimestamp = backendUser.createdAt?.toEpochMilliseconds()
     private val keycloakStorageId = StorageId.keycloakId(componentModel, backendUser.userId)
@@ -104,6 +104,9 @@ class BackendUserAdapter(
         attributes[BACKEND_USER_ID_ATTRIBUTE] = mutableListOf(user.userId)
         user.attributes.forEach { (key, value) ->
             attributes[key] = mutableListOf(value)
+        }
+        user.custom?.forEach { (key, value) ->
+            if (value != null) attributes[key] = mutableListOf(value)
         }
         return attributes
     }

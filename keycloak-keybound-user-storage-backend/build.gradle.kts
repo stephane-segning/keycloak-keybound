@@ -16,6 +16,8 @@ dependencies {
     implementation("org.keycloak", "keycloak-server-spi", "26.5.2")
     implementation("org.keycloak", "keycloak-server-spi-private", "26.5.2")
 
+    implementation("com.jayway.jsonpath:json-path:3.0.0")
+
     implementation(project(":keycloak-keybound-core"))
 }
 
