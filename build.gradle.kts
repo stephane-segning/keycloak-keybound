@@ -4,7 +4,7 @@ import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
     kotlin("jvm") version "2.3.10"
-    kotlin("kapt") version "2.3.10"
+    kotlin("kapt") version "2.3.20"
     id("org.jetbrains.changelog") version "2.5.0"
     id("com.gradleup.shadow") version "9.3.1"
     id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
