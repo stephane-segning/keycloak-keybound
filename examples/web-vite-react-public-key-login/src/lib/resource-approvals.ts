@@ -1,4 +1,7 @@
 import {apiHttpClient} from "./http-client";
+import {createLogger} from "./logger";
+
+const logger = createLogger('resource-approvals');
 
 export type JsonObject = Record<string, unknown>;
 
@@ -13,30 +16,42 @@ export type ApprovalRecord = {
     message?: string | null;
 };
 
-export const fetchProtectedResource = async (resourceServer: string, token?: string): Promise<JsonObject> =>
-    (
+export const fetchProtectedResource = async (resourceServer: string, token?: string): Promise<JsonObject> => {
+    logger.debug('Fetching protected resource', {resourceServer});
+    const result = (
         await apiHttpClient.get<JsonObject>(
             `${resourceServer}/get`,
             token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
         )
     ).data;
+    logger.info('Protected resource fetched');
+    return result;
+};
 
-export const fetchApprovals = async (resourceServer: string, token?: string): Promise<JsonObject> =>
-    (
+export const fetchApprovals = async (resourceServer: string, token?: string): Promise<JsonObject> => {
+    logger.debug('Fetching approvals', {resourceServer});
+    const result = (
         await apiHttpClient.get<JsonObject>(
             `${resourceServer}/approvals`,
             token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
         )
     ).data;
+    logger.info('Approvals fetched');
+    return result;
+};
 
-export const approveRequest = async (resourceServer: string, requestId: string, token?: string): Promise<JsonObject> =>
-    (
+export const approveRequest = async (resourceServer: string, requestId: string, token?: string): Promise<JsonObject> => {
+    logger.debug('Approving request', {resourceServer, requestId});
+    const result = (
         await apiHttpClient.post<JsonObject>(
             `${resourceServer}/approvals/${encodeURIComponent(requestId)}/approve`,
             undefined,
             token ? {headers: {Authorization: `Bearer ${token}`}} : undefined
         )
     ).data;
+    logger.info('Request approved', {requestId});
+    return result;
+};
 
 export const parseApprovalRecords = (payload: JsonObject): ApprovalRecord[] => {
     const backend = payload.backend;
@@ -81,6 +96,7 @@ export class ApprovalStreamClient {
 
     connect(resourceServer: string, token: string, handlers: ApprovalStreamHandlers): void {
         if (this.socket && this.socket.readyState <= WebSocket.OPEN) {
+            logger.warn('Socket already connected, skipping');
             return;
         }
 
@@ -88,17 +104,28 @@ export class ApprovalStreamClient {
         const socket = new WebSocket(`${websocketBase}/ws/approvals?access_token=${encodeURIComponent(token)}`);
         this.socket = socket;
 
-        socket.onopen = () => handlers.onOpen();
+        logger.debug('Connecting to approval stream', {websocketBase});
+
+        socket.onopen = () => {
+            logger.info('Approval stream connected');
+            handlers.onOpen();
+        };
         socket.onmessage = (event) => {
             try {
                 const parsed = JSON.parse(event.data as string) as JsonObject;
+                logger.debug('Approval stream message received');
                 handlers.onMessage(parsed);
             } catch (error) {
+                logger.error('Failed to parse approval stream message', {error});
                 handlers.onError(error);
             }
         };
-        socket.onerror = (event) => handlers.onError(event);
+        socket.onerror = (event) => {
+            logger.error('Approval stream error', {event});
+            handlers.onError(event);
+        };
         socket.onclose = () => {
+            logger.info('Approval stream disconnected');
             if (this.socket === socket) {
                 this.socket = null;
             }
@@ -108,6 +135,7 @@ export class ApprovalStreamClient {
 
     disconnect(): void {
         if (this.socket) {
+            logger.debug('Disconnecting approval stream');
             this.socket.close();
             this.socket = null;
         }

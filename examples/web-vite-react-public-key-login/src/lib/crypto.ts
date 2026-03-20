@@ -1,5 +1,8 @@
 import {p256} from '@noble/curves/nist.js';
 import {utf8ToBytes} from '@noble/hashes/utils.js';
+import {createLogger} from './logger';
+
+const logger = createLogger('crypto');
 
 const toBase64 = (bytes: Uint8Array): string => {
     if (typeof btoa !== 'function') {
@@ -45,6 +48,7 @@ const parsePrivateKeyBytes = (privateJwk: JsonWebKey): Uint8Array => {
 };
 
 export const generateKeyPair = async () => {
+    logger.debug('Generating P-256 key pair');
     const privateBytes = p256.utils.randomSecretKey();
     const publicBytes = p256.getPublicKey(privateBytes, false);
     const publicJwk: JsonWebKey = {
@@ -57,13 +61,15 @@ export const generateKeyPair = async () => {
         ...publicJwk,
         d: toBase64Url(privateBytes),
     };
+    logger.info('Key pair generated');
     return {publicJwk, privateJwk};
 };
 
 export const signPayload = async (privateJwk: JsonWebKey, payload: string) => {
+    logger.debug('Signing payload');
     const privateBytes = parsePrivateKeyBytes(privateJwk);
-    // Keycloak verifier expects JOSE compact ECDSA signatures (r||s).
     const signature = p256.sign(utf8ToBytes(payload), privateBytes, {format: 'compact', lowS: true});
+    logger.debug('Payload signed');
     return toBase64Url(signature);
 };
 

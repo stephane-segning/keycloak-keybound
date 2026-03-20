@@ -80,19 +80,6 @@ function leftPad(intBytes: Buffer, size: number): Buffer {
   return out;
 }
 
-export function jwkThumbprintES256(publicJwk: { crv: string; kty: string; x: string; y: string }): string {
-  // RFC 7638 thumbprint: SHA-256 over lexicographically-ordered members for EC: crv,kty,x,y
-  const canonical = `{"crv":"${publicJwk.crv}","kty":"${publicJwk.kty}","x":"${publicJwk.x}","y":"${publicJwk.y}"}`;
-  const digest = crypto.createHash('sha256').update(canonical, 'utf8').digest();
-  return base64url(digest);
-}
-
-export function publicJwkStringForKeycloak(publicJwk: { crv: string; kty: string; x: string; y: string }): string {
-  // Keycloak uses Jackson to serialize a Map coming from Gson. Map iteration order is typically key-sorted,
-  // so we keep this deterministic with lexicographic order.
-  return `{"crv":"${publicJwk.crv}","kty":"${publicJwk.kty}","x":"${publicJwk.x}","y":"${publicJwk.y}"}`;
-}
-
 export function printBashExports(prefix: string, obj: Record<string, unknown>): void {
   const toStr = (v: unknown) => (v == null ? '' : String(v));
   for (const [k, v] of Object.entries(obj)) {

@@ -56,10 +56,16 @@ class BackendUserStorageProvider(
     ): UserModel? {
         log.debug("Getting user by id {} in realm {}", id, realm.name)
         val backendUserId = StorageId.externalId(id)
-        val user = apiGateway.getUser(backendUserId) ?: return null
-        if (!isInRealm(realm, user)) {
+        log.debug("Resolved backendUserId={} from storageId={}", backendUserId, id)
+        val user = apiGateway.getUser(backendUserId) ?: run {
+            log.debug("User not found for backendUserId={}", backendUserId)
             return null
         }
+        if (!isInRealm(realm, user)) {
+            log.debug("User {} not in realm {} (userRealm={})", user.userId, realm.name, user.realm)
+            return null
+        }
+        log.debug("Found user userId={} username={} in realm {}", user.userId, user.username, realm.name)
         return toUserModel(realm, user)
     }
 
@@ -79,7 +85,11 @@ class BackendUserStorageProvider(
                             maxResults = 2,
                         ),
                 ).orEmpty()
+        log.debug("Search by username={} returned {} users", username, users.size)
         val user = singleUserOrNull(realm, "username", username, users)
+        if (user != null) {
+            log.debug("Found user by username={} userId={}", username, user.userId)
+        }
         return user?.let { toUserModel(realm, it) }
     }
 
@@ -99,7 +109,11 @@ class BackendUserStorageProvider(
                             maxResults = 2,
                         ),
                 ).orEmpty()
+        log.debug("Search by email={} returned {} users", email, users.size)
         val user = singleUserOrNull(realm, "email", email, users)
+        if (user != null) {
+            log.debug("Found user by email={} userId={}", email, user.userId)
+        }
         return user?.let { toUserModel(realm, it) }
     }
 
@@ -121,6 +135,7 @@ class BackendUserStorageProvider(
                 )
                 throw ModelException("Backend user creation failed for username=$normalizedUsername in realm=${realm.name}")
             }
+        log.info("Created backend user userId={} username={} realm={}", createdUser.userId, normalizedUsername, realm.name)
         return toUserModel(realm, createdUser)
     }
 
@@ -130,7 +145,14 @@ class BackendUserStorageProvider(
     ): Boolean {
         log.debug("Removing user {} from realm {}", user.username, realm.name)
         val backendUserId = StorageId.externalId(user.id)
-        return apiGateway.deleteUser(backendUserId)
+        log.debug("Deleting backend user userId={}", backendUserId)
+        val deleted = apiGateway.deleteUser(backendUserId)
+        if (deleted) {
+            log.info("Deleted backend user userId={}", backendUserId)
+        } else {
+            log.warn("Failed to delete backend user userId={}", backendUserId)
+        }
+        return deleted
     }
 
     override fun searchForUserStream(
@@ -139,13 +161,15 @@ class BackendUserStorageProvider(
         firstResult: Int?,
         maxResults: Int?,
     ): Stream<UserModel> {
-        log.debug("Searching for users in realm {} params={}", realm.name, params)
+        log.debug("Searching for users in realm {} params={} firstResult={} maxResults={}", realm.name, params, firstResult, maxResults)
         if (params.containsKey(UserModel.IDP_ALIAS) || params.containsKey(UserModel.IDP_USER_ID)) {
+            log.debug("Skipping search for IDP-specific parameters")
             return Stream.empty()
         }
 
         val criteria = buildSearchCriteria(params, firstResult, maxResults)
         val users = apiGateway.searchUsers(realm.name, criteria).orEmpty()
+        log.debug("Search returned {} users for realm {}", users.size, realm.name)
         return users
             .filter { isInRealm(realm, it) }
             .map { toUserModel(realm, it) }

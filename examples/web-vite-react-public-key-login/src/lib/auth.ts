@@ -4,6 +4,9 @@ import {DeviceSignaturePayload} from './canonical-payloads';
 import {signPayload, stringifyPublicJwk} from './crypto';
 import {createPrefixedId} from './id';
 import {loadDeviceRecord} from './storage';
+import {createLogger} from './logger';
+
+const logger = createLogger('auth');
 
 export const TOKEN_STORAGE_KEY = 'keybound.tokens';
 export const GRANT_USER_ID_STORAGE_KEY = 'keybound.grant_user_id';
@@ -64,13 +67,15 @@ function isAccessTokenValid(tokens?: TokenResponse | null): boolean {
 async function callCustomGrant(userId: string): Promise<TokenResponse> {
     const device = await loadDeviceRecord();
     if (!device?.deviceId || !device.publicJwk || !device.privateJwk) {
+        logger.error('Missing device key material for custom grant');
         throw new Error('Missing device key material; login once to initialize this browser');
     }
+
+    logger.debug('Calling custom grant', {userId, deviceId: device.deviceId});
 
     const ts = Math.floor(Date.now() / 1000).toString();
     const nonce = createPrefixedId('nce');
     const publicKey = stringifyPublicJwk(device.publicJwk);
-    // Signature payload must match the server-side canonical verification payload.
     const signaturePayload = new DeviceSignaturePayload(device.deviceId, publicKey, ts, nonce);
     const sig = await signPayload(device.privateJwk, signaturePayload.toCanonicalJson());
 
@@ -86,6 +91,7 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
     });
 
     const endpoint = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
+    logger.debug('Custom grant request', {endpoint, userId});
     try {
         const response = await authHttpClient.post<TokenResponse>(
             endpoint,
@@ -95,14 +101,17 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
             }
         );
         if (!response.data.access_token) {
+            logger.error('Custom grant response missing access_token');
             throw new Error("Custom grant did not return an access token");
         }
+        logger.info('Custom grant succeeded', {userId});
         return response.data;
     } catch (error) {
         const axiosError = error as AxiosError<{ error?: string; error_description?: string }>;
         const message = axiosError.response?.data?.error_description
             ?? axiosError.response?.data?.error
             ?? axiosError.message;
+        logger.error('Custom grant failed', {message, status: axiosError.response?.status});
         throw new Error(message ?? 'Custom grant failed');
     }
 }
@@ -110,10 +119,12 @@ async function callCustomGrant(userId: string): Promise<TokenResponse> {
 export async function exchangeAuthorizationCode(code: string): Promise<TokenResponse> {
     const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
     if (!codeVerifier) {
+        logger.error('Missing code_verifier in sessionStorage');
         throw new Error('Missing code_verifier in sessionStorage');
     }
 
-    // Standard OIDC code exchange with PKCE verifier created at login-start time.
+    logger.debug('Exchanging authorization code', {codePresent: !!code});
+
     const body = new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: CLIENT_ID,
@@ -132,14 +143,17 @@ export async function exchangeAuthorizationCode(code: string): Promise<TokenResp
             }
         );
         if (!response.data.access_token) {
+            logger.error('Token endpoint response missing access_token');
             throw new Error('Token endpoint did not return an access token');
         }
+        logger.info('Authorization code exchange succeeded');
         return response.data;
     } catch (error) {
         const axiosError = error as AxiosError<{ error?: string; error_description?: string }>;
         const message = axiosError.response?.data?.error_description
             ?? axiosError.response?.data?.error
             ?? axiosError.message;
+        logger.error('Authorization code exchange failed', {message, status: axiosError.response?.status});
         throw new Error(message ?? 'Token endpoint failed');
     }
 }
@@ -152,6 +166,7 @@ export function saveLoginChallengeContext(codeVerifier: string, nonce: string, t
 
 export async function fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {
     const endpoint = `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`;
+    logger.debug('Fetching user info');
     try {
         const response = await authHttpClient.get<Record<string, unknown>>(
             endpoint,
@@ -161,6 +176,7 @@ export async function fetchUserInfo(accessToken: string): Promise<Record<string,
                 },
             }
         );
+        logger.info('User info fetched successfully');
         return response.data;
     } catch (error) {
         const axiosError = error as AxiosError<Record<string, unknown>>;
@@ -169,6 +185,7 @@ export async function fetchUserInfo(accessToken: string): Promise<Record<string,
             (payload?.error_description as string | undefined) ??
             (payload?.error as string | undefined) ??
             axiosError.message;
+        logger.error('User info fetch failed', {message, status: axiosError.response?.status});
         throw new Error(message ?? 'UserInfo failed');
     }
 }
@@ -213,13 +230,14 @@ export function saveGrantUserId(userId: string | null | undefined) {
 }
 
 export async function ensureAccessToken(): Promise<string> {
-    // Fast path: current token is still valid.
     const currentTokens = loadTokens();
     if (isAccessTokenValid(currentTokens)) {
+        logger.debug('Access token is valid, reusing');
         return currentTokens!.access_token;
     }
 
-    // Renewal path: prefer token subject, then stored subject, then device-bound user id.
+    logger.info('Access token expired or missing, renewing');
+
     const device = await loadDeviceRecord();
     const userId =
         extractSubject(currentTokens) ??
@@ -228,12 +246,13 @@ export async function ensureAccessToken(): Promise<string> {
         null;
 
     if (!userId) {
+        logger.error('No usable token and no stored user_id for custom grant');
         throw new Error('No usable token and no stored user_id for custom grant; login is required');
     }
 
     const renewedTokens = await callCustomGrant(userId);
-    // Replace session tokens with the new token set.
     saveTokens(renewedTokens);
     saveGrantUserId(userId);
+    logger.info('Access token renewed successfully');
     return renewedTokens.access_token;
 }

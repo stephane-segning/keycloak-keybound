@@ -1,6 +1,7 @@
 package com.ssegning.keycloak.keybound.examples.backend.store
 
 import com.ssegning.keycloak.keybound.examples.backend.model.*
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
@@ -13,6 +14,11 @@ import java.util.concurrent.atomic.AtomicLong
 
 @Service
 class BackendDataStore {
+    companion object {
+        private val log = LoggerFactory.getLogger(BackendDataStore::class.java)
+        private const val BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+    }
+
     private val users = ConcurrentHashMap<String, StoredUser>()
     private val usernameIndex = ConcurrentHashMap<String, String>()
     private val emailIndex = ConcurrentHashMap<String, String>()
@@ -24,15 +30,18 @@ class BackendDataStore {
     private val secureRandom = SecureRandom()
 
     fun createUser(request: UserUpsertRequest): UserRecord {
+        log.debug("Creating user username={} realm={}", request.username, request.realm)
         val realm = request.realm
         val username = request.username
         val key = usernameKey(realm, username)
         if (usernameIndex.containsKey(key)) {
+            log.warn("Username already exists: {} in realm {}", username, realm)
             throw ResponseStatusException(HttpStatus.CONFLICT, "Username already exists")
         }
 
         val emailKey = request.email?.let { usernameKey(realm, it.lowercase()) }
         if (emailKey != null && emailIndex.containsKey(emailKey)) {
+            log.warn("Email already exists: {} in realm {}", request.email, realm)
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already exists")
         }
 
@@ -56,13 +65,19 @@ class BackendDataStore {
         usernameIndex[key] = userId
         emailKey?.let { emailIndex[it] = userId }
 
+        log.info("Created user userId={} username={} realm={}", userId, username, realm)
         return stored.toRecord()
     }
 
-    fun getUser(userId: String): UserRecord? = users[userId]?.toRecord()
+    fun getUser(userId: String): UserRecord? {
+        log.debug("Getting user userId={}", userId)
+        return users[userId]?.toRecord()
+    }
 
     fun updateUser(userId: String, request: UserUpsertRequest): UserRecord? {
+        log.debug("Updating user userId={} realm={}", userId, request.realm)
         val existing = users[userId] ?: return null
+        log.debug("Found existing user userId={} username={}", userId, existing.username)
 
         val realm = request.realm
         val username = request.username
@@ -100,17 +115,25 @@ class BackendDataStore {
             custom = custom,
         )
         users[userId] = updated
+        log.info("Updated user userId={} username={}", userId, updated.username)
         return updated.toRecord()
     }
 
     fun deleteUser(userId: String): Boolean {
+        log.debug("Deleting user userId={}", userId)
         val removed = users.remove(userId) ?: return false
         usernameIndex.remove(usernameKey(removed.realm, removed.username))
         removed.email?.let { emailIndex.remove(usernameKey(removed.realm, it)) }
+        log.info("Deleted user userId={} username={}", userId, removed.username)
         return true
     }
 
     fun searchUsers(request: UserSearchRequest): List<UserRecord> {
+        log.debug("Searching users realm={} criteria={}", request.realm, mapOf(
+            "search" to request.search,
+            "username" to request.username,
+            "email" to request.email
+        ))
         val stream = users.values.asSequence()
         val filtered = stream.filter { stored ->
             if (stored.realm != request.realm) return@filter false
@@ -135,10 +158,12 @@ class BackendDataStore {
         }.drop(request.firstResult ?: 0).let {
             request.maxResults?.let { limit -> it.take(limit) } ?: it
         }
+        log.debug("Search found {} users", filtered.count())
         return filtered.map { it.toRecord() }.toList()
     }
 
     fun bindDevice(request: EnrollmentBindRequest): EnrollmentBindResponse {
+        log.debug("Binding device deviceId={} jkt={} userId={}", request.deviceId, request.jkt, request.userId)
         val deviceId = request.deviceId
         val jkt = request.jkt
         val userId = request.userId
@@ -153,6 +178,7 @@ class BackendDataStore {
 
         val existingByDeviceId = devicesById[deviceId]
         if (existingByDeviceId != null) {
+            log.debug("Device already exists deviceId={} userId={}", deviceId, existingByDeviceId.userId)
             if (existingByDeviceId.userId != userId) {
                 throw ResponseStatusException(HttpStatus.CONFLICT, "Device already bound to another user")
             }
@@ -205,6 +231,7 @@ class BackendDataStore {
         devicesById[deviceId] = stored
         devicesByJkt[jkt] = stored
 
+        log.info("Bound new device deviceId={} jkt={} userId={}", deviceId, jkt, userId)
         return EnrollmentBindResponse(
             EnrollmentBindResponseStatus.aLREADYBOUND,
             stored.recordId,
@@ -213,11 +240,14 @@ class BackendDataStore {
     }
 
     fun lookupDevice(deviceId: String?, jkt: String?): DeviceLookupResponse {
+        log.debug("Looking up device deviceId={} jkt={}", deviceId, jkt)
         val stored = deviceId?.let { devicesById[it] } ?: jkt?.let { devicesByJkt[it] }
         return if (stored != null) {
             stored.lastSeenAt = LocalDateTime.now()
+            log.debug("Device found deviceId={} userId={}", stored.deviceId, stored.userId)
             DeviceLookupResponse(true, stored.userId, stored.toRecord(), stored.publicJwk)
         } else {
+            log.debug("Device not found deviceId={} jkt={}", deviceId, jkt)
             DeviceLookupResponse(false)
         }
     }
@@ -249,10 +279,6 @@ class BackendDataStore {
             }
         }
         return "knd2$timestamp$counter$randomPart"
-    }
-
-    companion object {
-        private const val BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz"
     }
 
     private data class StoredUser(

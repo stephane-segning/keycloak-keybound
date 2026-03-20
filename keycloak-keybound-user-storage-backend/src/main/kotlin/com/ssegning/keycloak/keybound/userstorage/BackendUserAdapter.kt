@@ -22,7 +22,7 @@ class BackendUserAdapter(
 ) : AbstractUserAdapter(session, realm, componentModel) {
     companion object {
         const val BACKEND_USER_ID_ATTRIBUTE = "backend_user_id"
-        val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)!!
+        private val log = LoggerFactory.getLogger(BackendUserAdapter::class.java)
     }
 
     private var user: BackendUser = backendUser

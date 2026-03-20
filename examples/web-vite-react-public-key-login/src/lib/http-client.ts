@@ -3,6 +3,9 @@ import {RESOURCE_SERVER_SIGNED} from "../config";
 import {ensureAccessToken} from "./auth";
 import {loadDeviceRecord} from "./storage";
 import {buildSignedHeaders} from "./request-signature";
+import {createLogger} from "./logger";
+
+const logger = createLogger('http-client');
 
 export const authHttpClient = axios.create();
 export const apiHttpClient = axios.create();
@@ -29,6 +32,7 @@ const withHeaders = (config: InternalAxiosRequestConfig): AxiosHeaders => {
 apiHttpClient.interceptors.request.use(async (config) => {
     const headers = withHeaders(config);
     if (!headers.has("Authorization")) {
+        logger.debug('No Authorization header, ensuring access token');
         const token = await ensureAccessToken();
         headers.set("Authorization", `Bearer ${token}`);
     }
@@ -39,11 +43,15 @@ apiHttpClient.interceptors.request.use(async (config) => {
     }
 
     if (resolvedUrl.origin !== signedServerOrigin) {
+        logger.debug('Request to unsigned server', {url: resolvedUrl.toString()});
         return config;
     }
 
+    logger.debug('Request to signed server, adding signature headers', {url: resolvedUrl.toString()});
+
     const device = await loadDeviceRecord();
     if (!device?.publicJwk || !device.privateJwk) {
+        logger.error('Missing local device keys for request signature');
         throw new Error("Missing local device keys for request signature");
     }
 
@@ -58,5 +66,6 @@ apiHttpClient.interceptors.request.use(async (config) => {
     });
     Object.entries(signedHeaders).forEach(([name, value]) => headers.set(name, value));
 
+    logger.debug('Request signature headers added');
     return config;
 });

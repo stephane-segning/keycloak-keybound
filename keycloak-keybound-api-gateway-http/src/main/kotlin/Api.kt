@@ -238,13 +238,16 @@ open class Api(
         errorMessage: String,
         block: () -> T,
     ): T? {
+        log.debug("Executing guarded operation={}", operation)
         val retry = retries.retry(operation)
         val circuitBreaker = circuitBreakers.circuitBreaker(operation)
         val retryingCall = Retry.decorateSupplier(retry) { block() }
         val guardedCall = CircuitBreaker.decorateSupplier(circuitBreaker, retryingCall)
 
         return try {
-            guardedCall.get()
+            val result = guardedCall.get()
+            log.debug("Guarded operation={} succeeded", operation)
+            result
         } catch (e: Exception) {
             log.error(errorMessage, e)
             null
@@ -252,9 +255,7 @@ open class Api(
     }
 
     private fun UserRecord.toBackendUser(): BackendUser {
-        log.debug("Creating backend user {}", username)
-        log.debug("Attributes {}", attributes)
-        log.debug("Custom {}", custom)
+        log.debug("Mapping backend user userId={} username={}, attributes={}, custom={}", userId, username, attributes, custom)
         return BackendUser(
             userId = userId,
             realm = realm,

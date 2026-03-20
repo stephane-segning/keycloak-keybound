@@ -80,7 +80,7 @@ class DeviceKeyGrantType(
             )
         }
 
-        log.debug("DeviceKeyGrantType invoked userId={} deviceId={}", userId, deviceId)
+        log.debug("DeviceKeyGrantType invoked userId={} deviceId={} clientId={}", userId, deviceId, client.clientId)
 
         val user = session.users().getUserById(realm, userId)
         if (user == null || !user.isEnabled) {
@@ -190,6 +190,7 @@ class DeviceKeyGrantType(
         }
 
         // Signature Verification
+        log.debug("Starting signature verification for device={}", deviceId)
         try {
             val publicKeyJwk =
                 lookup.publicJwk?.let { JsonSerialization.writeValueAsString(TreeMap(it)) }
@@ -251,6 +252,7 @@ class DeviceKeyGrantType(
         log.debug("Signature verified for device {} bound to user {}", deviceId, user.id)
 
         // Create Session
+        log.debug("Creating user session for deviceId={} userId={}", deviceId, user.id)
         val sessionId = deviceId.ifBlank { UUID.randomUUID().toString() }
         val userSession =
             session.sessions().getUserSession(realm, sessionId)
@@ -272,6 +274,7 @@ class DeviceKeyGrantType(
         log.debug("Created user session {} for grant user {}", userSession.id, user.id)
 
         // Add JKT to session notes
+        log.debug("Setting cnf.jkt={} on session {}", deviceRecord.jkt, userSession.id)
         userSession.setNote("cnf.jkt", deviceRecord.jkt)
 
         val clientSession = session.sessions().createClientSession(realm, client, userSession)

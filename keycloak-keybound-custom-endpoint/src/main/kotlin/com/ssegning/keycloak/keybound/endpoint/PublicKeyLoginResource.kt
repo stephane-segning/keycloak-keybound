@@ -85,11 +85,14 @@ class PublicKeyLoginResource(
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     fun login(request: PublicKeyLoginRequest?): Response {
+        log.debug("Public key login request received")
         if (request == null) {
+            log.warn("Public key login request body is null")
             return badRequest("Invalid JSON body")
         }
 
         val realm = session.context.realm
+        log.debug("Processing public key login for realm={}", realm.name)
         val deviceId = request.deviceId.normalize()
         val publicKeyJwk = request.publicKey.normalize()
         val nonce = request.nonce.normalize()
@@ -111,8 +114,11 @@ class PublicKeyLoginResource(
                 "device_model".takeIf { deviceModel == null },
             )
         if (missing.isNotEmpty()) {
+            log.warn("Missing required fields: {}", missing.joinToString(", "))
             return badRequest("Missing required fields: ${missing.joinToString(", ")}")
         }
+
+        log.debug("Request fields validated deviceId={} deviceOs={} deviceModel={}", deviceId, deviceOs, deviceModel)
 
         val deviceIdValue = deviceId ?: return badRequest("Missing required fields: device_id")
         val publicKeyJwkValue = publicKeyJwk ?: return badRequest("Missing required fields: public_key")
@@ -141,29 +147,39 @@ class PublicKeyLoginResource(
 
         val ttl = resolveTtlSeconds(realm.name)
         val powDifficulty = resolvePowDifficulty(realm.name)
+        log.debug("TTL={} powDifficulty={} realm={}", ttl, powDifficulty, realm.name)
         if (powDifficulty > 0) {
+            log.debug("Verifying proof-of-work for deviceId={}", deviceIdValue)
             val powNonceValue = powNonce ?: return badRequest("Missing required fields: pow_nonce")
             if (!verifyPow(realm.name, deviceIdValue, tsStrValue, nonceValue, powNonceValue, powDifficulty)) {
+                log.warn("PoW verification failed for deviceId={} powNonce={}", deviceIdValue, powNonceValue)
                 return unauthorized("Invalid proof-of-work")
             }
+            log.debug("PoW verification passed for deviceId={}", deviceIdValue)
         }
         val ts = tsStrValue.toLongOrNull() ?: return badRequest("Invalid timestamp")
         val now = Time.currentTimeMillis() / 1000
+        log.debug("Timestamp check provided={} current={} diff={}", ts, now, abs(now - ts))
         if (abs(now - ts) > ttl) {
+            log.warn("Timestamp expired for deviceId={} provided={} current={}", deviceIdValue, ts, now)
             return unauthorized("Timestamp expired")
         }
 
         val singleUse = session.getProvider(SingleUseObjectProvider::class.java)
         val nonceKey = "$NONCE_KEY_PREFIX:${realm.name}:$nonceValue"
+        log.debug("Checking nonce replay key={}", nonceKey)
         if (!singleUse.putIfAbsent(nonceKey, ttl)) {
+            log.warn("Nonce replay detected for deviceId={} nonce={}", deviceIdValue, nonceValue)
             return unauthorized("Nonce replay detected")
         }
 
         val signatureBytes = decodeBase64OrBase64Url(sigValue) ?: return badRequest("Malformed signature encoding")
         if (signatureBytes.size != 64) {
+            log.warn("Invalid signature format size={} expected=64 for deviceId={}", signatureBytes.size, deviceIdValue)
             return badRequest("Invalid signature format: expected compact ES256 (64 bytes)")
         }
 
+        log.debug("Parsing public JWK for deviceId={}", deviceIdValue)
         val parsedJwk =
             try {
                 JWKParser.create().parse(publicKeyJwkValue)
@@ -195,17 +211,21 @@ class PublicKeyLoginResource(
                     algorithm = Algorithm.ES256
                 },
             )
+        log.debug("Verifying signature for deviceId={}", deviceIdValue)
         if (!verifier.verify(canonicalPayload.toByteArray(Charsets.UTF_8), signatureBytes)) {
+            log.warn("Signature verification failed for deviceId={}", deviceIdValue)
             return unauthorized("Invalid signature")
         }
+        log.debug("Signature verified successfully for deviceId={}", deviceIdValue)
 
         val jkt =
             try {
                 computeJkt(publicKeyJwkValue)
             } catch (e: Exception) {
-                log.error("Malformed public_key JWK", e)
+                log.error("Failed to compute JKT for deviceId={}", deviceIdValue, e)
                 return badRequest("Invalid public_key thumbprint data")
             }
+        log.debug("Computed JKT={} for deviceId={}", jkt, deviceIdValue)
         val publicJwkMap =
             try {
                 parsePublicJwk(publicKeyJwkValue)
@@ -215,12 +235,17 @@ class PublicKeyLoginResource(
             }
 
         // Some backends answer 404 for first-time lookups; treat null as "not found" at this pre-bind stage.
+        log.debug("Looking up device deviceId={} jkt={}", deviceIdValue, jkt)
         val lookupByDevice = apiGateway.lookupDevice(deviceId = deviceIdValue) ?: DeviceLookupResult(found = false)
         val lookupByJkt = apiGateway.lookupDevice(jkt = jkt) ?: DeviceLookupResult(found = false)
+        log.debug("Device lookup results: byDevice={} byJkt={}", lookupByDevice.found, lookupByJkt.found)
 
         if (lookupByDevice.found || lookupByJkt.found) {
+            log.warn("Device already associated deviceId={} jkt={}", deviceIdValue, jkt)
             return conflict("Device or key is already associated with a user")
         }
+
+        log.debug("Resolving or creating user for deviceId={} realm={}", deviceIdValue, realm.name)
 
         val userResolution =
             resolveOrCreateUser(
@@ -230,13 +255,20 @@ class PublicKeyLoginResource(
                 deviceOs = deviceOsValue,
                 deviceModel = deviceModelValue,
                 deviceAppVersion = deviceAppVersion,
-            ) ?: return internalError("Unable to create user")
+            ) ?: run {
+                log.error("Failed to create user for deviceId={} realm={}", deviceIdValue, realm.name)
+                return internalError("Unable to create user")
+            }
         val user = userResolution.user
         val createdUser = userResolution.created
         val backendUserId = user.id
+        log.debug("User resolved userId={} created={}", backendUserId, createdUser)
+
+        log.debug("Binding device deviceId={} jkt={} to userId={}", deviceIdValue, jkt, backendUserId)
 
         val credentialCreated =
             run {
+                log.debug("Calling enrollmentBindForRealm realm={} userId={}", realm.name, backendUserId)
                 val bound =
                     apiGateway.enrollmentBindForRealm(
                         realmName = realm.name,
@@ -268,8 +300,10 @@ class PublicKeyLoginResource(
                             ),
                     )
                 if (!bound) {
+                    log.error("Enrollment bind failed for deviceId={} userId={}", deviceIdValue, backendUserId)
                     return badGateway("Failed to persist device credential")
                 }
+                log.debug("Enrollment bind succeeded for deviceId={} userId={}", deviceIdValue, backendUserId)
                 true
             }
 
