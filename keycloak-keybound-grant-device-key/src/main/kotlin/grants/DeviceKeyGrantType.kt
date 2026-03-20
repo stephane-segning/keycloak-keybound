@@ -27,7 +27,6 @@ import org.keycloak.util.JsonSerialization
 import org.keycloak.util.TokenUtil
 import org.slf4j.LoggerFactory
 import java.util.*
-import java.util.TreeMap
 import kotlin.math.abs
 
 class DeviceKeyGrantType(
@@ -290,9 +289,20 @@ class DeviceKeyGrantType(
             )
         accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
         accessToken.setOtherClaims("device_id", deviceId)
+
+        val fineractId = user.getFirstAttribute("fineractId")
+        if (fineractId != null) {
+            accessToken.setOtherClaims("fineract_client_id", fineractId)
+        }
+
+        val savingsAccountId = user.getFirstAttribute("savingsAccountId")
+        if (savingsAccountId != null) {
+            accessToken.setOtherClaims("savings_account_id", savingsAccountId)
+        }
+
         val backendCustom =
             backendUserId
-                ?.takeIf { it.isNotBlank() }
+                .takeIf { it.isNotBlank() }
                 ?.let { apiGateway.getUser(it)?.custom }
                 ?.filterKeys { it.isNotBlank() }
         if (!backendCustom.isNullOrEmpty()) {
