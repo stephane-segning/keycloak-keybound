@@ -1,6 +1,6 @@
 ---
 description: Show changes between commits and working tree
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Show git diff of changes:

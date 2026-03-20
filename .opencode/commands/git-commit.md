@@ -1,6 +1,6 @@
 ---
 description: Stage and commit changes
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Stage and commit changes for **$ARGUMENTS**:

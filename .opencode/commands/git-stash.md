@@ -1,6 +1,6 @@
 ---
 description: Stash or apply stashed changes
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Manage git stash:

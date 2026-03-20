@@ -1,6 +1,6 @@
 ---
 description: Create, list, or switch branches
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Manage git branches for **$ARGUMENTS**:

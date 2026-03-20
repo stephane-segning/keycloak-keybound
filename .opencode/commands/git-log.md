@@ -1,6 +1,6 @@
 ---
 description: Show recent commit history
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Show recent commit history:

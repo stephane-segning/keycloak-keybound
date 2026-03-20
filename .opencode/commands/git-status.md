@@ -1,6 +1,6 @@
 ---
 description: Show git status and working tree state
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Show current git status:

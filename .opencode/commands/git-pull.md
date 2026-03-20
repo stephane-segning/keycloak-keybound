@@ -1,6 +1,6 @@
 ---
 description: Pull and integrate remote changes
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Pull and integrate remote changes:

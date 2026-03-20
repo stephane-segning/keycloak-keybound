@@ -1,6 +1,6 @@
 ---
 description: Push commits to remote repository
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Push commits to remote repository:

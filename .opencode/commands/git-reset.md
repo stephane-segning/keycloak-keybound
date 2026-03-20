@@ -1,6 +1,6 @@
 ---
 description: Reset working tree to specific state
-agent: qa-testing-specialist
+agent: keybound-maintainer
 ---
 
 Reset working tree for **$ARGUMENTS**:
