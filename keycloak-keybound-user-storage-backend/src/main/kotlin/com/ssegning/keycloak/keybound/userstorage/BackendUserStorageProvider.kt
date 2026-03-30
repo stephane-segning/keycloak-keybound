@@ -8,10 +8,8 @@ import org.keycloak.component.ComponentModel
 import org.keycloak.models.GroupModel
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.ModelDuplicateException
-import org.keycloak.models.ModelException
 import org.keycloak.models.RealmModel
 import org.keycloak.models.UserModel
-import org.keycloak.models.utils.KeycloakModelUtils
 import org.keycloak.storage.StorageId
 import org.keycloak.storage.UserStorageProvider
 import org.keycloak.storage.user.UserLookupProvider
@@ -121,22 +119,8 @@ class BackendUserStorageProvider(
         realm: RealmModel,
         username: String,
     ): UserModel? {
-        log.debug("Adding backend user {} to realm {}", username, realm.name)
-        val normalizedUsername = KeycloakModelUtils.toLowerCaseSafe(username)
-        val createdUser =
-            apiGateway.createUser(
-                realmName = realm.name,
-                username = normalizedUsername,
-            ) ?: run {
-                log.error(
-                    "Backend user creation failed for username={} realm={}; aborting local fallback",
-                    normalizedUsername,
-                    realm.name,
-                )
-                throw ModelException("Backend user creation failed for username=$normalizedUsername in realm=${realm.name}")
-            }
-        log.info("Created backend user userId={} username={} realm={}", createdUser.userId, normalizedUsername, realm.name)
-        return toUserModel(realm, createdUser)
+        log.debug("addUser called for username={} in realm={} - returning null (user creation should go through enrollment endpoint)", username, realm.name)
+        return null
     }
 
     override fun removeUser(

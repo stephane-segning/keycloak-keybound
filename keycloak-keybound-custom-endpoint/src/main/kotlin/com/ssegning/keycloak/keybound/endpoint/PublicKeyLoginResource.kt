@@ -364,14 +364,32 @@ class PublicKeyLoginResource(
         }
 
         val username = generateTechnicalUsername(deviceId, nonce)
-        val newUser =
-            session.users().addUser(realm, username) ?: run {
-                log.error("Failed to create Keycloak user for device {}", deviceId)
-                return null
-            }
-        newUser.isEnabled = true
-        updateDeviceAttributes(newUser, deviceId, deviceOs, deviceModel, deviceAppVersion)
-        return UserResolution(newUser, created = true)
+        val backendUser =
+            apiGateway.createUser(
+                realmName = realm.name,
+                username = username,
+                enabled = true,
+                attributes =
+                    buildMap {
+                        put(DEVICE_ID_ATTRIBUTE, deviceId)
+                        put(DEVICE_OS_ATTRIBUTE, deviceOs)
+                        put(DEVICE_MODEL_ATTRIBUTE, deviceModel)
+                        deviceAppVersion?.let { put(DEVICE_APP_VERSION_ATTRIBUTE, it) }
+                    },
+            )
+        if (backendUser == null) {
+            log.error("Failed to create backend user via API for device {}", deviceId)
+            return null
+        }
+        log.debug("Created backend user userId={} for device {}", backendUser.userId, deviceId)
+
+        val newUser = findSingleUserByAttribute(realm, DEVICE_ID_ATTRIBUTE, deviceId)
+        if (newUser != null) {
+            return UserResolution(newUser, created = true)
+        }
+
+        log.error("Backend user {} created but not resolvable in Keycloak for device {}", backendUser.userId, deviceId)
+        return null
     }
 
     private fun updateDeviceAttributes(
