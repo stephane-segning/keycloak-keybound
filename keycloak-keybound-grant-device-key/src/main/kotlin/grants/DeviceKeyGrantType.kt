@@ -300,6 +300,9 @@ class DeviceKeyGrantType(
         accessToken.issuer(Urls.realmIssuer(session.context.uri.baseUri, realm.name))
         accessToken.setOtherClaims("device_id", deviceId)
 
+        // Force backend's ID, since only the backend users can call this endpoint
+        accessToken.subject(backendUserId)
+
         log.info("All attribute: ${user.attributes}")
         val parametersKyc = JsonPath
             .using(conf)
