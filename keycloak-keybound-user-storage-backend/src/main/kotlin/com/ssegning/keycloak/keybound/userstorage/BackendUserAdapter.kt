@@ -78,12 +78,12 @@ class BackendUserAdapter(
 
     override fun getFirstAttribute(name: String): String? =
         when (name) {
-            UserModel.USERNAME -> effectiveUsername()
-            UserModel.FIRST_NAME -> user.firstName
-            UserModel.LAST_NAME -> user.lastName
-            UserModel.EMAIL -> user.email
-            UserModel.ENABLED -> user.enabled.toString()
-            UserModel.EMAIL_VERIFIED -> user.emailVerified.toString()
+            USERNAME -> effectiveUsername()
+            FIRST_NAME -> user.firstName
+            LAST_NAME -> user.lastName
+            EMAIL -> user.email
+            ENABLED -> user.enabled.toString()
+            EMAIL_VERIFIED -> user.emailVerified.toString()
             BACKEND_USER_ID_ATTRIBUTE -> user.userId
             else -> user.attributes[name]
         }
@@ -95,12 +95,12 @@ class BackendUserAdapter(
 
     override fun getAttributes(): MutableMap<String, MutableList<String>> {
         val attributes = linkedMapOf<String, MutableList<String>>()
-        attributes[UserModel.USERNAME] = mutableListOf(effectiveUsername())
-        user.firstName?.let { attributes[UserModel.FIRST_NAME] = mutableListOf(it) }
-        user.lastName?.let { attributes[UserModel.LAST_NAME] = mutableListOf(it) }
-        user.email?.let { attributes[UserModel.EMAIL] = mutableListOf(it) }
-        attributes[UserModel.ENABLED] = mutableListOf(user.enabled.toString())
-        attributes[UserModel.EMAIL_VERIFIED] = mutableListOf(user.emailVerified.toString())
+        attributes[USERNAME] = mutableListOf(effectiveUsername())
+        user.firstName?.let { attributes[FIRST_NAME] = mutableListOf(it) }
+        user.lastName?.let { attributes[LAST_NAME] = mutableListOf(it) }
+        user.email?.let { attributes[EMAIL] = mutableListOf(it) }
+        attributes[ENABLED] = mutableListOf(user.enabled.toString())
+        attributes[EMAIL_VERIFIED] = mutableListOf(user.emailVerified.toString())
         attributes[BACKEND_USER_ID_ATTRIBUTE] = mutableListOf(user.userId)
         user.attributes.forEach { (key, value) ->
             attributes[key] = mutableListOf(value)
@@ -116,15 +116,15 @@ class BackendUserAdapter(
         value: String?,
     ) {
         when (name) {
-            UserModel.USERNAME -> {
+            USERNAME -> {
                 persistUser(user.copy(username = value?.trim().orEmpty().ifBlank { user.userId }))
             }
 
-            UserModel.FIRST_NAME -> persistUser(user.copy(firstName = value))
-            UserModel.LAST_NAME -> persistUser(user.copy(lastName = value))
-            UserModel.EMAIL -> persistUser(user.copy(email = value?.lowercase()))
-            UserModel.ENABLED -> persistUser(user.copy(enabled = parseBooleanValue(name, value, true)))
-            UserModel.EMAIL_VERIFIED -> persistUser(user.copy(emailVerified = parseBooleanValue(name, value, false)))
+            FIRST_NAME -> persistUser(user.copy(firstName = value))
+            LAST_NAME -> persistUser(user.copy(lastName = value))
+            EMAIL -> persistUser(user.copy(email = value?.lowercase()))
+            ENABLED -> persistUser(user.copy(enabled = parseBooleanValue(name, value, true)))
+            EMAIL_VERIFIED -> persistUser(user.copy(emailVerified = parseBooleanValue(name, value, false)))
             BACKEND_USER_ID_ATTRIBUTE -> Unit
             else -> {
                 val updatedAttributes = user.attributes.toMutableMap()
@@ -147,12 +147,12 @@ class BackendUserAdapter(
 
     override fun removeAttribute(name: String) {
         when (name) {
-            UserModel.USERNAME -> throw ModelException("Username cannot be removed")
-            UserModel.FIRST_NAME -> persistUser(user.copy(firstName = null))
-            UserModel.LAST_NAME -> persistUser(user.copy(lastName = null))
-            UserModel.EMAIL -> persistUser(user.copy(email = null))
-            UserModel.ENABLED -> persistUser(user.copy(enabled = true))
-            UserModel.EMAIL_VERIFIED -> persistUser(user.copy(emailVerified = false))
+            USERNAME -> throw ModelException("Username cannot be removed")
+            FIRST_NAME -> persistUser(user.copy(firstName = null))
+            LAST_NAME -> persistUser(user.copy(lastName = null))
+            EMAIL -> persistUser(user.copy(email = null))
+            ENABLED -> persistUser(user.copy(enabled = true))
+            EMAIL_VERIFIED -> persistUser(user.copy(emailVerified = false))
             BACKEND_USER_ID_ATTRIBUTE -> Unit
             else -> {
                 val updatedAttributes = user.attributes.toMutableMap()

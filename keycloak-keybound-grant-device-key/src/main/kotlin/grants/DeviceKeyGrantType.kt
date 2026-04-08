@@ -94,6 +94,7 @@ class DeviceKeyGrantType(
             )
         }
 
+        log.debug("Got user of type {}", user.javaClass.name)
         val lookup = apiGateway.lookupDevice(deviceId = deviceId)
         log.debug("Lookup result for device {} -> found={} userId={}", deviceId, lookup?.found, lookup?.userId)
         if (lookup == null || !lookup.found) {
