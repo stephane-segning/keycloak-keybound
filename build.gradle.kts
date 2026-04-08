@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.ssegning.keycloak.keybound"
-version = "0.2.5"
+version = "0.2.6"
 
 repositories {
     mavenCentral()
