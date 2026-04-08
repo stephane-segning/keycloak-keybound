@@ -37,36 +37,42 @@ class BackendUserAdapter(
 
     override fun setUsername(username: String) {
         val normalized = username.trim().ifBlank { user.userId }
+        log.debug("Backend user username update requested backendUserId={} from={} to={}", user.userId, user.username, normalized)
         persistUser(user.copy(username = normalized))
     }
 
     override fun getFirstName(): String? = user.firstName
 
     override fun setFirstName(firstName: String?) {
+        log.debug("Backend user firstName update requested backendUserId={} hasValue={}", user.userId, firstName != null)
         persistUser(user.copy(firstName = firstName))
     }
 
     override fun getLastName(): String? = user.lastName
 
     override fun setLastName(lastName: String?) {
+        log.debug("Backend user lastName update requested backendUserId={} hasValue={}", user.userId, lastName != null)
         persistUser(user.copy(lastName = lastName))
     }
 
     override fun getEmail(): String? = user.email
 
     override fun setEmail(email: String?) {
+        log.debug("Backend user email update requested backendUserId={} hasValue={}", user.userId, email != null)
         persistUser(user.copy(email = email?.lowercase()))
     }
 
     override fun isEnabled(): Boolean = user.enabled
 
     override fun setEnabled(enabled: Boolean) {
+        log.debug("Backend user enabled update requested backendUserId={} enabled={}", user.userId, enabled)
         persistUser(user.copy(enabled = enabled))
     }
 
     override fun isEmailVerified(): Boolean = user.emailVerified
 
     override fun setEmailVerified(verified: Boolean) {
+        log.debug("Backend user emailVerified update requested backendUserId={} verified={}", user.userId, verified)
         persistUser(user.copy(emailVerified = verified))
     }
 
@@ -115,6 +121,7 @@ class BackendUserAdapter(
         name: String,
         value: String?,
     ) {
+        log.debug("Backend user attribute update requested backendUserId={} attribute={} hasValue={}", user.userId, name, value != null)
         when (name) {
             USERNAME -> {
                 persistUser(user.copy(username = value?.trim().orEmpty().ifBlank { user.userId }))
@@ -146,6 +153,7 @@ class BackendUserAdapter(
     }
 
     override fun removeAttribute(name: String) {
+        log.debug("Backend user attribute removal requested backendUserId={} attribute={}", user.userId, name)
         when (name) {
             USERNAME -> throw ModelException("Username cannot be removed")
             FIRST_NAME -> persistUser(user.copy(firstName = null))
@@ -177,7 +185,7 @@ class BackendUserAdapter(
         }
 
     private fun persistUser(updatedUser: BackendUser) {
-        log.debug("Persisting backend user {} attribute change", user.userId)
+        log.debug("Persisting backend user backendUserId={} username={} realm={}", user.userId, effectiveUsername(updatedUser), realm.name)
         val persistedUser =
             apiGateway.updateUser(
                 userId = user.userId,
@@ -190,7 +198,7 @@ class BackendUserAdapter(
                 emailVerified = updatedUser.emailVerified,
                 attributes = updatedUser.attributes,
             ) ?: run {
-                log.error("Failed to persist backend user {}", user.userId)
+                log.error("Failed to persist backend user backendUserId={} realm={}", user.userId, realm.name)
                 throw ModelException("Failed to update backend user ${user.userId}")
             }
 
@@ -198,5 +206,6 @@ class BackendUserAdapter(
         createdTimestamp = persistedUser.createdAt
             ?.toEpochMilliseconds()
             ?: createdTimestamp
+        log.debug("Persisted backend user backendUserId={} username={} realm={}", persistedUser.userId, persistedUser.username, realm.name)
     }
 }

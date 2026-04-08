@@ -51,6 +51,16 @@ class DeviceKeyGrantType(
 
         val httpRequest = session.context.httpRequest
         val params = httpRequest.decodedFormParameters
+        log.debug(
+            "Device key grant request clientId={} remoteAddr={} hasDeviceId={} hasUserId={} hasNonce={} hasTs={} hasSig={}",
+            client.clientId,
+            session.context.connection.remoteAddr,
+            params.containsKey("device_id"),
+            params.containsKey("user_id"),
+            params.containsKey("nonce"),
+            params.containsKey("ts"),
+            params.containsKey("sig"),
+        )
 
         if (client.isBearerOnly) {
             event.detail(Details.REASON, "Bearer-only client doesn't have device key")
@@ -71,6 +81,14 @@ class DeviceKeyGrantType(
         val requestPublicKey = params.getFirst("public_key")
 
         if (deviceId == null || tsStr == null || nonce == null || sig == null || userId == null) {
+            log.debug(
+                "Device key grant rejected before validation due to missing params deviceId={} userId={} tsPresent={} noncePresent={} sigPresent={}",
+                deviceId,
+                userId,
+                tsStr != null,
+                nonce != null,
+                sig != null,
+            )
             event.error(Errors.INVALID_REQUEST)
             throw CorsErrorResponseException(
                 cors,
@@ -80,11 +98,11 @@ class DeviceKeyGrantType(
             )
         }
 
-        log.debug("DeviceKeyGrantType invoked userId={} deviceId={} clientId={}", userId, deviceId, client.clientId)
+        log.debug("Device key grant invoked userId={} deviceId={} clientId={}", userId, deviceId, client.clientId)
 
         val user = session.users().getUserById(realm, userId)
         if (user == null || !user.isEnabled) {
-            log.debug("User {} not found or disabled", userId)
+            log.debug("Device key grant user lookup failed userId={} enabled={}", userId, user?.isEnabled)
             event.error(Errors.USER_NOT_FOUND)
             throw CorsErrorResponseException(
                 cors,
@@ -94,10 +112,16 @@ class DeviceKeyGrantType(
             )
         }
 
-        log.debug("Got user of type {}", user.javaClass.name)
         val lookup = apiGateway.lookupDevice(deviceId = deviceId)
-        log.debug("Lookup result for device {} -> found={} userId={}", deviceId, lookup?.found, lookup?.userId)
+        log.debug(
+            "Device lookup completed deviceId={} found={} backendUserId={} hasDeviceRecord={}",
+            deviceId,
+            lookup?.found,
+            lookup?.userId,
+            lookup?.device != null,
+        )
         if (lookup == null || !lookup.found) {
+            log.debug("Device key grant rejected because device was not found deviceId={}", deviceId)
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -117,7 +141,7 @@ class DeviceKeyGrantType(
             }
         if (backendUserId.isNullOrBlank() || backendUserId !in userIdCandidates) {
             log.debug(
-                "Device {} belongs to backend user {} but request user {} not in {}",
+                "Device ownership mismatch deviceId={} backendUserId={} requestUserId={} candidates={}",
                 deviceId,
                 backendUserId,
                 user.id,
@@ -134,7 +158,7 @@ class DeviceKeyGrantType(
 
         val deviceRecord =
             lookup.device ?: run {
-                log.debug("Device metadata for {} missing from lookup", deviceId)
+                log.debug("Device metadata missing from lookup deviceId={}", deviceId)
                 event.error(Errors.INVALID_USER_CREDENTIALS)
                 throw CorsErrorResponseException(
                     cors,
@@ -145,7 +169,7 @@ class DeviceKeyGrantType(
             }
 
         if (deviceRecord.status != DeviceStatus.ACTIVE) {
-            log.debug("Device {} status {} not active", deviceId, deviceRecord.status)
+            log.debug("Device rejected because status is not active deviceId={} status={}", deviceId, deviceRecord.status)
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -165,8 +189,9 @@ class DeviceKeyGrantType(
             )
 
         val currentTime = Time.currentTimeMillis() / 1000
-        log.debug("Timestamp check device={} provided={} current={}", deviceId, ts, currentTime)
+        log.debug("Timestamp check deviceId={} providedTs={} currentTs={} delta={}", deviceId, ts, currentTime, abs(currentTime - ts))
         if (abs(currentTime - ts) > TTL) {
+            log.debug("Device key grant rejected due to expired timestamp deviceId={} providedTs={} currentTs={}", deviceId, ts, currentTime)
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -179,8 +204,9 @@ class DeviceKeyGrantType(
         // Nonce Verification
         val suo = session.getProvider(SingleUseObjectProvider::class.java)
         val nonceKey = "device-grant-replay:${realm.name}:$nonce"
-        log.debug("Checking nonce replay for key {}", nonceKey)
+        log.debug("Checking nonce replay realm={} deviceId={} nonceKey={}", realm.name, deviceId, nonceKey)
         if (!suo.putIfAbsent(nonceKey, TTL)) {
+            log.debug("Nonce replay detected deviceId={} realm={} nonceKey={}", deviceId, realm.name, nonceKey)
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -191,7 +217,7 @@ class DeviceKeyGrantType(
         }
 
         // Signature Verification
-        log.debug("Starting signature verification for device={}", deviceId)
+        log.debug("Starting signature verification deviceId={} hasRequestPublicKey={}", deviceId, requestPublicKey != null)
         try {
             val publicKeyJwk =
                 lookup.publicJwk?.let { JsonSerialization.writeValueAsString(TreeMap(it)) }
@@ -203,7 +229,7 @@ class DeviceKeyGrantType(
                         Response.Status.BAD_REQUEST,
                     )
 
-            log.debug("Verifying signature for device {} jkt={}", deviceId, deviceRecord.jkt)
+            log.debug("Verifying device signature deviceId={} jkt={}", deviceId, deviceRecord.jkt)
             val jwkParser = JWKParser.create().parse(publicKeyJwk)
             val publicKey = jwkParser.toPublicKey()
 
@@ -223,6 +249,8 @@ class DeviceKeyGrantType(
                     Base64.getUrlDecoder().decode(sig)
                 }
 
+            log.debug("Decoded device signature bytes deviceId={} length={}", deviceId, signatureBytes.size)
+
             val key =
                 KeyWrapper().apply {
                     setPublicKey(publicKey)
@@ -231,6 +259,7 @@ class DeviceKeyGrantType(
 
             val verifier = ECDSASignatureVerifierContext(key)
             if (!verifier.verify(data, signatureBytes)) {
+                log.debug("Device signature verification failed deviceId={} jkt={}", deviceId, deviceRecord.jkt)
                 event.error(Errors.INVALID_USER_CREDENTIALS)
                 throw CorsErrorResponseException(
                     cors,
@@ -240,7 +269,7 @@ class DeviceKeyGrantType(
                 )
             }
         } catch (e: Exception) {
-            log.error("Signature verification failed", e)
+            log.error("Signature verification failed deviceId={} userId={}", deviceId, userId, e)
             event.error(Errors.INVALID_USER_CREDENTIALS)
             throw CorsErrorResponseException(
                 cors,
@@ -250,11 +279,11 @@ class DeviceKeyGrantType(
             )
         }
 
-        log.debug("Signature verified for device {} bound to user {}", deviceId, user.id)
+        log.debug("Signature verified deviceId={} userId={} backendUserId={}", deviceId, user.id, backendUserId)
 
         // Create Session
-        log.debug("Creating user session for deviceId={} userId={}", deviceId, user.id)
         val sessionId = deviceId.ifBlank { UUID.randomUUID().toString() }
+        log.debug("Creating user session deviceId={} userId={} sessionIdHint={}", deviceId, user.id, sessionId)
         val userSession =
             session.sessions().getUserSession(realm, sessionId)
                 ?: session
@@ -272,10 +301,10 @@ class DeviceKeyGrantType(
                         UserSessionModel.SessionPersistenceState.PERSISTENT,
                     )
 
-        log.debug("Created user session {} for grant user {}", userSession.id, user.id)
+        log.debug("Created or reused user session userSessionId={} userId={} deviceId={}", userSession.id, user.id, deviceId)
 
         // Add JKT to session notes
-        log.debug("Setting cnf.jkt={} on session {}", deviceRecord.jkt, userSession.id)
+        log.debug("Setting confirmation thumbprint on session userSessionId={} deviceId={}", userSession.id, deviceId)
         userSession.setNote("cnf.jkt", deviceRecord.jkt)
 
         val clientSession = session.sessions().createClientSession(realm, client, userSession)
@@ -288,7 +317,7 @@ class DeviceKeyGrantType(
         updateUserSessionFromClientAuth(userSession)
         val scopeParam = params.getFirst("scope")
         clientSessionCtx.setAttribute(Constants.GRANT_TYPE, context.grantType)
-        log.debug("Minting access token for user={} client={} device={}", user.id, client.clientId, deviceId)
+        log.debug("Minting access token userId={} clientId={} deviceId={}", user.id, client.clientId, deviceId)
         val accessToken =
             tokenManager.createClientAccessToken(
                 session,
@@ -304,13 +333,12 @@ class DeviceKeyGrantType(
         // Force backend's ID, since only the backend users can call this endpoint
         accessToken.subject(backendUserId)
 
-        log.info("All attribute: ${user.attributes}")
         val parametersKyc = JsonPath
             .using(conf)
             .parse(user.attributes)
 
         val parametersFirst: String? = parametersKyc.read("$.parameters[0]")
-        log.debug("Parameters First {}", parametersFirst)
+        log.debug("Token enrichment parameters present userId={} hasParameters={}", user.id, parametersFirst != null)
 
         if (parametersFirst != null) {
             val documentKyc = JsonPath
@@ -318,13 +346,13 @@ class DeviceKeyGrantType(
                 .parse(parametersFirst)
 
             val fineractId: Serializable? = documentKyc.read("$.fineractId.content")
-            log.debug("Fineract ID: {}", fineractId)
+            log.debug("Token enrichment fineractId present userId={} present={}", user.id, fineractId != null)
             if (fineractId != null) {
                 accessToken.setOtherClaims("fineract_client_id", fineractId)
             }
 
             val savingsAccountId: Serializable? = documentKyc.read("$.savingsAccountId.content")
-            log.debug("Savings AccountId ID: {}", savingsAccountId)
+            log.debug("Token enrichment savingsAccountId present userId={} present={}", user.id, savingsAccountId != null)
             if (savingsAccountId != null) {
                 accessToken.setOtherClaims("savings_account_id", savingsAccountId)
             }
@@ -343,7 +371,7 @@ class DeviceKeyGrantType(
             responseBuilder.generateIDToken().generateAccessTokenHash()
         }
 
-        log.debug("Device key grant succeeded user={} device={} scope={}", user.id, deviceId, scopeParam)
+        log.debug("Device key grant succeeded userId={} deviceId={} scope={}", user.id, deviceId, scopeParam)
         return createTokenResponse(responseBuilder, clientSessionCtx, false)
     }
 }
